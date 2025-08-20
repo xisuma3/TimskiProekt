@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { Form, Button, Container, Row, Col, Alert } from 'react-bootstrap';
-import { login, fetchUserDetails } from '../services/authService';
+import { login, fetchEmployeeDetails } from '../services/authService';
 
 const LoginPage = () => {
   const [email, setEmail] = useState('');
@@ -12,14 +12,22 @@ const LoginPage = () => {
     setError('');
     try {
       const data = await login(email, password);
-      localStorage.setItem('token', data.token); // Adjust if your backend returns a different property
+      localStorage.setItem('token', data.token);
       
-      // Fetch user details if userId is provided
+      // Store login response data immediately
+      const userInfo = {
+        email: data.email,
+        roles: data.roles,
+        userId: data.userId
+      };
+      localStorage.setItem('userInfo', JSON.stringify(userInfo));
+      
+      // Fetch employee details for the logged-in user
       if (data.userId) {
-        await fetchUserDetails(data.userId);
+        await fetchEmployeeDetails(data.userId);
       }
       
-      window.location.href = '/employees'; // Redirect to employees page
+      window.location.href = '/dashboard';
     } catch (err) {
       setError('Invalid credentials or server error.');
     }

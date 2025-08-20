@@ -20,11 +20,19 @@ const SidebarLayout = () => {
             <Nav className="flex-column">
               <Nav.Link 
                 as={Link} 
+                to="/dashboard" 
+                className={`text-light mb-2 ${location.pathname === '/dashboard' ? 'active' : ''}`}
+                style={location.pathname === '/dashboard' ? { backgroundColor: '#6366F1', borderRadius: '5px' } : {}}
+              >
+                <i className="bi bi-speedometer2 me-2"></i>Dashboard
+              </Nav.Link>
+              <Nav.Link 
+                as={Link} 
                 to="/employees" 
                 className={`text-light mb-2 ${location.pathname === '/employees' ? 'active' : ''}`}
                 style={location.pathname === '/employees' ? { backgroundColor: '#6366F1', borderRadius: '5px' } : {}}
               >
-                Employees
+                <i className="bi bi-people me-2"></i>Employees
               </Nav.Link>
               <Nav.Link 
                 as={Link} 
@@ -32,7 +40,7 @@ const SidebarLayout = () => {
                 className={`text-light mb-2 ${location.pathname === '/departments' ? 'active' : ''}`}
                 style={location.pathname === '/departments' ? { backgroundColor: '#6366F1', borderRadius: '5px' } : {}}
               >
-                Departments
+                <i className="bi bi-building me-2"></i>Departments
               </Nav.Link>
               <Nav.Link 
                 as={Link} 
@@ -40,7 +48,23 @@ const SidebarLayout = () => {
                 className={`text-light mb-2 ${location.pathname === '/assets' ? 'active' : ''}`}
                 style={location.pathname === '/assets' ? { backgroundColor: '#6366F1', borderRadius: '5px' } : {}}
               >
-                Assets
+                <i className="bi bi-laptop me-2"></i>Assets
+              </Nav.Link>
+              <Nav.Link 
+                as={Link} 
+                to="/leave-requests" 
+                className={`text-light mb-2 ${location.pathname === '/leave-requests' ? 'active' : ''}`}
+                style={location.pathname === '/leave-requests' ? { backgroundColor: '#6366F1', borderRadius: '5px' } : {}}
+              >
+                <i className="bi bi-calendar-check me-2"></i>Leave Requests
+              </Nav.Link>
+              <Nav.Link 
+                as={Link} 
+                to="/employee-dossiers" 
+                className={`text-light mb-2 ${location.pathname === '/employee-dossiers' ? 'active' : ''}`}
+                style={location.pathname === '/employee-dossiers' ? { backgroundColor: '#6366F1', borderRadius: '5px' } : {}}
+              >
+                <i className="bi bi-file-person me-2"></i>Employee Dossiers
               </Nav.Link>
               <Nav.Link 
                 as={Link} 
@@ -48,7 +72,7 @@ const SidebarLayout = () => {
                 className={`text-light mb-2 ${location.pathname === '/documents' ? 'active' : ''}`}
                 style={location.pathname === '/documents' ? { backgroundColor: '#6366F1', borderRadius: '5px' } : {}}
               >
-                Documents
+                <i className="bi bi-file-earmark-text me-2"></i>Documents
               </Nav.Link>
             </Nav>
           </Col>

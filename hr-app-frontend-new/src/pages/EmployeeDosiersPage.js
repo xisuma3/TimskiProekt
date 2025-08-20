@@ -1,108 +1,88 @@
 import React, { useState, useEffect } from 'react';
 import { Card, Button, ButtonGroup, Modal } from 'react-bootstrap';
 import DataPage from '../components/DataPage';
-import EmployeeModal from '../components/EmployeeModal';
+import EmployeeDossierModal from '../components/EmployeeDossierModal';
 import { authenticatedFetch } from '../services/authService';
 import { API_URLS } from '../config/api';
 
-const EmployeesPage = () => {
+const EmployeeDosiersPage = () => {
   const [showModal, setShowModal] = useState(false);
-  const [editingEmployee, setEditingEmployee] = useState(null);
-  const [departments, setDepartments] = useState([]);
+  const [editingDossier, setEditingDossier] = useState(null);
+  const [employees, setEmployees] = useState([]);
   const [showDeleteModal, setShowDeleteModal] = useState(false);
-  const [employeeToDelete, setEmployeeToDelete] = useState(null);
+  const [dossierToDelete, setDossierToDelete] = useState(null);
 
-  // Fetch departments for the dropdown
   useEffect(() => {
-    authenticatedFetch(API_URLS.DEPARTMENTS.GET_ALL())
+    authenticatedFetch(API_URLS.EMPLOYEES.GET_ALL())
       .then(response => response.json())
-      .then(data => setDepartments(data))
-      .catch(err => console.error('Failed to fetch departments:', err));
+      .then(data => setEmployees(data))
+      .catch(err => console.error('Failed to fetch employees:', err));
   }, []);
 
   const handleAddClick = () => {
-    setEditingEmployee(null);
+    setEditingDossier(null);
     setShowModal(true);
   };
 
-  const handleEditClick = (employee) => {
-    setEditingEmployee(employee);
+  const handleEditClick = (dossier) => {
+    setEditingDossier(dossier);
     setShowModal(true);
   };
 
-  const handleDeleteClick = (employee) => {
-    setEmployeeToDelete(employee);
+  const handleDeleteClick = (dossier) => {
+    setDossierToDelete(dossier);
     setShowDeleteModal(true);
   };
 
   const handleDeleteConfirm = async () => {
     try {
       const response = await authenticatedFetch(
-        API_URLS.EMPLOYEES.DELETE(employeeToDelete.employeeID),
+        API_URLS.EMPLOYEE_DOSSIERS.DELETE(dossierToDelete.dossierID),
         { method: 'DELETE' }
       );
       
       if (response.ok) {
-        // Refresh the page data by triggering a re-render
         window.location.reload();
       } else {
-        throw new Error('Failed to delete employee');
+        throw new Error('Failed to delete dossier');
       }
     } catch (error) {
       console.error('Delete error:', error);
-      alert('Failed to delete employee');
+      alert('Failed to delete dossier');
     } finally {
       setShowDeleteModal(false);
-      setEmployeeToDelete(null);
+      setDossierToDelete(null);
     }
   };
 
-  const handleSave = (savedEmployee) => {
-    // Refresh the page data
-    window.location.reload();
-  };
-
-  const renderEmployeeCard = (emp) => (
+  const renderDossierCard = (dossier) => (
     <Card className="shadow" style={{ backgroundColor: '#1E293B', borderColor: '#6366F1', color: 'white' }}>
       <Card.Body>
         <Card.Title style={{ color: '#6366F1' }}>
-          {emp.firstName} {emp.lastName}
+          {dossier.employeeName}
         </Card.Title>
         <Card.Subtitle className="mb-2" style={{ color: '#94A3B8' }}>
-          {emp.position} | {emp.departmentName || emp.name || 'No Department'}
+          {dossier.employmentType} Employee
         </Card.Subtitle>
         <Card.Text>
-          <strong>Email:</strong> {emp.email}
-          <br />
-          <strong>Hire Date:</strong> {new Date(emp.hireDate).toLocaleDateString()}
-          <br />
-          {emp.managerName && (
-            <>
-              <strong>Manager:</strong> {emp.managerName}
-              <br />
-            </>
-          )}
-          {emp.mentorName && (
-            <>
-              <strong>Mentor:</strong> {emp.mentorName}
-              <br />
-            </>
-          )}
+          <strong>Birth Date:</strong> {dossier.birthDate ? new Date(dossier.birthDate).toLocaleDateString() : 'Not specified'}<br/>
+          <strong>Address:</strong> {dossier.address || 'Not specified'}<br/>
+          <strong>Emergency Contact:</strong> {dossier.emergencyContact || 'Not specified'}<br/>
+          <strong>Employment Type:</strong> {dossier.employmentType}
         </Card.Text>
         
-        {/* Action Buttons */}
         <div className="d-flex justify-content-end mt-3">
           <ButtonGroup size="sm">
             <Button
               variant="outline-primary"
-              onClick={() => handleEditClick(emp)}
+              onClick={() => handleEditClick(dossier)}
               style={{ borderColor: '#6366F1', color: '#6366F1' }}
             >
               <i className="bi bi-pencil"></i>
             </Button>
             <Button
               variant="outline-danger"
-              onClick={() => handleDeleteClick(emp)}
+              onClick={() => handleDeleteClick(dossier)}
               style={{ borderColor: '#dc3545', color: '#dc3545' }}
             >
               <i className="bi bi-trash"></i>
@@ -116,31 +96,29 @@ const EmployeesPage = () => {
   return (
     <>
       <DataPage
-        title="Employee Directory"
-        apiEndpoint={API_URLS.EMPLOYEES.GET_ALL()}
-        searchFields={['firstName', 'lastName', 'email', 'departmentName']}
-        renderCard={renderEmployeeCard}
-        searchPlaceholder="Search employees..."
+        title="Employee Dossiers"
+        apiEndpoint={API_URLS.EMPLOYEE_DOSSIERS.GET_ALL()}
+        searchFields={['employeeName', 'employmentType', 'address']}
+        renderCard={renderDossierCard}
+        searchPlaceholder="Search employee dossiers..."
         showAddButton={true}
         onAddClick={handleAddClick}
       />
 
-      {/* Add/Edit Modal */}
-      <EmployeeModal
+      <EmployeeDossierModal
         show={showModal}
         onHide={() => setShowModal(false)}
-        employee={editingEmployee}
-        onSave={handleSave}
-        departments={departments}
+        dossier={editingDossier}
+        onSave={() => window.location.reload()}
+        employees={employees}
       />
 
-      {/* Delete Confirmation Modal */}
       <Modal show={showDeleteModal} onHide={() => setShowDeleteModal(false)} centered>
         <Modal.Header closeButton style={{ backgroundColor: '#1E293B', color: 'white', borderColor: '#dc3545' }}>
           <Modal.Title>Confirm Delete</Modal.Title>
         </Modal.Header>
         <Modal.Body style={{ backgroundColor: '#0F172A', color: 'white' }}>
-          Are you sure you want to delete {employeeToDelete?.firstName} {employeeToDelete?.lastName}?
+          Are you sure you want to delete the dossier for {dossierToDelete?.employeeName}?
           <br />
           <small className="text-muted">This action cannot be undone.</small>
         </Modal.Body>
@@ -157,4 +135,4 @@ const EmployeesPage = () => {
   );
 };
 
-export default EmployeesPage;
+export default EmployeeDosiersPage;

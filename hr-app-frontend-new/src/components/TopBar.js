@@ -18,7 +18,9 @@ const TopBar = () => {
           ? `${storedUserInfo.firstName} ${storedUserInfo.lastName}`
           : storedUserInfo.email || 'User',
         email: storedUserInfo.email || '',
-        role: storedUserInfo.role || storedUserInfo.position || 'Employee'
+        role: storedUserInfo.roles && storedUserInfo.roles.length > 0 
+          ? storedUserInfo.roles[0] 
+          : storedUserInfo.position || 'Employee'
       });
     }
   }, []);
