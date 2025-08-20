@@ -17,15 +17,18 @@ namespace HrApp.Service.Implementation
         private readonly IGeneratedDocumentRepository _documentRepository;
         private readonly IEmployeeRepository _employeeRepository;
         private readonly IDocumentTemplateRepository _templateRepository;
+        private readonly ITemplateProcessingService _templateProcessingService;
 
         public GeneratedDocumentService(
             IGeneratedDocumentRepository documentRepository,
             IEmployeeRepository employeeRepository,
-            IDocumentTemplateRepository templateRepository)
+            IDocumentTemplateRepository templateRepository,
+            ITemplateProcessingService templateProcessingService)
         {
             _documentRepository = documentRepository;
             _employeeRepository = employeeRepository;
             _templateRepository = templateRepository;
+            _templateProcessingService = templateProcessingService;
         }
 
         public async Task<IEnumerable<GeneratedDocumentResponseDto>> GetAllAsync()
@@ -64,12 +67,19 @@ namespace HrApp.Service.Implementation
             if (template == null)
                 throw new ArgumentException("Template not found");
 
+            // Process template to generate content
+            var processedContent = await _templateProcessingService.ProcessTemplateAsync(
+                dto.TemplateID, 
+                dto.EmployeeID, 
+                dto.AssetIDs);
+
             var document = new GeneratedDocument
             {
                 EmployeeID = dto.EmployeeID,
                 TemplateID = dto.TemplateID,
-                Content = dto.Content,
-                AssetIDs = dto.AssetIDsJson
+                Content = processedContent,
+                AssetIDs = dto.AssetIDsJson,
+                GeneratedDate = DateTime.UtcNow
             };
 
             var created = await _documentRepository.AddAsync(document);

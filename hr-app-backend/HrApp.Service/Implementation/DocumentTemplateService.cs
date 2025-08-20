@@ -112,6 +112,7 @@ namespace HrApp.Service.Implementation
                 TemplateID = template.TemplateID,
                 TemplateName = template.TemplateName,
                 Description = template.Description,
+                TemplateContent = template.TemplateContent,
                 TemplateType = template.TemplateType,
                 LastModifiedDate = GetLastModifiedDate(template),
                 GeneratedDocumentsCount = template.GeneratedDocuments?.Count ?? 0

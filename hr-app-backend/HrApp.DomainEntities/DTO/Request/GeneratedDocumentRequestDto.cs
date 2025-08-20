@@ -16,9 +16,6 @@ namespace HrApp.DomainEntities.DTO.Request
         [Required]
         public Guid TemplateID { get; set; }
 
-        [Required]
-        public string Content { get; set; }
-
         public List<Guid> AssetIDs { get; set; } = new List<Guid>();
 
         public string AssetIDsJson => JsonSerializer.Serialize(AssetIDs);

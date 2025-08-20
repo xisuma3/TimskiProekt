@@ -58,14 +58,16 @@ namespace HrAppWebApplication.Controllers
                 // Create the Employee record linked to this ApplicationUser
                 var employeeDto = new EmployeeRequestDto
                 {
-                    // Fill in Employee fields here, at least the ApplicationUserId
                     ApplicationUserId = user.Id,
                     Email = user.Email,
-                    FirstName = user.UserName,
-                    LastName = "",
-                    PasswordHash = "",
-
-                    // You can add other defaults or data from `model` if you have it
+                    // Use provided employee details or defaults
+                    FirstName = !string.IsNullOrEmpty(model.FirstName) ? model.FirstName : user.UserName,
+                    LastName = model.LastName ?? "",
+                    Position = model.Position ?? "",
+                    DepartmentID = model.DepartmentID,
+                    HireDate = model.HireDate ?? DateTime.Now,
+                    ManagerID = null,
+                    MentorID = null
                 };
 
                 var createdEmployee = await _employeeService.AddAsync(employeeDto);
@@ -77,8 +79,13 @@ namespace HrAppWebApplication.Controllers
                     EmployeeId = createdEmployee.EmployeeID
                 });
             }
-
+            
             return BadRequest(result.Errors);
+            /*return Ok(new
+            {
+                Message = "User created successfully!",
+                UserId = user.Id
+            });*/
         }
 
         // --- User Login Endpoint ---

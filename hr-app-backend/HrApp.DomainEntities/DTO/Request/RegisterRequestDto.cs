@@ -16,5 +16,12 @@ namespace HrApp.DomainEntities.DTO.Request
         [Required]
         [StringLength(100, MinimumLength = 6)]
         public string Password { get; set; }
+
+        // Additional employee fields - optional for backward compatibility
+        public string FirstName { get; set; }
+        public string LastName { get; set; }
+        public string Position { get; set; }
+        public Guid? DepartmentID { get; set; }
+        public DateTime? HireDate { get; set; }
     }
 }

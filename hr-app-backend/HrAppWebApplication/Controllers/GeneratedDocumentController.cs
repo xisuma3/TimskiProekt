@@ -41,7 +41,7 @@ namespace HrAppWebApplication.Controllers
             return Ok(await _service.GetByTemplateIdAsync(templateId));
         }
 
-        [HttpGet("{id}/content")]
+        [HttpGet("{id}")]
         public async Task<ActionResult<string>> GetContent(Guid id)
         {
             var content = await _service.GetDocumentContentAsync(id);

@@ -67,7 +67,7 @@ builder.Services.AddScoped<IDepartmentService, DepartmentService>();
 builder.Services.AddScoped<IEmployeeRepository, EmployeeRepository>();
 builder.Services.AddScoped<IEmployeeService, EmployeeService>();
 
-// Commented out as discussed:
+// Commented out as these classes are not properly implemented
 // builder.Services.AddScoped<IUserRepository, UserRepository>();
 // builder.Services.AddScoped<IUserService, UserService>();
 
@@ -85,6 +85,8 @@ builder.Services.AddScoped<IDocumentTemplateService, DocumentTemplateService>();
 
 builder.Services.AddScoped<IGeneratedDocumentRepository, GeneratedDocumentRepository>();
 builder.Services.AddScoped<IGeneratedDocumentService, GeneratedDocumentService>();
+
+builder.Services.AddScoped<ITemplateProcessingService, TemplateProcessingService>();
 
 builder.Services.AddControllers()
     .AddJsonOptions(options =>
@@ -125,7 +127,7 @@ builder.Services.AddCors(options =>
     options.AddPolicy(name: MyAllowSpecificOrigins,
                       policy =>
                       {
-                          policy.WithOrigins("http://localhost:5173")
+                          policy.WithOrigins("http://localhost:3000")
                           .AllowAnyHeader()
                           .AllowAnyMethod();
                       });
@@ -143,6 +145,8 @@ if (app.Environment.IsDevelopment())
 }
 
 app.UseHttpsRedirection();
+
+app.UseCors(MyAllowSpecificOrigins);
 
 app.UseRouting();
 

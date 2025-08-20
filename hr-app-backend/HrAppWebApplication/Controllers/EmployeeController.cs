@@ -32,7 +32,7 @@ namespace HrAppWebApplication.Controllers
 
         [HttpPost]
         public async Task<ActionResult<EmployeeResponseDto>> Create([FromBody] EmployeeRequestDto dto)
-        {
+        {   
             var created = await _service.AddAsync(dto);
             return CreatedAtAction(nameof(GetById), new { id = created.EmployeeID }, created);
         }
