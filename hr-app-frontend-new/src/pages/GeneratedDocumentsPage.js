@@ -4,6 +4,7 @@ import { useState } from 'react';
 import DataPage from '../components/DataPage';
 import DocumentGenerationModal from '../components/DocumentGenerationModal';
 import { API_URLS } from '../config/api';
+import { isAdmin } from '../services/authService';
 
 const GeneratedDocumentsPage = () => {
   const [viewingDocument, setViewingDocument] = useState(null);
@@ -46,7 +47,7 @@ const GeneratedDocumentsPage = () => {
             {document.documentType || 'Unknown'}
           </Badge>
           <br />
-          <strong>Employee:</strong> {document.employeeName}
+          <strong>Employee:</strong> {isAdmin() ? document.employeeName : 'My Document'}
           <br />
           <strong>Generated:</strong> {new Date(document.generatedDate).toLocaleDateString()}
           <br />
@@ -94,16 +95,16 @@ const GeneratedDocumentsPage = () => {
     }
   };
 
-  const apiEndpoint = API_URLS.GENERATED_DOCUMENTS.GET_ALL();
+  const apiEndpoint = isAdmin() ? API_URLS.GENERATED_DOCUMENTS.GET_ALL() : API_URLS.GENERATED_DOCUMENTS.GET_MY_DOCUMENTS();
 
   return (
     <>
       <DataPage
-        title="Generated Documents"
+        title={isAdmin() ? "Generated Documents" : "My Generated Documents"}
         apiEndpoint={apiEndpoint}
-        searchFields={['templateName', 'employeeName', 'documentType']}
+        searchFields={isAdmin() ? ['templateName', 'employeeName', 'documentType'] : ['templateName', 'documentType']}
         renderCard={renderDocumentCard}
-        searchPlaceholder="Search documents..."
+        searchPlaceholder={isAdmin() ? "Search documents..." : "Search my documents..."}
         createButtonText="Generate Document"
         modalComponent={DocumentGenerationModal}
         onDelete={handleDelete}

@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { Modal, Button, Form, Row, Col, Alert } from 'react-bootstrap';
-import { authenticatedFetch, getUserInfo } from '../services/authService';
+import { authenticatedFetch, getUserInfo, isAdmin } from '../services/authService';
 import { API_URLS } from '../config/api';
 
 const LeaveRequestModal = ({ show, onHide, employees = [], onSave }) => {
@@ -12,19 +12,32 @@ const LeaveRequestModal = ({ show, onHide, employees = [], onSave }) => {
   });
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
-  const [userInfo] = useState(getUserInfo());
+  const [userInfo, setUserInfo] = useState(getUserInfo());
 
   const leaveTypes = ['Vacation', 'Sick', 'Parental', 'Unpaid'];
 
   useEffect(() => {
-    if (show && userInfo?.employeeID) {
-      setFormData(prev => ({
-        ...prev,
-        employeeID: userInfo.employeeID
-      }));
+    if (show) {
+      // Get fresh userInfo from localStorage when modal opens
+      const freshUserInfo = getUserInfo();
+      setUserInfo(freshUserInfo);
+      
+      if (!isAdmin() && freshUserInfo?.employeeId) {
+        // For employees, always set their own employee ID
+        setFormData(prev => ({
+          ...prev,
+          employeeID: freshUserInfo.employeeId
+        }));
+      } else if (isAdmin()) {
+        // For admins, reset to empty (they need to select)
+        setFormData(prev => ({
+          ...prev,
+          employeeID: ''
+        }));
+      }
     }
     setError('');
-  }, [show, userInfo]);
+  }, [show]);
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -53,8 +66,9 @@ const LeaveRequestModal = ({ show, onHide, employees = [], onSave }) => {
 
       onSave();
       onHide();
+      const freshUserInfo = getUserInfo();
       setFormData({
-        employeeID: userInfo?.employeeID || '',
+        employeeID: freshUserInfo?.employeeId || '',
         startDate: '',
         endDate: '',
         leaveType: ''
@@ -91,26 +105,28 @@ const LeaveRequestModal = ({ show, onHide, employees = [], onSave }) => {
         
         <Form onSubmit={handleSubmit}>
           <Row>
-            <Col md={6}>
-              <Form.Group className="mb-3">
-                <Form.Label>Employee *</Form.Label>
-                <Form.Select
-                  name="employeeID"
-                  value={formData.employeeID}
-                  onChange={handleChange}
-                  required
-                  style={{ backgroundColor: '#1E293B', color: 'white', borderColor: '#6366F1' }}
-                >
-                  <option value="">Select Employee</option>
-                  {employees.map(emp => (
-                    <option key={emp.employeeID} value={emp.employeeID}>
-                      {emp.firstName} {emp.lastName}
-                    </option>
-                  ))}
-                </Form.Select>
-              </Form.Group>
-            </Col>
-            <Col md={6}>
+            {isAdmin() && (
+              <Col md={6}>
+                <Form.Group className="mb-3">
+                  <Form.Label>Employee *</Form.Label>
+                  <Form.Select
+                    name="employeeID"
+                    value={formData.employeeID}
+                    onChange={handleChange}
+                    required
+                    style={{ backgroundColor: '#1E293B', color: 'white', borderColor: '#6366F1' }}
+                  >
+                    <option value="">Select Employee</option>
+                    {employees.map(emp => (
+                      <option key={emp.employeeID} value={emp.employeeID}>
+                        {emp.firstName} {emp.lastName}
+                      </option>
+                    ))}
+                  </Form.Select>
+                </Form.Group>
+              </Col>
+            )}
+            <Col md={isAdmin() ? 6 : 12}>
               <Form.Group className="mb-3">
                 <Form.Label>Leave Type *</Form.Label>
                 <Form.Select

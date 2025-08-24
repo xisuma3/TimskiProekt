@@ -228,6 +228,13 @@ const RegisterPage = () => {
               >
                 {loading ? 'Registering...' : 'Register'}
               </Button>
+              
+              <div className="text-center mt-3">
+                <small className="text-muted">
+                  <i className="bi bi-info-circle"></i> By default, an Employee account will be created. 
+                  Contact your HR representative or administrator to create an Admin account.
+                </small>
+              </div>
             </Form>
           </Col>
         </Row>

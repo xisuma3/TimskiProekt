@@ -2,7 +2,8 @@ import React, { useState, useEffect } from 'react';
 import { Card, Button, Badge, ButtonGroup, Modal } from 'react-bootstrap';
 import DataPage from '../components/DataPage';
 import LeaveRequestModal from '../components/LeaveRequestModal';
-import { authenticatedFetch, getUserInfo } from '../services/authService';
+import RoleBasedContent from '../components/RoleBasedContent';
+import { authenticatedFetch, getUserInfo, isAdmin } from '../services/authService';
 import { API_URLS } from '../config/api';
 
 const LeaveRequestsPage = () => {
@@ -13,10 +14,13 @@ const LeaveRequestsPage = () => {
   const [userInfo] = useState(getUserInfo());
 
   useEffect(() => {
-    authenticatedFetch(API_URLS.EMPLOYEES.GET_ALL())
-      .then(response => response.json())
-      .then(data => setEmployees(data))
-      .catch(err => console.error('Failed to fetch employees:', err));
+    // Only admins need employee list for leave request management
+    if (isAdmin()) {
+      authenticatedFetch(API_URLS.EMPLOYEES.GET_ALL())
+        .then(response => response.json())
+        .then(data => setEmployees(data))
+        .catch(err => console.error('Failed to fetch employees:', err));
+    }
   }, []);
 
   const handleAddClick = () => {
@@ -73,7 +77,7 @@ const LeaveRequestsPage = () => {
       <Card.Body>
         <div className="d-flex justify-content-between align-items-start mb-2">
           <Card.Title style={{ color: '#6366F1' }}>
-            {request.employeeName}
+            {isAdmin() ? request.employeeName : 'My Leave Request'}
           </Card.Title>
           {getStatusBadge(request.status)}
         </div>
@@ -89,27 +93,30 @@ const LeaveRequestsPage = () => {
           <strong>Created:</strong> {new Date(request.createdAt).toLocaleDateString()}
         </Card.Text>
         
-        {request.status === 'Pending' && (
-          <div className="d-flex justify-content-end mt-3">
-            <ButtonGroup size="sm">
-              <Button
-                variant="outline-success"
-                onClick={() => {
-                  setRequestToProcess(request);
-                  setShowApproveModal(true);
-                }}
-              >
-                Approve
-              </Button>
-              <Button
-                variant="outline-danger"
-                onClick={() => handleReject(request)}
-              >
-                Reject
-              </Button>
-            </ButtonGroup>
-          </div>
-        )}
+        {/* Admin can approve/reject, employees can only view */}
+        <RoleBasedContent allowedRoles={['Admin']}>
+          {request.status === 'Pending' && (
+            <div className="d-flex justify-content-end mt-3">
+              <ButtonGroup size="sm">
+                <Button
+                  variant="outline-success"
+                  onClick={() => {
+                    setRequestToProcess(request);
+                    setShowApproveModal(true);
+                  }}
+                >
+                  Approve
+                </Button>
+                <Button
+                  variant="outline-danger"
+                  onClick={() => handleReject(request)}
+                >
+                  Reject
+                </Button>
+              </ButtonGroup>
+            </div>
+          )}
+        </RoleBasedContent>
       </Card.Body>
     </Card>
   );
@@ -117,11 +124,11 @@ const LeaveRequestsPage = () => {
   return (
     <>
       <DataPage
-        title="Leave Requests"
-        apiEndpoint={API_URLS.LEAVE_REQUESTS.GET_ALL()}
-        searchFields={['employeeName', 'leaveType', 'status']}
+        title={isAdmin() ? "Leave Requests" : "My Leave Requests"}
+        apiEndpoint={isAdmin() ? API_URLS.LEAVE_REQUESTS.GET_ALL() : API_URLS.LEAVE_REQUESTS.GET_MY_REQUESTS()}
+        searchFields={isAdmin() ? ['employeeName', 'leaveType', 'status'] : ['leaveType', 'status']}
         renderCard={renderLeaveRequestCard}
-        searchPlaceholder="Search leave requests..."
+        searchPlaceholder={isAdmin() ? "Search leave requests..." : "Search my requests..."}
         showAddButton={true}
         onAddClick={handleAddClick}
       />

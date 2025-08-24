@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { Container, Row, Col, Card, Spinner } from 'react-bootstrap';
-import { authenticatedFetch } from '../services/authService';
+import EmployeeDashboard from '../components/EmployeeDashboard';
+import { authenticatedFetch, isAdmin } from '../services/authService';
 import { API_URLS } from '../config/api';
 
 const DashboardPage = () => {
@@ -16,6 +17,12 @@ const DashboardPage = () => {
 
   useEffect(() => {
     const fetchStats = async () => {
+      // Only fetch admin stats if user is admin
+      if (!isAdmin()) {
+        setLoading(false);
+        return;
+      }
+
       try {
         const [employees, leaveRequests, assets, departments] = await Promise.all([
           authenticatedFetch(API_URLS.EMPLOYEES.GET_ALL()).then(r => r.json()),
@@ -62,20 +69,22 @@ const DashboardPage = () => {
 
   if (loading) {
     return (
-      <div style={{ minHeight: '100vh', backgroundColor: '#232B4D', color: 'white', padding: '2rem' }}>
-        <Container>
-          <div className="text-center">
-            <Spinner animation="border" variant="light" />
-          </div>
-        </Container>
+      <div className="text-center">
+        <Spinner animation="border" variant="primary" />
+        <p className="mt-3">Loading dashboard...</p>
       </div>
     );
   }
 
+  // Show employee dashboard for employees
+  if (!isAdmin()) {
+    return <EmployeeDashboard />;
+  }
+
+  // Show admin dashboard for admins
   return (
-    <div style={{ minHeight: '100vh', backgroundColor: '#232B4D', color: 'white', paddingTop: '2rem' }}>
-      <Container>
-        <h1 className="mb-4" style={{ color: '#6366F1' }}>HR Dashboard</h1>
+    <div>
+      <h1 className="mb-4" style={{ color: '#6366F1' }}>HR Dashboard</h1>
         
         <Row className="mb-4">
           <Col lg={3} md={6} className="mb-3">
@@ -188,7 +197,6 @@ const DashboardPage = () => {
             </Card>
           </Col>
         </Row>
-      </Container>
     </div>
   );
 };

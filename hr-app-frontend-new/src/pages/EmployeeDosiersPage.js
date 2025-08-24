@@ -2,7 +2,8 @@ import React, { useState, useEffect } from 'react';
 import { Card, Button, ButtonGroup, Modal } from 'react-bootstrap';
 import DataPage from '../components/DataPage';
 import EmployeeDossierModal from '../components/EmployeeDossierModal';
-import { authenticatedFetch } from '../services/authService';
+import RoleBasedContent from '../components/RoleBasedContent';
+import { authenticatedFetch, isAdmin } from '../services/authService';
 import { API_URLS } from '../config/api';
 
 const EmployeeDosiersPage = () => {
@@ -13,10 +14,13 @@ const EmployeeDosiersPage = () => {
   const [dossierToDelete, setDossierToDelete] = useState(null);
 
   useEffect(() => {
-    authenticatedFetch(API_URLS.EMPLOYEES.GET_ALL())
-      .then(response => response.json())
-      .then(data => setEmployees(data))
-      .catch(err => console.error('Failed to fetch employees:', err));
+    // Only admins need employee list for dossier management
+    if (isAdmin()) {
+      authenticatedFetch(API_URLS.EMPLOYEES.GET_ALL())
+        .then(response => response.json())
+        .then(data => setEmployees(data))
+        .catch(err => console.error('Failed to fetch employees:', err));
+    }
   }, []);
 
   const handleAddClick = () => {
@@ -59,7 +63,7 @@ const EmployeeDosiersPage = () => {
     <Card className="shadow" style={{ backgroundColor: '#1E293B', borderColor: '#6366F1', color: 'white' }}>
       <Card.Body>
         <Card.Title style={{ color: '#6366F1' }}>
-          {dossier.employeeName}
+          {isAdmin() ? dossier.employeeName : 'My Dossier'}
         </Card.Title>
         <Card.Subtitle className="mb-2" style={{ color: '#94A3B8' }}>
           {dossier.employmentType} Employee
@@ -71,24 +75,27 @@ const EmployeeDosiersPage = () => {
           <strong>Employment Type:</strong> {dossier.employmentType}
         </Card.Text>
         
-        <div className="d-flex justify-content-end mt-3">
-          <ButtonGroup size="sm">
-            <Button
-              variant="outline-primary"
-              onClick={() => handleEditClick(dossier)}
-              style={{ borderColor: '#6366F1', color: '#6366F1' }}
-            >
-              <i className="bi bi-pencil"></i>
-            </Button>
-            <Button
-              variant="outline-danger"
-              onClick={() => handleDeleteClick(dossier)}
-              style={{ borderColor: '#dc3545', color: '#dc3545' }}
-            >
-              <i className="bi bi-trash"></i>
-            </Button>
-          </ButtonGroup>
-        </div>
+        {/* Admin only - edit and delete buttons */}
+        <RoleBasedContent allowedRoles={['Admin']}>
+          <div className="d-flex justify-content-end mt-3">
+            <ButtonGroup size="sm">
+              <Button
+                variant="outline-primary"
+                onClick={() => handleEditClick(dossier)}
+                style={{ borderColor: '#6366F1', color: '#6366F1' }}
+              >
+                <i className="bi bi-pencil"></i>
+              </Button>
+              <Button
+                variant="outline-danger"
+                onClick={() => handleDeleteClick(dossier)}
+                style={{ borderColor: '#dc3545', color: '#dc3545' }}
+              >
+                <i className="bi bi-trash"></i>
+              </Button>
+            </ButtonGroup>
+          </div>
+        </RoleBasedContent>
       </Card.Body>
     </Card>
   );
@@ -96,12 +103,12 @@ const EmployeeDosiersPage = () => {
   return (
     <>
       <DataPage
-        title="Employee Dossiers"
-        apiEndpoint={API_URLS.EMPLOYEE_DOSSIERS.GET_ALL()}
-        searchFields={['employeeName', 'employmentType', 'address']}
+        title={isAdmin() ? "Employee Dossiers" : "My Dossier"}
+        apiEndpoint={isAdmin() ? API_URLS.EMPLOYEE_DOSSIERS.GET_ALL() : API_URLS.EMPLOYEE_DOSSIERS.GET_MY_DOSSIER()}
+        searchFields={isAdmin() ? ['employeeName', 'employmentType', 'address'] : ['employmentType', 'address']}
         renderCard={renderDossierCard}
-        searchPlaceholder="Search employee dossiers..."
-        showAddButton={true}
+        searchPlaceholder={isAdmin() ? "Search employee dossiers..." : "Search my dossier..."}
+        showAddButton={isAdmin()}
         onAddClick={handleAddClick}
       />
 

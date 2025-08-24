@@ -2,7 +2,8 @@ import React, { useState, useEffect } from 'react';
 import { Card, Button, ButtonGroup, Modal } from 'react-bootstrap';
 import DataPage from '../components/DataPage';
 import AssetModal from '../components/AssetModal';
-import { authenticatedFetch } from '../services/authService';
+import RoleBasedContent from '../components/RoleBasedContent';
+import { authenticatedFetch, isAdmin } from '../services/authService';
 import { API_URLS } from '../config/api';
 
 const AssetsPage = () => {
@@ -13,10 +14,13 @@ const AssetsPage = () => {
   const [assetToDelete, setAssetToDelete] = useState(null);
 
   useEffect(() => {
-    authenticatedFetch(API_URLS.EMPLOYEES.GET_ALL())
-      .then(response => response.json())
-      .then(data => setEmployees(data))
-      .catch(err => console.error('Failed to fetch employees:', err));
+    // Only admins need employee list for asset assignment
+    if (isAdmin()) {
+      authenticatedFetch(API_URLS.EMPLOYEES.GET_ALL())
+        .then(response => response.json())
+        .then(data => setEmployees(data))
+        .catch(err => console.error('Failed to fetch employees:', err));
+    }
   }, []);
 
   const handleAddClick = () => {
@@ -78,24 +82,26 @@ const AssetsPage = () => {
           <strong>Status:</strong> {asset.isActive ? 'Active' : 'Inactive'}
         </Card.Text>
         
-        <div className="d-flex justify-content-end mt-3">
-          <ButtonGroup size="sm">
-            <Button
-              variant="outline-primary"
-              onClick={() => handleEditClick(asset)}
-              style={{ borderColor: '#6366F1', color: '#6366F1' }}
-            >
-              <i className="bi bi-pencil"></i>
-            </Button>
-            <Button
-              variant="outline-danger"
-              onClick={() => handleDeleteClick(asset)}
-              style={{ borderColor: '#dc3545', color: '#dc3545' }}
-            >
-              <i className="bi bi-trash"></i>
-            </Button>
-          </ButtonGroup>
-        </div>
+        <RoleBasedContent allowedRoles={['Admin']}>
+          <div className="d-flex justify-content-end mt-3">
+            <ButtonGroup size="sm">
+              <Button
+                variant="outline-primary"
+                onClick={() => handleEditClick(asset)}
+                style={{ borderColor: '#6366F1', color: '#6366F1' }}
+              >
+                <i className="bi bi-pencil"></i>
+              </Button>
+              <Button
+                variant="outline-danger"
+                onClick={() => handleDeleteClick(asset)}
+                style={{ borderColor: '#dc3545', color: '#dc3545' }}
+              >
+                <i className="bi bi-trash"></i>
+              </Button>
+            </ButtonGroup>
+          </div>
+        </RoleBasedContent>
       </Card.Body>
     </Card>
   );
@@ -103,22 +109,24 @@ const AssetsPage = () => {
   return (
     <>
       <DataPage
-        title="Asset Inventory"
-        apiEndpoint={API_URLS.ASSETS.GET_ALL()}
+        title={isAdmin() ? "Asset Inventory" : "My Assets"}
+        apiEndpoint={isAdmin() ? API_URLS.ASSETS.GET_ALL() : API_URLS.ASSETS.GET_MY_ASSETS()}
         searchFields={['name', 'description', 'serialNumber', 'employeeName']}
         renderCard={renderAssetCard}
         searchPlaceholder="Search assets..."
-        showAddButton={true}
+        showAddButton={isAdmin()}
         onAddClick={handleAddClick}
       />
 
-      <AssetModal
-        show={showModal}
-        onHide={() => setShowModal(false)}
-        asset={editingAsset}
-        onSave={() => window.location.reload()}
-        employees={employees}
-      />
+      <RoleBasedContent allowedRoles={['Admin']}>
+        <AssetModal
+          show={showModal}
+          onHide={() => setShowModal(false)}
+          asset={editingAsset}
+          onSave={() => window.location.reload()}
+          employees={employees}
+        />
+      </RoleBasedContent>
 
       <Modal show={showDeleteModal} onHide={() => setShowDeleteModal(false)} centered>
         <Modal.Header closeButton style={{ backgroundColor: '#1E293B', color: 'white', borderColor: '#dc3545' }}>

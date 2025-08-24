@@ -38,7 +38,9 @@ const DataPage = ({
         return response.json();
       })
       .then((data) => {
-        setData(data);
+        // Ensure data is always an array for consistent handling
+        const arrayData = Array.isArray(data) ? data : [data];
+        setData(arrayData);
         setLoading(false);
       })
       .catch((err) => {

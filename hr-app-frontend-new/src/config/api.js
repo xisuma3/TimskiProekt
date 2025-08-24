@@ -32,6 +32,7 @@ export const API_URLS = {
   EMPLOYEES: {
     GET_ALL: () => buildApiUrl(API_CONFIG.ENDPOINTS.EMPLOYEE, '/GetAll'),
     GET_BY_ID: (id) => buildApiUrl(API_CONFIG.ENDPOINTS.EMPLOYEE, `/GetById/${id}`),
+    GET_MY_PROFILE: () => buildApiUrl(API_CONFIG.ENDPOINTS.EMPLOYEE, '/GetMyProfile'),
     CREATE: () => buildApiUrl(API_CONFIG.ENDPOINTS.EMPLOYEE, '/Create'),
     UPDATE: (id) => buildApiUrl(API_CONFIG.ENDPOINTS.EMPLOYEE, `/Edit/${id}`),
     DELETE: (id) => buildApiUrl(API_CONFIG.ENDPOINTS.EMPLOYEE, `/Delete/${id}`)
@@ -48,6 +49,7 @@ export const API_URLS = {
   // Asset endpoints
   ASSETS: {
     GET_ALL: () => buildApiUrl(API_CONFIG.ENDPOINTS.ASSET, '/GetAll'),
+    GET_MY_ASSETS: () => buildApiUrl(API_CONFIG.ENDPOINTS.ASSET, '/GetMyAssets'),
     CREATE: () => buildApiUrl(API_CONFIG.ENDPOINTS.ASSET, '/Create'),
     UPDATE: (id) => buildApiUrl(API_CONFIG.ENDPOINTS.ASSET, `/Update/${id}`),
     DELETE: (id) => buildApiUrl(API_CONFIG.ENDPOINTS.ASSET, `/Delete/${id}`)
@@ -65,6 +67,7 @@ export const API_URLS = {
   // Generated Document endpoints
   GENERATED_DOCUMENTS: {
     GET_ALL: () => buildApiUrl(API_CONFIG.ENDPOINTS.GENERATED_DOCUMENT, '/GetAll'),
+    GET_MY_DOCUMENTS: () => buildApiUrl(API_CONFIG.ENDPOINTS.GENERATED_DOCUMENT, '/GetMyDocuments'),
     GET_CONTENT: (id) => buildApiUrl(API_CONFIG.ENDPOINTS.GENERATED_DOCUMENT, `/GetContent/${id}`),
     GENERATE: () => buildApiUrl(API_CONFIG.ENDPOINTS.GENERATED_DOCUMENT, '/Generate'),
     DELETE: (id) => buildApiUrl(API_CONFIG.ENDPOINTS.GENERATED_DOCUMENT, `/Delete/${id}`)
@@ -73,6 +76,7 @@ export const API_URLS = {
   // Leave Request endpoints
   LEAVE_REQUESTS: {
     GET_ALL: () => buildApiUrl(API_CONFIG.ENDPOINTS.LEAVE_REQUEST, '/GetAll'),
+    GET_MY_REQUESTS: () => buildApiUrl(API_CONFIG.ENDPOINTS.LEAVE_REQUEST, '/GetMyLeaveRequests'),
     CREATE: () => buildApiUrl(API_CONFIG.ENDPOINTS.LEAVE_REQUEST, '/Create'),
     UPDATE: (id) => buildApiUrl(API_CONFIG.ENDPOINTS.LEAVE_REQUEST, `/Update/${id}`),
     DELETE: (id) => buildApiUrl(API_CONFIG.ENDPOINTS.LEAVE_REQUEST, `/Delete/${id}`),
@@ -83,6 +87,7 @@ export const API_URLS = {
   // Employee Dossier endpoints
   EMPLOYEE_DOSSIERS: {
     GET_ALL: () => buildApiUrl(API_CONFIG.ENDPOINTS.EMPLOYEE_DOSSIER, '/GetAll'),
+    GET_MY_DOSSIER: () => buildApiUrl(API_CONFIG.ENDPOINTS.EMPLOYEE_DOSSIER, '/GetMyDossier'),
     CREATE: () => buildApiUrl(API_CONFIG.ENDPOINTS.EMPLOYEE_DOSSIER, '/Create'),
     UPDATE: (id) => buildApiUrl(API_CONFIG.ENDPOINTS.EMPLOYEE_DOSSIER, `/Update/${id}`),
     DELETE: (id) => buildApiUrl(API_CONFIG.ENDPOINTS.EMPLOYEE_DOSSIER, `/Delete/${id}`)

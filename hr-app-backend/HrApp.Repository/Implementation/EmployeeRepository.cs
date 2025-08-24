@@ -62,5 +62,17 @@ namespace HrApp.Repository.Implementation
                 await _context.SaveChangesAsync();
             }
         }
+
+        public async Task<Employee> GetByApplicationUserIdAsync(string applicationUserId)
+        {
+            return await _context.Employees
+                .Include(e => e.Department)
+                .Include(e => e.Manager)
+                .Include(e => e.Mentor)
+                .Include(e => e.Assets)
+                .Include(e => e.GeneratedDocuments)
+                .Include(e => e.LeaveRequests)
+                .FirstOrDefaultAsync(e => e.ApplicationUserId == applicationUserId);
+        }
     }
 }

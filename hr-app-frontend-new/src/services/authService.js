@@ -37,6 +37,28 @@ export const getUserInfo = () => {
   return userInfo ? JSON.parse(userInfo) : null;
 };
 
+// Get user roles
+export const getUserRoles = () => {
+  const userInfo = getUserInfo();
+  return userInfo?.roles || [];
+};
+
+// Check if user has specific role
+export const hasRole = (role) => {
+  const roles = getUserRoles();
+  return roles.includes(role);
+};
+
+// Check if user is admin
+export const isAdmin = () => {
+  return hasRole('Admin');
+};
+
+// Check if user is employee
+export const isEmployee = () => {
+  return hasRole('Employee');
+};
+
 // Fetch and store user details
 export const fetchUserDetails = async (userId) => {
   try {
@@ -55,11 +77,11 @@ export const fetchUserDetails = async (userId) => {
 // Fetch employee details by ApplicationUserId and merge with existing userInfo
 export const fetchEmployeeDetails = async (userId) => {
   try {
-    // Get all employees and find the one with matching ApplicationUserId
-    const response = await authenticatedFetch(API_URLS.EMPLOYEES.GET_ALL());
+    // Use GetMyProfile for current user's employee details
+    const response = await authenticatedFetch(API_URLS.EMPLOYEES.GET_MY_PROFILE());
+    
     if (response.ok) {
-      const employees = await response.json();
-      const employee = employees.find(emp => emp.applicationUserId === userId);
+      const employee = await response.json();
       
       if (employee) {
         // Get existing userInfo and merge with employee data
