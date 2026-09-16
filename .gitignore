@@ -1,0 +1,17 @@
+# Repo-wide noise only.
+# Per-project rules live in each project's own .gitignore:
+#   hr-app-backend/.gitignore        (VisualStudio template: bin/, obj/, .vs/)
+#   hr-app-frontend-new/.gitignore   (CRA: /node_modules, /build, /coverage)
+#   hr-app-frontend/front/.gitignore (Vite: dist, logs)
+
+# IDE / editor
+.vs/
+.idea/
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Local environment / secrets
+*.env
+.env.local
