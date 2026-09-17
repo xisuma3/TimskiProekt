@@ -96,18 +96,31 @@ namespace HrAppWebApplication.Controllers
             }
         }
 
+        /// <summary>
+        /// Approves a request. An administrator may decide any request; anyone else must be
+        /// the requester's manager, which the service enforces.
+        /// </summary>
         [HttpPut("{id}/approve")]
-        [Authorize(Roles = "Admin")]
         public async Task<IActionResult> Approve(Guid id, [FromBody] LeaveDecisionRequestDto? decision = null)
         {
             return await Decide(id, decision, approve: true);
         }
 
         [HttpPut("{id}/reject")]
-        [Authorize(Roles = "Admin")]
         public async Task<IActionResult> Reject(Guid id, [FromBody] LeaveDecisionRequestDto? decision = null)
         {
             return await Decide(id, decision, approve: false);
+        }
+
+        /// <summary>Requests filed by the caller's direct reports.</summary>
+        [HttpGet]
+        public async Task<ActionResult<IEnumerable<LeaveRequestResponseDto>>> GetMyTeamRequests(
+            [FromQuery] bool pendingOnly = false)
+        {
+            var me = await _employeeService.GetByApplicationUserIdAsync(CurrentApplicationUserId);
+            if (me == null) return Ok(Array.Empty<LeaveRequestResponseDto>());
+
+            return Ok(await _service.GetForManagerAsync(me.EmployeeID, pendingOnly));
         }
 
         private async Task<IActionResult> Decide(Guid id, LeaveDecisionRequestDto? decision, bool approve)
@@ -127,15 +140,20 @@ namespace HrAppWebApplication.Controllers
             try
             {
                 if (approve)
-                    await _service.ApproveRequestAsync(id, approver?.EmployeeID, decision?.Reason);
+                    await _service.ApproveRequestAsync(id, approver.EmployeeID, decision?.Reason, IsAdmin);
                 else
-                    await _service.RejectRequestAsync(id, approver?.EmployeeID, decision?.Reason);
+                    await _service.RejectRequestAsync(id, approver.EmployeeID, decision?.Reason, IsAdmin);
 
                 return NoContent();
             }
             catch (ArgumentException ex)
             {
                 return BadRequest(new { message = ex.Message });
+            }
+            catch (UnauthorizedAccessException ex)
+            {
+                // Not an admin, and not this employee's manager.
+                return StatusCode(StatusCodes.Status403Forbidden, new { message = ex.Message });
             }
             catch (InvalidOperationException ex)
             {

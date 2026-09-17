@@ -17,5 +17,6 @@ namespace HrApp.Repository.Interface
         Task DeleteAsync(Guid id);
         Task<Employee> GetByIdIncludingDeletedAsync(Guid id);
         Task RestoreAsync(Guid id);
+        Task EraseAsync(Guid id);
     }
 }

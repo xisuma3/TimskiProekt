@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Button, Navbar, Container, Dropdown } from 'react-bootstrap';
+import { Button, Container } from 'react-bootstrap';
 import { logout, getUserInfo } from '../services/authService';
 
 const TopBar = () => {

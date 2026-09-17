@@ -1,4 +1,3 @@
-import React from 'react';
 import { hasRole, isAdmin, isEmployee } from '../services/authService';
 
 const RoleBasedContent = ({ adminContent, employeeContent, allowedRoles, children }) => {

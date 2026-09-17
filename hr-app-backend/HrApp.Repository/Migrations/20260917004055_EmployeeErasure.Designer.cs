@@ -4,6 +4,7 @@ using HrAppWebApplication;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
 using Microsoft.EntityFrameworkCore.Metadata;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 
 #nullable disable
@@ -11,9 +12,11 @@ using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 namespace HrApp.Repository.Migrations
 {
     [DbContext(typeof(HrAppDbContext))]
-    partial class HrAppDbContextModelSnapshot : ModelSnapshot
+    [Migration("20260917004055_EmployeeErasure")]
+    partial class EmployeeErasure
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -193,6 +196,7 @@ namespace HrApp.Repository.Migrations
                         .HasColumnType("uniqueidentifier");
 
                     b.Property<string>("Description")
+                        .IsRequired()
                         .HasMaxLength(500)
                         .HasColumnType("nvarchar(500)");
 
@@ -294,6 +298,7 @@ namespace HrApp.Repository.Migrations
                         .HasColumnType("uniqueidentifier");
 
                     b.Property<string>("Address")
+                        .IsRequired()
                         .HasMaxLength(255)
                         .HasColumnType("nvarchar(255)");
 
@@ -301,6 +306,7 @@ namespace HrApp.Repository.Migrations
                         .HasColumnType("datetime2");
 
                     b.Property<string>("EmergencyContact")
+                        .IsRequired()
                         .HasMaxLength(100)
                         .HasColumnType("nvarchar(100)");
 

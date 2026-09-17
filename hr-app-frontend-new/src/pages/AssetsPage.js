@@ -1,7 +1,8 @@
 import React, { useState, useEffect } from 'react';
-import { Card, Button, ButtonGroup, Modal } from 'react-bootstrap';
+import { Card, Button, ButtonGroup, Modal, Badge } from 'react-bootstrap';
 import DataPage from '../components/DataPage';
 import AssetModal from '../components/AssetModal';
+import AssetCustodyModal from '../components/AssetCustodyModal';
 import RoleBasedContent from '../components/RoleBasedContent';
 import { authenticatedFetch, isAdmin } from '../services/authService';
 import { API_URLS } from '../config/api';
@@ -12,6 +13,7 @@ const AssetsPage = () => {
   const [employees, setEmployees] = useState([]);
   const [showDeleteModal, setShowDeleteModal] = useState(false);
   const [assetToDelete, setAssetToDelete] = useState(null);
+  const [custodyAsset, setCustodyAsset] = useState(null);
 
   useEffect(() => {
     // Only admins need employee list for asset assignment
@@ -71,13 +73,15 @@ const AssetsPage = () => {
         <Card.Text>
           <strong>Description:</strong> {asset.description || 'Not specified'}
           <br />
-          <strong>Assignment Date:</strong> {asset.assignmentDate ? new Date(asset.assignmentDate).toLocaleDateString() : 'Not assigned'}
-          <br />
-          {asset.employeeName && (
+          {asset.isAssigned ? (
             <>
-              <strong>Assigned To:</strong> {asset.employeeName}
+              <strong>Held by:</strong> {asset.employeeName}
+              <br />
+              <strong>Since:</strong> {asset.assignmentDate ? new Date(asset.assignmentDate).toLocaleDateString() : '—'}
               <br />
             </>
+          ) : (
+            <><Badge bg="secondary">In stock</Badge><br /></>
           )}
           <strong>Status:</strong> {asset.isActive ? 'Active' : 'Inactive'}
         </Card.Text>
@@ -85,6 +89,14 @@ const AssetsPage = () => {
         <RoleBasedContent allowedRoles={['Admin']}>
           <div className="d-flex justify-content-end mt-3">
             <ButtonGroup size="sm">
+              <Button
+                variant="outline-info"
+                onClick={() => setCustodyAsset(asset)}
+                title="Assign, return, and custody history"
+                style={{ borderColor: '#38bdf8', color: '#38bdf8' }}
+              >
+                <i className="bi bi-arrow-left-right"></i> Custody
+              </Button>
               <Button
                 variant="outline-primary"
                 onClick={() => handleEditClick(asset)}
@@ -125,6 +137,16 @@ const AssetsPage = () => {
           asset={editingAsset}
           onSave={() => window.location.reload()}
           employees={employees}
+        />
+      </RoleBasedContent>
+
+      <RoleBasedContent allowedRoles={['Admin']}>
+        <AssetCustodyModal
+          show={Boolean(custodyAsset)}
+          asset={custodyAsset}
+          employees={employees}
+          onHide={() => setCustodyAsset(null)}
+          onChanged={() => window.location.reload()}
         />
       </RoleBasedContent>
 

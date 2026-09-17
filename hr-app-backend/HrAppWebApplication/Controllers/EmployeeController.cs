@@ -96,6 +96,37 @@ namespace HrAppWebApplication.Controllers
             {
                 return NotFound(new { message = ex.Message });
             }
+            catch (InvalidOperationException ex)
+            {
+                // Already erased — there is nothing left to restore.
+                return Conflict(new { message = ex.Message });
+            }
+        }
+
+        /// <summary>
+        /// Erases an employee's personal data (GDPR Art. 17). Irreversible, and only valid
+        /// for an employee who has already been retired. Their leave decisions and asset
+        /// custody survive in anonymised form, because those are records of what the
+        /// company did rather than personal data.
+        /// </summary>
+        [HttpPost("{id}")]
+        [Authorize(Roles = "Admin")]
+        public async Task<IActionResult> Erase(Guid id)
+        {
+            try
+            {
+                await _service.EraseAsync(id);
+                return NoContent();
+            }
+            catch (ArgumentException ex)
+            {
+                return NotFound(new { message = ex.Message });
+            }
+            catch (InvalidOperationException ex)
+            {
+                // Not retired yet, or already erased.
+                return Conflict(new { message = ex.Message });
+            }
         }
     }
 }

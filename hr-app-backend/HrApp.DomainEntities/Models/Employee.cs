@@ -45,5 +45,14 @@ namespace HrApp.DomainEntities.Models
         public bool IsDeleted { get; set; }
         public DateTime? DeletedAt { get; set; }
 
+        // --- Erasure (GDPR Art. 17) ---
+        // Distinct from soft delete. Retiring hides an employee; erasure destroys their
+        // personal data irreversibly while keeping the employment records an employer is
+        // obliged to retain. An erased employee stays soft-deleted, with their identifying
+        // fields overwritten rather than the row removed, so leave decisions and asset
+        // custody remain attributable to *someone* without naming them.
+        public bool IsErased { get; set; }
+        public DateTime? ErasedAt { get; set; }
+
     }
 }

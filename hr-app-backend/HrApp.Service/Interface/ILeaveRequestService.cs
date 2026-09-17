@@ -19,6 +19,13 @@ namespace HrApp.Service.Interface
         // anonymously. Controllers resolve it from the caller's token.
         Task ApproveRequestAsync(Guid id, Guid? approverEmployeeId, string reason);
         Task RejectRequestAsync(Guid id, Guid? approverEmployeeId, string reason);
+
+        // approverIsAdmin false means the approver must be the requester's manager.
+        Task ApproveRequestAsync(Guid id, Guid? approverEmployeeId, string reason, bool approverIsAdmin);
+        Task RejectRequestAsync(Guid id, Guid? approverEmployeeId, string reason, bool approverIsAdmin);
+
+        /// <summary>Requests filed by a manager's direct reports.</summary>
+        Task<IEnumerable<LeaveRequestResponseDto>> GetForManagerAsync(Guid managerEmployeeId, bool pendingOnly = false);
         Task DeleteAsync(Guid id);
     }
 }

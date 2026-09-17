@@ -4,7 +4,7 @@ import { Container, Row, Col, Nav } from 'react-bootstrap';
 import { Link, Outlet, useLocation } from 'react-router-dom';
 import TopBar from './TopBar';
 import RoleBasedContent from './RoleBasedContent';
-import { isAdmin, isEmployee } from '../services/authService';
+import { isAdmin } from '../services/authService';
 
 const SidebarLayout = () => {
   const location = useLocation();
@@ -74,6 +74,19 @@ const SidebarLayout = () => {
                 <i className="bi bi-calendar-check me-2"></i>
                 {isAdmin() ? 'Leave Requests' : 'My Leave Requests'}
               </Nav.Link>
+
+              {/* Admin only - Leave Allowances */}
+              {isAdmin() && (
+                <Nav.Link
+                  as={Link}
+                  to="/leave-allowances"
+                  className={`text-light mb-2 ${location.pathname === '/leave-allowances' ? 'active' : ''}`}
+                  style={location.pathname === '/leave-allowances' ? { backgroundColor: '#6366F1', borderRadius: '5px' } : {}}
+                >
+                  <i className="bi bi-calendar3 me-2"></i>
+                  Leave Allowances
+                </Nav.Link>
+              )}
 
               {/* Both Admin and Employee - Employee Dossiers */}
               <Nav.Link 

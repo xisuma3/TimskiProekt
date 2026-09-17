@@ -3,12 +3,14 @@ import { Row, Col, Card, Button, Badge, Spinner } from 'react-bootstrap';
 import { Link } from 'react-router-dom';
 import { authenticatedFetch } from '../services/authService';
 import { API_URLS } from '../config/api';
+import { LeaveBalanceCards } from '../pages/LeaveEntitlementsPage';
 
 const EmployeeDashboard = () => {
   const [employeeData, setEmployeeData] = useState(null);
   const [assets, setAssets] = useState([]);
   const [leaveRequests, setLeaveRequests] = useState([]);
   const [dossier, setDossier] = useState(null);
+  const [balances, setBalances] = useState([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
@@ -44,6 +46,12 @@ const EmployeeDashboard = () => {
           setDossier(Array.isArray(dossierData) ? dossierData[0] ?? null : dossierData);
         }
 
+        // Leave balances for the current year
+        const balanceResponse = await authenticatedFetch(API_URLS.LEAVE_ENTITLEMENTS.GET_MY_BALANCE());
+        if (balanceResponse.ok) {
+          setBalances(await balanceResponse.json());
+        }
+
       } catch (error) {
         console.error('Failed to fetch employee data:', error);
       } finally {
@@ -75,6 +83,13 @@ const EmployeeDashboard = () => {
         Welcome, {employeeData?.firstName} {employeeData?.lastName}!
       </h2>
       
+      {balances.length > 0 && (
+        <div className="mb-4">
+          <h5 style={{ color: '#6366F1' }}>My Leave Balance ({new Date().getFullYear()})</h5>
+          <LeaveBalanceCards balances={balances} />
+        </div>
+      )}
+
       <Row>
         {/* Employee Profile Card */}
         <Col md={6} className="mb-4">

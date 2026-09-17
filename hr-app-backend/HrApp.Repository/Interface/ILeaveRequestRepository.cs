@@ -13,6 +13,9 @@ namespace HrApp.Repository.Interface
         Task<LeaveRequest> GetByIdAsync(Guid id);
         Task<IEnumerable<LeaveRequest>> GetByEmployeeIdAsync(Guid employeeId);
         Task<IEnumerable<LeaveRequest>> GetPendingRequestsAsync();
+
+        /// <summary>Requests filed by anyone reporting to this manager.</summary>
+        Task<IEnumerable<LeaveRequest>> GetForManagerAsync(Guid managerEmployeeId, bool pendingOnly = false);
         Task<IEnumerable<LeaveRequest>> GetOverlappingAsync(
             Guid employeeId, DateTime startDate, DateTime endDate, Guid? excludeRequestId = null);
 

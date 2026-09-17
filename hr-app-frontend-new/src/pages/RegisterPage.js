@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { Form, Button, Container, Row, Col, Alert } from 'react-bootstrap';
 import { useNavigate } from 'react-router-dom';
-import { register, authenticatedFetch } from '../services/authService';
+import { register } from '../services/authService';
 
 const RegisterPage = () => {
   const navigate = useNavigate();
@@ -15,7 +15,6 @@ const RegisterPage = () => {
     departmentName: '',
     hireDate: ''
   });
-  const [departments, setDepartments] = useState([]);
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
   const [loading, setLoading] = useState(false);

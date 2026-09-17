@@ -13,6 +13,8 @@ Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "HrApp.Service", "HrApp.Serv
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "HrApp.Tests", "HrApp.Tests\HrApp.Tests.csproj", "{78C8F3FE-E65B-49ED-B9D0-9E96C3F1CEA2}"
 EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "HrApp.SchemaTests", "HrApp.SchemaTests\HrApp.SchemaTests.csproj", "{9D9BBD93-CFD6-46EF-B44E-3F4BE76BFFCF}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
@@ -83,6 +85,18 @@ Global
 		{78C8F3FE-E65B-49ED-B9D0-9E96C3F1CEA2}.Release|x64.Build.0 = Release|Any CPU
 		{78C8F3FE-E65B-49ED-B9D0-9E96C3F1CEA2}.Release|x86.ActiveCfg = Release|Any CPU
 		{78C8F3FE-E65B-49ED-B9D0-9E96C3F1CEA2}.Release|x86.Build.0 = Release|Any CPU
+		{9D9BBD93-CFD6-46EF-B44E-3F4BE76BFFCF}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{9D9BBD93-CFD6-46EF-B44E-3F4BE76BFFCF}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{9D9BBD93-CFD6-46EF-B44E-3F4BE76BFFCF}.Debug|x64.ActiveCfg = Debug|Any CPU
+		{9D9BBD93-CFD6-46EF-B44E-3F4BE76BFFCF}.Debug|x64.Build.0 = Debug|Any CPU
+		{9D9BBD93-CFD6-46EF-B44E-3F4BE76BFFCF}.Debug|x86.ActiveCfg = Debug|Any CPU
+		{9D9BBD93-CFD6-46EF-B44E-3F4BE76BFFCF}.Debug|x86.Build.0 = Debug|Any CPU
+		{9D9BBD93-CFD6-46EF-B44E-3F4BE76BFFCF}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{9D9BBD93-CFD6-46EF-B44E-3F4BE76BFFCF}.Release|Any CPU.Build.0 = Release|Any CPU
+		{9D9BBD93-CFD6-46EF-B44E-3F4BE76BFFCF}.Release|x64.ActiveCfg = Release|Any CPU
+		{9D9BBD93-CFD6-46EF-B44E-3F4BE76BFFCF}.Release|x64.Build.0 = Release|Any CPU
+		{9D9BBD93-CFD6-46EF-B44E-3F4BE76BFFCF}.Release|x86.ActiveCfg = Release|Any CPU
+		{9D9BBD93-CFD6-46EF-B44E-3F4BE76BFFCF}.Release|x86.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE

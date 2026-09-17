@@ -212,10 +212,10 @@ against SQL Server instead, and are not protected by CI.
 All three were run locally before committing; the drift gate reports *"No changes have
 been made to the model since the last migration."*
 
-The frontend job sets `CI: false` **on purpose**. The app carries pre-existing
-`no-unused-vars` warnings across nine files, and `CI=true` promotes every warning to an
-error. Cleaning those up and flipping the flag is the obvious next step — the comment in
-the workflow says so, so it does not quietly become permanent.
+The frontend job originally set `CI: false`, because the app carried pre-existing
+`no-unused-vars` warnings across nine files and `CI=true` promotes every warning to an
+error. Those have since been cleaned up and the flag flipped — see
+[`FOLLOW-UP.md`](FOLLOW-UP.md).
 
 ---
 
@@ -227,11 +227,9 @@ restored. The dev admin's seeded `Employee` record remains, as approvals depend 
 
 ## Still open
 
-- **Hard delete / GDPR erasure.** Soft delete is the only delete path; a genuine
-  right-to-erasure request has no route yet.
-- **Manager-scoped approval.** `ManagerID` still carries no authority — any admin can
-  approve anyone's leave.
-- **Frontend for the new features.** Entitlement management, balances and custody history
-  are API-only; no UI has been built for them.
-- **Schema rules in CI.** The in-memory provider cannot enforce them; a SQL Server
-  service container in the workflow would close this.
+*(All four of these were subsequently built — see [`FOLLOW-UP.md`](FOLLOW-UP.md).)*
+
+- **Hard delete / GDPR erasure.**
+- **Manager-scoped approval.**
+- **Frontend for the new features.**
+- **Schema rules in CI.**

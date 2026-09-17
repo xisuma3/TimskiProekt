@@ -13,6 +13,7 @@ const API_CONFIG = {
     GENERATED_DOCUMENT: '/api/GeneratedDocument',
     LEAVE_REQUEST: '/api/LeaveRequest',
     EMPLOYEE_DOSSIER: '/api/EmployeeDossier',
+    LEAVE_ENTITLEMENT: '/api/LeaveEntitlement',
     USER: '/api/User'
   }
 };
@@ -35,7 +36,10 @@ export const API_URLS = {
     GET_MY_PROFILE: () => buildApiUrl(API_CONFIG.ENDPOINTS.EMPLOYEE, '/GetMyProfile'),
     CREATE: () => buildApiUrl(API_CONFIG.ENDPOINTS.EMPLOYEE, '/Create'),
     UPDATE: (id) => buildApiUrl(API_CONFIG.ENDPOINTS.EMPLOYEE, `/Edit/${id}`),
-    DELETE: (id) => buildApiUrl(API_CONFIG.ENDPOINTS.EMPLOYEE, `/Delete/${id}`)
+    DELETE: (id) => buildApiUrl(API_CONFIG.ENDPOINTS.EMPLOYEE, `/Delete/${id}`),
+    RESTORE: (id) => buildApiUrl(API_CONFIG.ENDPOINTS.EMPLOYEE, `/Restore/${id}`),
+    // Irreversible: destroys personal data, keeps the employment records.
+    ERASE: (id) => buildApiUrl(API_CONFIG.ENDPOINTS.EMPLOYEE, `/Erase/${id}`)
   },
   
   // Department endpoints
@@ -52,7 +56,14 @@ export const API_URLS = {
     GET_MY_ASSETS: () => buildApiUrl(API_CONFIG.ENDPOINTS.ASSET, '/GetMyAssets'),
     CREATE: () => buildApiUrl(API_CONFIG.ENDPOINTS.ASSET, '/Create'),
     UPDATE: (id) => buildApiUrl(API_CONFIG.ENDPOINTS.ASSET, `/Update/${id}`),
-    DELETE: (id) => buildApiUrl(API_CONFIG.ENDPOINTS.ASSET, `/Delete/${id}`)
+    DELETE: (id) => buildApiUrl(API_CONFIG.ENDPOINTS.ASSET, `/Delete/${id}`),
+
+    // Custody. Moving an asset goes through Assign/Return so the chain is recorded;
+    // never reassign by PUTting a new EmployeeID on the asset itself.
+    ASSIGN: (id) => buildApiUrl(API_CONFIG.ENDPOINTS.ASSET, `/Assign/${id}`),
+    RETURN: (id) => buildApiUrl(API_CONFIG.ENDPOINTS.ASSET, `/Return/${id}`),
+    GET_HISTORY: (id) => buildApiUrl(API_CONFIG.ENDPOINTS.ASSET, `/GetHistory/${id}`),
+    GET_MY_HISTORY: () => buildApiUrl(API_CONFIG.ENDPOINTS.ASSET, '/GetMyAssetHistory')
   },
   
   // Document Template endpoints
@@ -81,7 +92,26 @@ export const API_URLS = {
     UPDATE: (id) => buildApiUrl(API_CONFIG.ENDPOINTS.LEAVE_REQUEST, `/Update/${id}`),
     DELETE: (id) => buildApiUrl(API_CONFIG.ENDPOINTS.LEAVE_REQUEST, `/Delete/${id}`),
     APPROVE: (id) => buildApiUrl(API_CONFIG.ENDPOINTS.LEAVE_REQUEST, `/Approve/${id}/approve`),
-    REJECT: (id) => buildApiUrl(API_CONFIG.ENDPOINTS.LEAVE_REQUEST, `/Reject/${id}/reject`)
+    REJECT: (id) => buildApiUrl(API_CONFIG.ENDPOINTS.LEAVE_REQUEST, `/Reject/${id}/reject`),
+    // A manager's direct reports. Admins see everything via GET_ALL.
+    GET_MY_TEAM: (pendingOnly = false) =>
+      buildApiUrl(API_CONFIG.ENDPOINTS.LEAVE_REQUEST, `/GetMyTeamRequests?pendingOnly=${pendingOnly}`)
+  },
+
+  // Leave entitlement and balance
+  LEAVE_ENTITLEMENTS: {
+    GET_ALL: () => buildApiUrl(API_CONFIG.ENDPOINTS.LEAVE_ENTITLEMENT, '/GetAll'),
+    GET_BY_EMPLOYEE: (employeeId, year) =>
+      buildApiUrl(API_CONFIG.ENDPOINTS.LEAVE_ENTITLEMENT,
+        `/GetByEmployeeId/employee/${employeeId}${year ? `?year=${year}` : ''}`),
+    GET_MY_BALANCE: (year) =>
+      buildApiUrl(API_CONFIG.ENDPOINTS.LEAVE_ENTITLEMENT, `/GetMyBalance${year ? `?year=${year}` : ''}`),
+    GET_BALANCE: (employeeId, year) =>
+      buildApiUrl(API_CONFIG.ENDPOINTS.LEAVE_ENTITLEMENT,
+        `/GetBalance/${employeeId}${year ? `?year=${year}` : ''}`),
+    CREATE: () => buildApiUrl(API_CONFIG.ENDPOINTS.LEAVE_ENTITLEMENT, '/Create'),
+    UPDATE: (id) => buildApiUrl(API_CONFIG.ENDPOINTS.LEAVE_ENTITLEMENT, `/Update/${id}`),
+    DELETE: (id) => buildApiUrl(API_CONFIG.ENDPOINTS.LEAVE_ENTITLEMENT, `/Delete/${id}`)
   },
 
   // Employee Dossier endpoints

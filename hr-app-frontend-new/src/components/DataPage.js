@@ -1,5 +1,5 @@
-import React, { useEffect, useState } from 'react';
-import { Container, Row, Col, Card, Spinner, Alert, Form, InputGroup, Button } from 'react-bootstrap';
+import React, { useCallback, useEffect, useState } from 'react';
+import { Container, Row, Col, Spinner, Alert, Form, InputGroup, Button } from 'react-bootstrap';
 import { authenticatedFetch } from '../services/authService';
 
 const PAGE_BG = '#232B4D';
@@ -28,7 +28,7 @@ const DataPage = ({
   const [itemToDelete, setItemToDelete] = useState(null);
   const [deleteLoading, setDeleteLoading] = useState(false);
 
-  const fetchData = () => {
+  const fetchData = useCallback(() => {
     setLoading(true);
     authenticatedFetch(apiEndpoint)
       .then((response) => {
@@ -48,11 +48,11 @@ const DataPage = ({
         setError(err.message);
         setLoading(false);
       });
-  };
+  }, [apiEndpoint, title]);
 
   useEffect(() => {
     fetchData();
-  }, [apiEndpoint, title]);
+  }, [fetchData]);
 
   const handleCreate = () => {
     setEditingItem(null);

@@ -1,5 +1,5 @@
 import React from 'react';
-import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
+import { BrowserRouter as Router, Routes, Route } from 'react-router-dom';
 import LoginPage from './pages/LoginPage';
 import RegisterPage from './pages/RegisterPage';
 import ProtectedRoute from './components/ProtectedRoute';
@@ -12,6 +12,7 @@ import DocumentsPage from './pages/DocumentsPage';
 import DocumentTemplatesPage from './pages/DocumentTemplatesPage';
 import GeneratedDocumentsPage from './pages/GeneratedDocumentsPage';
 import LeaveRequestsPage from './pages/LeaveRequestsPage';
+import LeaveEntitlementsPage from './pages/LeaveEntitlementsPage';
 import EmployeeDosiersPage from './pages/EmployeeDosiersPage';
 import DashboardPage from './pages/DashboardPage';
 import SidebarLayout from './components/SidebarLayout';
@@ -43,6 +44,11 @@ const AppRouter = () => (
           <Route path="/document-templates" element={<DocumentTemplatesPage />} />
           <Route path="/generated-documents" element={<GeneratedDocumentsPage />} />
           <Route path="/leave-requests" element={<LeaveRequestsPage />} />
+          <Route path="/leave-allowances" element={
+            <RoleBasedRoute allowedRoles={['Admin']}>
+              <LeaveEntitlementsPage />
+            </RoleBasedRoute>
+          } />
           <Route path="/employee-dossiers" element={<EmployeeDosiersPage />} />
         </Route>
     </Routes>

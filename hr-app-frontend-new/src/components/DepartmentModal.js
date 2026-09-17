@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Modal, Button, Form, Row, Col, Alert } from 'react-bootstrap';
+import { Modal, Button, Form, Alert } from 'react-bootstrap';
 import { authenticatedFetch } from '../services/authService';
 import { API_URLS } from '../config/api';
 

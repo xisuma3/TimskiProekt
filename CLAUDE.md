@@ -42,12 +42,17 @@ dotnet run --project HrAppWebApplication --launch-profile http
   `Hosting environment: Development`.
 - HTTP profile serves at `http://localhost:5190`; HTTPS profile at `https://localhost:7033` (and `http://localhost:5137`). Swagger UI is at `/swagger` in Development.
 - The frontend (`config/api.js`) hard-defaults to `http://localhost:5190`, so use the **http** profile unless you also set `REACT_APP_API_URL`.
-- `dotnet test HrApp.Tests/HrApp.Tests.csproj` runs the suite (53 tests). It uses the EF
-  **in-memory** provider, so it needs no SQL Server and covers *service behaviour* —
-  rules that live in the schema (filtered indexes, Restrict cascades) are not exercised
-  there.
+- **Two test suites**, both run by CI:
+  - `dotnet test HrApp.Tests/HrApp.Tests.csproj` — 65 tests on the EF **in-memory**
+    provider. Needs no SQL Server; covers *service behaviour*.
+  - `dotnet test HrApp.SchemaTests/HrApp.SchemaTests.csproj` — 14 tests against a real
+    SQL Server, on a throwaway database built by running the migrations. Covers the rules
+    the in-memory provider cannot enforce: Restrict cascades, filtered unique indexes,
+    migration fidelity. Connection from `HRAPP_TEST_SQL`, falling back to LocalDB.
 - CI is `.github/workflows/ci.yml`: backend build + test, a
-  `dotnet ef migrations has-pending-model-changes` drift gate, and a frontend build.
+  `dotnet ef migrations has-pending-model-changes` drift gate, the schema suite against a
+  SQL Server service container, and a frontend build with **`CI: true`** — ESLint
+  warnings are errors, so keep the tree warning-free.
 
 ### Frontend (run from `hr-app-frontend-new/`)
 
@@ -167,7 +172,12 @@ Decisions go through one private `DecideAsync`:
 
 - Only a **Pending** request can be decided. Re-approving, or flipping Approved to
   Rejected, returns **409 Conflict** rather than silently overwriting the audit trail.
-- Nobody can decide their **own** request (409).
+- Nobody can decide their **own** request (409), manager or not.
+- **Authority comes from the org chart.** An admin may decide anything; anyone else must
+  be the requester's manager, else 403. The rule lives in `DecideAsync` (which takes an
+  `approverIsAdmin` flag from the controller), *not* in an `[Authorize(Roles = ...)]`
+  attribute — an attribute can only express "admin or nothing".
+  `GET /api/LeaveRequest/GetMyTeamRequests` gives a manager their reports' requests.
 - Every decision records `ApprovedByEmployeeID`, `DecisionAt` and an optional
   `DecisionReason`. The approver comes from the caller's token; `ILeaveRequestService`
   takes it as an explicit parameter so a decision cannot be recorded anonymously.
@@ -225,6 +235,11 @@ A request spanning New Year is charged to **both** years and must fit in each �
 - The unique index on `Employee.Email` is **filtered** (`WHERE IsDeleted = 0`) so a retired
   employee does not permanently reserve their address. `Asset.SerialNumber`'s is filtered
   on `IS NOT NULL`, because SQL Server allows only one NULL in a plain unique index.
+- **Erasure is a separate, irreversible operation** from retiring (`POST /api/Employee/Erase/{id}`).
+  It destroys name, email, login, dossier and every generated document's *body*, and keeps
+  leave decisions and asset custody — those record what the company did, not who the
+  person was. It requires the employee to be retired first, and an erased employee cannot
+  be restored. Don't conflate the two in UI or in code.
 
 ## Frontend architecture (`hr-app-frontend-new`)
 
@@ -232,7 +247,13 @@ A request spanning New Year is charged to **both** years and must fit in each �
 - **Auth/session**: `src/services/authService.js` stores the JWT and `userInfo` (incl. roles) in `localStorage`. Use `authenticatedFetch(url, options)` for all authenticated calls — it injects the `Bearer` token and auto-logs-out on `401`. Role helpers: `hasRole`, `isAdmin`, `isEmployee`.
 - **Routing** (`src/AppRouter.js`): public routes (`/`, `/login`, `/register`); everything else is wrapped in `ProtectedRoute` (requires token) inside `SidebarLayout`. `RoleBasedRoute allowedRoles={['Admin']}` guards Admin-only pages (`/employees`, `/departments`) and redirects others to `/dashboard`.
 - **Data pages**: most list pages are built on the generic `src/components/DataPage.js` (fetch + search + add/edit modal + delete confirm). New CRUD screens should reuse it and pass a `renderCard`, `apiEndpoint`, and a `modalComponent`.
-- **Role-dependent endpoints**: `AssetsPage`, `LeaveRequestsPage` and `EmployeeDosiersPage` all pick their `apiEndpoint` with `isAdmin() ? GET_ALL() : GET_MY_*()`. The `GET_MY_*` half does not exist on the backend (see gotchas).
+- **Role-dependent endpoints**: `AssetsPage`, `LeaveRequestsPage` and `EmployeeDosiersPage` all pick their `apiEndpoint` with `isAdmin() ? GET_ALL() : GET_MY_*()`.
+- **Newer screens**: `/leave-allowances` (Admin) manages entitlements;
+  `LeaveBalanceCards` (exported from `LeaveEntitlementsPage`) renders balances on the
+  employee dashboard and the leave page; `AssetCustodyModal` handles assign/transfer/return
+  and shows the chain. A non-admin with pending reports gets a team banner on the leave page.
+- **Never move an asset by editing it.** `AssetController.Update` does not reassign — the
+  custody modal's Assign/Return are the only paths that record the chain.
 
 ## Gotchas
 
@@ -249,7 +270,12 @@ A request spanning New Year is charged to **both** years and must fit in each �
 - **`UserController` is broken at runtime.** It depends on `IUserService`, but `IUserService`/`IUserRepository` registrations are **commented out** in `Program.cs` ("not properly implemented"). Any `/api/User/*` call throws a DI resolution error. Note `authService.fetchUserDetails` calls `USER.GET_BY_ID` — so that path is dead too.
 - **`HrAppDbContext` lives in the `HrApp.Repository` project but is declared under `namespace HrAppWebApplication`.** Repositories therefore `using HrAppWebApplication;` to reach the context — don't be misled by the namespace.
 - **Several request DTOs have no validation attributes at all**: `DepartmentRequestDto`, `EmployeeRequestDto`, `UpdateEmployeeRequestDto`, `PreviewTemplateRequest`, `UserRequestDto`. `ModelState.IsValid` is therefore meaningless for those endpoints.
-- **`Asset.Description` and `SerialNumber` are nullable** and `AssetRequestDto` treats them as optional. They were previously non-nullable in the model but nullable in the database, so creating an asset without a description failed with a `DbUpdateException` → HTTP 500.
+- **A field that is optional in the request DTO must be nullable on the model too.** If it
+  is not, EF rejects the save with a `DbUpdateException` — an HTTP 500 where a saved record
+  was expected. This bit three times: `Asset.Description`/`SerialNumber`,
+  `DocumentTemplate.Description`, and `EmployeeDossier.Address`/`EmergencyContact`. All the
+  columns were already nullable in the database; only the model disagreed. Check both sides
+  whenever either changes.
 - `WeatherForecastController`/`WeatherForecast.cs` are leftover scaffolding.
 - Committed `bin/`/`obj/` artifacts appear as modified in `git status`; they are build output, not source changes.
 

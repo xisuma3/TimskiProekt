@@ -88,6 +88,64 @@ namespace HrApp.Repository.Implementation
                 .FirstOrDefaultAsync(e => e.EmployeeID == id);
         }
 
+        /// <summary>
+        /// Irreversibly destroys an employee's personal data while keeping the employment
+        /// records an employer is obliged to retain.
+        ///
+        /// Erased: name, email, position, the login, the dossier (birth date, address,
+        /// emergency contact) and the rendered body of every generated document, which
+        /// embeds those same fields.
+        ///
+        /// Kept: leave decisions and asset custody. Those are records of what the company
+        /// did and what happened to company property; they stay attributable to an
+        /// anonymous employee id rather than being deleted outright. The row itself
+        /// survives so those foreign keys stay valid.
+        /// </summary>
+        public async Task EraseAsync(Guid id)
+        {
+            var employee = await _context.Employees
+                .Include(e => e.EmployeeDossier)
+                .Include(e => e.GeneratedDocuments)
+                .FirstOrDefaultAsync(e => e.EmployeeID == id);
+
+            if (employee == null || employee.IsErased) return;
+
+            // The dossier is nothing but personal data.
+            if (employee.EmployeeDossier != null)
+            {
+                _context.EmployeeDossiers.Remove(employee.EmployeeDossier);
+            }
+
+            // Document bodies carry the name, address and dossier fields verbatim. The row
+            // stays so the audit trail still shows a document was issued, and when.
+            foreach (var document in employee.GeneratedDocuments ?? new List<GeneratedDocument>())
+            {
+                document.Content = "[erased]";
+                document.AssetIDs = null;
+            }
+
+            // Drop the login. Detach it first so the FK does not block the delete.
+            var applicationUserId = employee.ApplicationUserId;
+            employee.ApplicationUserId = null;
+
+            if (!string.IsNullOrEmpty(applicationUserId))
+            {
+                var user = await _context.Users.FirstOrDefaultAsync(u => u.Id == applicationUserId);
+                if (user != null) _context.Users.Remove(user);
+            }
+
+            employee.FirstName = "Erased";
+            employee.LastName = "Employee";
+            employee.Email = null;
+            employee.Position = null;
+            employee.IsErased = true;
+            employee.ErasedAt = DateTime.UtcNow;
+            employee.IsDeleted = true;
+            employee.DeletedAt ??= DateTime.UtcNow;
+
+            await _context.SaveChangesAsync();
+        }
+
         public async Task RestoreAsync(Guid id)
         {
             var employee = await _context.Employees.FindAsync(id);

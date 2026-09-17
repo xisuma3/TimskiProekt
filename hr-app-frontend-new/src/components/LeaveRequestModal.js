@@ -12,7 +12,6 @@ const LeaveRequestModal = ({ show, onHide, employees = [], onSave }) => {
   });
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
-  const [userInfo, setUserInfo] = useState(getUserInfo());
 
   const leaveTypes = ['Vacation', 'Sick', 'Parental', 'Unpaid'];
 
@@ -20,8 +19,7 @@ const LeaveRequestModal = ({ show, onHide, employees = [], onSave }) => {
     if (show) {
       // Get fresh userInfo from localStorage when modal opens
       const freshUserInfo = getUserInfo();
-      setUserInfo(freshUserInfo);
-      
+
       if (!isAdmin() && freshUserInfo?.employeeId) {
         // For employees, always set their own employee ID
         setFormData(prev => ({

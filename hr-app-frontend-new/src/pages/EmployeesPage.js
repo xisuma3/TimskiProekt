@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Card, Button, ButtonGroup, Modal } from 'react-bootstrap';
+import { Card, Button, ButtonGroup, Modal, Form, Alert } from 'react-bootstrap';
 import DataPage from '../components/DataPage';
 import EmployeeModal from '../components/EmployeeModal';
 import { authenticatedFetch } from '../services/authService';
@@ -11,6 +11,9 @@ const EmployeesPage = () => {
   const [departments, setDepartments] = useState([]);
   const [showDeleteModal, setShowDeleteModal] = useState(false);
   const [employeeToDelete, setEmployeeToDelete] = useState(null);
+  const [employeeToErase, setEmployeeToErase] = useState(null);
+  const [eraseConfirmText, setEraseConfirmText] = useState('');
+  const [eraseError, setEraseError] = useState(null);
 
   // Fetch departments for the dropdown
   useEffect(() => {
@@ -41,19 +44,54 @@ const EmployeesPage = () => {
         API_URLS.EMPLOYEES.DELETE(employeeToDelete.employeeID),
         { method: 'DELETE' }
       );
-      
+
       if (response.ok) {
         // Refresh the page data by triggering a re-render
         window.location.reload();
       } else {
-        throw new Error('Failed to delete employee');
+        throw new Error('Failed to retire employee');
       }
     } catch (error) {
-      console.error('Delete error:', error);
-      alert('Failed to delete employee');
+      console.error('Retire error:', error);
+      alert('Failed to retire employee');
     } finally {
       setShowDeleteModal(false);
       setEmployeeToDelete(null);
+    }
+  };
+
+  // GDPR erasure. Separate from retiring on purpose: it destroys personal data and
+  // cannot be undone, so it asks the admin to type the name.
+  const handleEraseConfirm = async () => {
+    const expected = `${employeeToErase.firstName} ${employeeToErase.lastName}`;
+    if (eraseConfirmText.trim() !== expected) {
+      setEraseError(`Type "${expected}" exactly to confirm.`);
+      return;
+    }
+
+    setEraseError(null);
+    try {
+      const response = await authenticatedFetch(
+        API_URLS.EMPLOYEES.ERASE(employeeToErase.employeeID),
+        { method: 'POST' }
+      );
+
+      if (response.ok) {
+        window.location.reload();
+        return;
+      }
+
+      let message = 'Failed to erase employee';
+      try {
+        const body = await response.json();
+        if (body?.message) message = body.message;
+      } catch {
+        // no JSON body
+      }
+      // 409 when they have not been retired first, or are already erased.
+      setEraseError(message);
+    } catch (error) {
+      setEraseError(error.message);
     }
   };
 
@@ -101,8 +139,17 @@ const EmployeesPage = () => {
               <i className="bi bi-pencil"></i>
             </Button>
             <Button
-              variant="outline-danger"
+              variant="outline-warning"
               onClick={() => handleDeleteClick(emp)}
+              title="Retire — hides them but keeps their records"
+              style={{ borderColor: '#f59e0b', color: '#f59e0b' }}
+            >
+              <i className="bi bi-box-arrow-right"></i>
+            </Button>
+            <Button
+              variant="outline-danger"
+              onClick={() => { setEmployeeToErase(emp); setEraseConfirmText(''); setEraseError(null); }}
+              title="Erase personal data — irreversible"
               style={{ borderColor: '#dc3545', color: '#dc3545' }}
             >
               <i className="bi bi-trash"></i>
@@ -137,20 +184,60 @@ const EmployeesPage = () => {
       {/* Delete Confirmation Modal */}
       <Modal show={showDeleteModal} onHide={() => setShowDeleteModal(false)} centered>
         <Modal.Header closeButton style={{ backgroundColor: '#1E293B', color: 'white', borderColor: '#dc3545' }}>
-          <Modal.Title>Confirm Delete</Modal.Title>
+          <Modal.Title>Retire Employee</Modal.Title>
         </Modal.Header>
         <Modal.Body style={{ backgroundColor: '#0F172A', color: 'white' }}>
-          Are you sure you want to delete {employeeToDelete?.firstName} {employeeToDelete?.lastName}?
+          Retire {employeeToDelete?.firstName} {employeeToDelete?.lastName}?
           <br />
-          <small className="text-muted">This action cannot be undone.</small>
+          <small className="text-muted">
+            They are removed from listings, but their leave decisions, asset custody and
+            generated documents are kept. This can be undone.
+          </small>
         </Modal.Body>
-        <Modal.Footer style={{ backgroundColor: '#1E293B', borderColor: '#dc3545' }}>
+        <Modal.Footer style={{ backgroundColor: '#1E293B', borderColor: '#f59e0b' }}>
           <Button variant="secondary" onClick={() => setShowDeleteModal(false)}>
             Cancel
           </Button>
-          <Button variant="danger" onClick={handleDeleteConfirm}>
-            Delete
+          <Button variant="warning" onClick={handleDeleteConfirm}>
+            Retire
           </Button>
+        </Modal.Footer>
+      </Modal>
+
+      {/* GDPR erasure — deliberately harder to trigger than retiring */}
+      <Modal show={Boolean(employeeToErase)} onHide={() => setEmployeeToErase(null)} centered>
+        <Modal.Header closeButton style={{ backgroundColor: '#1E293B', color: 'white', borderColor: '#dc3545' }}>
+          <Modal.Title>Erase Personal Data</Modal.Title>
+        </Modal.Header>
+        <Modal.Body style={{ backgroundColor: '#0F172A', color: 'white' }}>
+          {eraseError && <Alert variant="danger">{eraseError}</Alert>}
+
+          <p>
+            This permanently destroys the personal data of{' '}
+            <strong>{employeeToErase?.firstName} {employeeToErase?.lastName}</strong>:
+            their name, email, login, dossier, and the body of every document generated
+            for them.
+          </p>
+          <p style={{ color: '#94A3B8' }}>
+            Their leave decisions and asset custody are <strong>kept</strong> in anonymised
+            form — those record what the company did and what happened to company property.
+          </p>
+          <p className="text-danger"><strong>This cannot be undone.</strong></p>
+
+          <Form.Group>
+            <Form.Label style={{ color: '#94A3B8' }}>
+              Type <code>{employeeToErase?.firstName} {employeeToErase?.lastName}</code> to confirm
+            </Form.Label>
+            <Form.Control
+              value={eraseConfirmText}
+              onChange={(e) => setEraseConfirmText(e.target.value)}
+              style={{ backgroundColor: '#1E293B', color: 'white', borderColor: '#374151' }}
+            />
+          </Form.Group>
+        </Modal.Body>
+        <Modal.Footer style={{ backgroundColor: '#1E293B', borderColor: '#dc3545' }}>
+          <Button variant="secondary" onClick={() => setEmployeeToErase(null)}>Cancel</Button>
+          <Button variant="danger" onClick={handleEraseConfirm}>Erase permanently</Button>
         </Modal.Footer>
       </Modal>
     </>

@@ -17,5 +17,6 @@ namespace HrApp.Service.Interface
         Task UpdateAsync(Guid id, UpdateEmployeeRequestDto dto);
         Task DeleteAsync(Guid id);
         Task RestoreAsync(Guid id);
+        Task EraseAsync(Guid id);
     }
 }

@@ -73,6 +73,19 @@ namespace HrApp.Repository.Implementation
             return await query.ToListAsync();
         }
 
+        public async Task<IEnumerable<LeaveRequest>> GetForManagerAsync(Guid managerEmployeeId, bool pendingOnly = false)
+        {
+            var query = _context.LeaveRequests
+                .Where(lr => lr.Employee.ManagerID == managerEmployeeId && !lr.Employee.IsDeleted)
+                .Include(lr => lr.Employee)
+                .Include(lr => lr.ApprovedBy)
+                .AsQueryable();
+
+            if (pendingOnly) query = query.Where(lr => lr.Status == "Pending");
+
+            return await query.OrderByDescending(lr => lr.CreatedAt).ToListAsync();
+        }
+
         public async Task<IEnumerable<LeaveRequest>> GetTouchingYearAsync(Guid employeeId, int year, string leaveType)
         {
             var yearStart = new DateTime(year, 1, 1);

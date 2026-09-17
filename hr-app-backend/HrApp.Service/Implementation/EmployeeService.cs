@@ -188,7 +188,31 @@ namespace HrApp.Service.Implementation
             var employee = await _repository.GetByIdIncludingDeletedAsync(id);
             if (employee == null) throw new ArgumentException("Employee not found");
 
+            if (employee.IsErased)
+                throw new InvalidOperationException(
+                    "This employee's personal data has been erased and cannot be restored.");
+
             await _repository.RestoreAsync(id);
+        }
+
+        /// <summary>
+        /// Erases an employee's personal data. Irreversible, and only for an employee who
+        /// has already been retired — erasing someone still employed is almost certainly a
+        /// mistake, and the two-step makes it deliberate.
+        /// </summary>
+        public async Task EraseAsync(Guid id)
+        {
+            var employee = await _repository.GetByIdIncludingDeletedAsync(id);
+            if (employee == null) throw new ArgumentException("Employee not found");
+
+            if (employee.IsErased)
+                throw new InvalidOperationException("This employee has already been erased.");
+
+            if (!employee.IsDeleted)
+                throw new InvalidOperationException(
+                    "Retire the employee before erasing them. Erasure is irreversible.");
+
+            await _repository.EraseAsync(id);
         }
 
       

@@ -10,7 +10,7 @@ namespace HrApp.DomainEntities.Models
     {
         public Guid TemplateID { get; set; }
         public string TemplateName { get; set; }
-        public string Description { get; set; }
+        public string? Description { get; set; }
         public string TemplateContent { get; set; }
         public string TemplateType { get; set; } // 'Asset', 'Employment', 'Salary'
 

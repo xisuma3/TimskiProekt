@@ -146,17 +146,30 @@ namespace HrApp.Service.Implementation
         }
 
         public Task ApproveRequestAsync(Guid id, Guid? approverEmployeeId, string reason) =>
-            DecideAsync(id, StatusApproved, approverEmployeeId, reason);
+            DecideAsync(id, StatusApproved, approverEmployeeId, reason, approverIsAdmin: true);
 
         public Task RejectRequestAsync(Guid id, Guid? approverEmployeeId, string reason) =>
-            DecideAsync(id, StatusRejected, approverEmployeeId, reason);
+            DecideAsync(id, StatusRejected, approverEmployeeId, reason, approverIsAdmin: true);
+
+        public Task ApproveRequestAsync(Guid id, Guid? approverEmployeeId, string reason, bool approverIsAdmin) =>
+            DecideAsync(id, StatusApproved, approverEmployeeId, reason, approverIsAdmin);
+
+        public Task RejectRequestAsync(Guid id, Guid? approverEmployeeId, string reason, bool approverIsAdmin) =>
+            DecideAsync(id, StatusRejected, approverEmployeeId, reason, approverIsAdmin);
+
+        public async Task<IEnumerable<LeaveRequestResponseDto>> GetForManagerAsync(Guid managerEmployeeId, bool pendingOnly = false)
+        {
+            var requests = await _repository.GetForManagerAsync(managerEmployeeId, pendingOnly);
+            return requests.Select(MapToDto);
+        }
 
         /// <summary>
         /// Applies a decision to a request, recording who made it and when.
         /// Only a Pending request can be decided — re-approving or flipping a settled
         /// request is rejected rather than silently overwriting the audit trail.
         /// </summary>
-        private async Task DecideAsync(Guid id, string newStatus, Guid? approverEmployeeId, string reason)
+        private async Task DecideAsync(
+            Guid id, string newStatus, Guid? approverEmployeeId, string reason, bool approverIsAdmin)
         {
             var request = await _repository.GetByIdAsync(id);
             if (request == null) throw new ArgumentException("Leave request not found");
@@ -175,6 +188,18 @@ namespace HrApp.Service.Implementation
                 if (approver.EmployeeID == request.EmployeeID)
                 {
                     throw new InvalidOperationException("You cannot decide your own leave request.");
+                }
+
+                // Authority comes from the org chart, not just from holding a token. An
+                // admin may decide anything; anyone else must be the requester's manager.
+                if (!approverIsAdmin)
+                {
+                    var requester = await _employeeRepository.GetByIdAsync(request.EmployeeID);
+                    if (requester?.ManagerID != approver.EmployeeID)
+                    {
+                        throw new UnauthorizedAccessException(
+                            "Only this employee's manager, or an administrator, can decide this request.");
+                    }
                 }
             }
 
