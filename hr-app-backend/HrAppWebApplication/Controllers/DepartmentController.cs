@@ -6,9 +6,8 @@ using Microsoft.AspNetCore.Mvc;
 
 namespace HrAppWebApplication.Controllers
 {
-    [ApiController]
-    [Route("api/[controller]/[action]")]
-    public class DepartmentController : ControllerBase
+        [Route("api/[controller]/[action]")]
+    public class DepartmentController : ApiControllerBase
     {
         private readonly IDepartmentService _service;
 
@@ -18,7 +17,6 @@ namespace HrAppWebApplication.Controllers
         }
 
         [HttpGet]
-        [Authorize]
         public async Task<ActionResult<IEnumerable<DepartmentResponseDto>>> GetAll()
         {
             return Ok(await _service.GetAllAsync());
@@ -33,6 +31,7 @@ namespace HrAppWebApplication.Controllers
         }
 
         [HttpPost]
+        [Authorize(Roles = "Admin")]
         public async Task<ActionResult<DepartmentResponseDto>> Create([FromBody] DepartmentRequestDto dto)
         {
             var created = await _service.AddAsync(dto);
@@ -40,6 +39,7 @@ namespace HrAppWebApplication.Controllers
         }
 
         [HttpPut("{id}")]
+        [Authorize(Roles = "Admin")]
         public async Task<IActionResult> Edit(Guid id, [FromBody] DepartmentRequestDto dto)
         {
             await _service.UpdateAsync(id, dto);
@@ -47,6 +47,7 @@ namespace HrAppWebApplication.Controllers
         }
 
         [HttpDelete("{id}")]
+        [Authorize(Roles = "Admin")]
         public async Task<IActionResult> Delete(Guid id)
         {
             await _service.DeleteAsync(id);

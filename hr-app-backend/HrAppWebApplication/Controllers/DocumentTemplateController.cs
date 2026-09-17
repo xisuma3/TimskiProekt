@@ -2,13 +2,13 @@
 using HrApp.DomainEntities.DTO.Response;
 using HrApp.DomainEntities.Models;
 using HrApp.Service.Interface;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 
 namespace HrAppWebApplication.Controllers
 {
-    [ApiController]
-    [Route("api/[controller]/[action]")]
-    public class DocumentTemplateController : ControllerBase
+        [Route("api/[controller]/[action]")]
+    public class DocumentTemplateController : ApiControllerBase
     {
         private readonly IDocumentTemplateService _service;
         private readonly ITemplateProcessingService _templateProcessingService;
@@ -61,6 +61,7 @@ namespace HrAppWebApplication.Controllers
         }
 
         [HttpPost]
+        [Authorize(Roles = "Admin")]
         public async Task<ActionResult<DocumentTemplateResponseDto>> Create([FromBody] DocumentTemplateRequestDto dto)
         {
             try
@@ -75,6 +76,7 @@ namespace HrAppWebApplication.Controllers
         }
 
         [HttpPut("{id}")]
+        [Authorize(Roles = "Admin")]
         public async Task<IActionResult> Update(Guid id, [FromBody] DocumentTemplateRequestDto dto)
         {
             try
@@ -89,6 +91,7 @@ namespace HrAppWebApplication.Controllers
         }
 
         [HttpDelete("{id}")]
+        [Authorize(Roles = "Admin")]
         public async Task<IActionResult> Delete(Guid id)
         {
             try
@@ -103,6 +106,7 @@ namespace HrAppWebApplication.Controllers
         }
 
         [HttpPost("{id}/preview")]
+        [Authorize(Roles = "Admin")]
         public async Task<ActionResult<string>> PreviewTemplate(Guid id, [FromQuery] Guid employeeId, [FromQuery] List<Guid>? assetIds = null)
         {
             try
@@ -117,6 +121,7 @@ namespace HrAppWebApplication.Controllers
         }
 
         [HttpPost]
+        [Authorize(Roles = "Admin")]
         public async Task<ActionResult<string>> Preview([FromBody] PreviewTemplateRequest request)
         {
             try
@@ -133,6 +138,16 @@ namespace HrAppWebApplication.Controllers
                         var assetDto = await _assetService.GetByIdAsync(assetId);
                         if (assetDto != null)
                         {
+                            // Same ownership rule the real generation path enforces: a
+                            // preview must not show one employee holding another's assets.
+                            if (assetDto.EmployeeID != request.EmployeeId)
+                            {
+                                return BadRequest(new
+                                {
+                                    message = $"Asset '{assetDto.Name}' is not assigned to this employee and cannot be included."
+                                });
+                            }
+
                             // Convert DTO to Model (simplified)
                             assets.Add(new Asset 
                             { 

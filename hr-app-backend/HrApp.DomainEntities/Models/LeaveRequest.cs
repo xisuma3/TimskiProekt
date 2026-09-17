@@ -18,5 +18,13 @@ namespace HrApp.DomainEntities.Models
         public string LeaveType { get; set; } // 'Vacation', 'Sick', 'Parental', 'Unpaid'
         public string Status { get; set; } // 'Pending', 'Approved', 'Rejected'
         public DateTime CreatedAt { get; set; }
+
+        // --- Decision audit trail ---
+        // Who decided, when, and why. Without these an approval is an unattributable
+        // string change and the leave process cannot be audited.
+        public Guid? ApprovedByEmployeeID { get; set; }
+        public Employee? ApprovedBy { get; set; }
+        public DateTime? DecisionAt { get; set; }
+        public string? DecisionReason { get; set; }
     }
 }

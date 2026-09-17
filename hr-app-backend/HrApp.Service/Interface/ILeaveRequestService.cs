@@ -15,8 +15,10 @@ namespace HrApp.Service.Interface
         Task<IEnumerable<LeaveRequestResponseDto>> GetByEmployeeIdAsync(Guid employeeId);
         Task<IEnumerable<LeaveRequestResponseDto>> GetPendingRequestsAsync();
         Task<LeaveRequestResponseDto> CreateAsync(LeaveRequestRequestDto dto);
-        Task ApproveRequestAsync(Guid id);
-        Task RejectRequestAsync(Guid id);
+        // The approver is always passed explicitly so a decision cannot be recorded
+        // anonymously. Controllers resolve it from the caller's token.
+        Task ApproveRequestAsync(Guid id, Guid? approverEmployeeId, string reason);
+        Task RejectRequestAsync(Guid id, Guid? approverEmployeeId, string reason);
         Task DeleteAsync(Guid id);
     }
 }

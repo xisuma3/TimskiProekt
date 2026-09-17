@@ -134,6 +134,17 @@ namespace HrAppWebApplication
 
                 entity.Property(l => l.CreatedAt)
                     .HasDefaultValueSql("GETDATE()");
+
+                entity.Property(l => l.DecisionReason).HasMaxLength(500);
+
+                // Restrict, not Cascade: deleting an approver must not erase the leave
+                // records they decided on. Employee already cascades to LeaveRequests via
+                // the EmployeeID relationship, so a second cascade path here would also be
+                // rejected by SQL Server.
+                entity.HasOne(l => l.ApprovedBy)
+                    .WithMany()
+                    .HasForeignKey(l => l.ApprovedByEmployeeID)
+                    .OnDelete(DeleteBehavior.Restrict);
             });
 
             // Asset configuration

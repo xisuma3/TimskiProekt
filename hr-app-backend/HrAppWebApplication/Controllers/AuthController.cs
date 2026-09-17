@@ -1,6 +1,7 @@
 ﻿using HrApp.DomainEntities.DTO.Response;
 using HrApp.DomainEntities.Identity;
 using Microsoft.AspNetCore.Identity;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.IdentityModel.Tokens;
 using static HrApp.DomainEntities.DTO.Request.LoginRequestDto;
@@ -35,6 +36,7 @@ namespace HrAppWebApplication.Controllers
 
         // --- User Registration Endpoint ---
         [HttpPost("register")]
+        [AllowAnonymous]
         public async Task<IActionResult> Register([FromBody] RegisterRequestDto model)
         {
             if (!ModelState.IsValid)
@@ -90,6 +92,7 @@ namespace HrAppWebApplication.Controllers
 
         // --- User Login Endpoint ---
         [HttpPost("login")]
+        [AllowAnonymous]
         public async Task<IActionResult> Login([FromBody] LoginRequestDto model)
         {
             if (!ModelState.IsValid)
@@ -172,6 +175,7 @@ namespace HrAppWebApplication.Controllers
         // This endpoint can be used to invalidate server-side session cookies (if any are used)
         // or perform other server-side cleanup. For pure JWT, it's often optional.
         [HttpPost("logout")]
+        [AllowAnonymous]
         // [Authorize] // Optional: require user to be authenticated to logout (if doing server-side cleanup)
         public async Task<IActionResult> Logout()
         {

@@ -44,8 +44,22 @@ namespace HrApp.Service.Implementation
         public async Task<EmployeeResponseDto> GetByIdAsync(Guid id)
         {
             var e = await _repository.GetByIdAsync(id);
-            if (e == null) return null;
+            return e == null ? null : MapToDetailDto(e);
+        }
 
+        // Resolves the employee behind a signed-in ApplicationUser. This is how the API
+        // learns who the caller is; an EmployeeID from a request body must never be used
+        // for that, because the caller controls it.
+        public async Task<EmployeeResponseDto> GetByApplicationUserIdAsync(string applicationUserId)
+        {
+            if (string.IsNullOrWhiteSpace(applicationUserId)) return null;
+
+            var e = await _repository.GetByApplicationUserIdAsync(applicationUserId);
+            return e == null ? null : MapToDetailDto(e);
+        }
+
+        private static EmployeeResponseDto MapToDetailDto(Employee e)
+        {
             return new EmployeeResponseDto
             {
                 EmployeeID = e.EmployeeID,

@@ -23,6 +23,7 @@ namespace HrApp.Repository.Implementation
         {
             return await _context.LeaveRequests
                 .Include(lr => lr.Employee)
+                .Include(lr => lr.ApprovedBy)
                 .OrderByDescending(lr => lr.CreatedAt)
                 .ToListAsync();
         }
@@ -31,6 +32,7 @@ namespace HrApp.Repository.Implementation
         {
             return await _context.LeaveRequests
                 .Include(lr => lr.Employee)
+                .Include(lr => lr.ApprovedBy)
                 .FirstOrDefaultAsync(lr => lr.RequestID == id);
         }
 
@@ -39,6 +41,7 @@ namespace HrApp.Repository.Implementation
             return await _context.LeaveRequests
                 .Where(lr => lr.EmployeeID == employeeId)
                 .Include(lr => lr.Employee)
+                .Include(lr => lr.ApprovedBy)
                 .OrderByDescending(lr => lr.CreatedAt)
                 .ToListAsync();
         }
@@ -48,8 +51,26 @@ namespace HrApp.Repository.Implementation
             return await _context.LeaveRequests
                 .Where(lr => lr.Status == "Pending")
                 .Include(lr => lr.Employee)
+                .Include(lr => lr.ApprovedBy)
                 .OrderBy(lr => lr.CreatedAt)
                 .ToListAsync();
+        }
+
+        // Any request for the same employee whose date range intersects [start, end] and
+        // that has not been rejected. Used to stop double-booking the same days.
+        public async Task<IEnumerable<LeaveRequest>> GetOverlappingAsync(
+            Guid employeeId, DateTime startDate, DateTime endDate, Guid? excludeRequestId = null)
+        {
+            var query = _context.LeaveRequests
+                .Where(lr => lr.EmployeeID == employeeId
+                             && lr.Status != "Rejected"
+                             && lr.StartDate <= endDate
+                             && lr.EndDate >= startDate);
+
+            if (excludeRequestId.HasValue)
+                query = query.Where(lr => lr.RequestID != excludeRequestId.Value);
+
+            return await query.ToListAsync();
         }
 
         public async Task<LeaveRequest> AddAsync(LeaveRequest leaveRequest)

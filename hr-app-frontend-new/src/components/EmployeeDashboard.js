@@ -39,7 +39,9 @@ const EmployeeDashboard = () => {
         const dossierResponse = await authenticatedFetch(API_URLS.EMPLOYEE_DOSSIERS.GET_MY_DOSSIER());
         if (dossierResponse.ok) {
           const dossierData = await dossierResponse.json();
-          setDossier(dossierData);
+          // GetMyDossier returns a list (0 or 1) so it can back the dossier DataPage;
+          // this card wants the single record.
+          setDossier(Array.isArray(dossierData) ? dossierData[0] ?? null : dossierData);
         }
 
       } catch (error) {

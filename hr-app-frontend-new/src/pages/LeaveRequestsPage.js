@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Card, Button, Badge, ButtonGroup, Modal } from 'react-bootstrap';
+import { Card, Button, Badge, ButtonGroup, Modal, Form } from 'react-bootstrap';
 import DataPage from '../components/DataPage';
 import LeaveRequestModal from '../components/LeaveRequestModal';
 import RoleBasedContent from '../components/RoleBasedContent';
@@ -11,6 +11,7 @@ const LeaveRequestsPage = () => {
   const [employees, setEmployees] = useState([]);
   const [showApproveModal, setShowApproveModal] = useState(false);
   const [requestToProcess, setRequestToProcess] = useState(null);
+  const [decisionReason, setDecisionReason] = useState('');
   const [userInfo] = useState(getUserInfo());
 
   useEffect(() => {
@@ -27,42 +28,58 @@ const LeaveRequestsPage = () => {
     setShowModal(true);
   };
 
+  // The API records who decided and why, and refuses to change an already-settled
+  // request (409). Show its message rather than a generic failure.
+  const submitDecision = async (url, reason) => {
+    const response = await authenticatedFetch(url, {
+      method: 'PUT',
+      body: JSON.stringify({ reason: reason || null })
+    });
+
+    if (response.ok) {
+      window.location.reload();
+      return;
+    }
+
+    let message = 'Failed to update request';
+    try {
+      const body = await response.json();
+      if (body?.message) message = body.message;
+    } catch {
+      // response had no JSON body; keep the default message
+    }
+    throw new Error(message);
+  };
+
   const handleApprove = async () => {
     try {
-      const response = await authenticatedFetch(
+      await submitDecision(
         API_URLS.LEAVE_REQUESTS.APPROVE(requestToProcess.requestID),
-        { method: 'PUT' }
+        decisionReason
       );
-      
-      if (response.ok) {
-        window.location.reload();
-      } else {
-        throw new Error('Failed to approve request');
-      }
     } catch (error) {
       console.error('Approve error:', error);
-      alert('Failed to approve request');
+      alert(error.message);
     } finally {
       setShowApproveModal(false);
       setRequestToProcess(null);
+      setDecisionReason('');
     }
   };
 
   const handleReject = async (request) => {
+    const reason = window.prompt(
+      `Reject ${request.employeeName}'s ${request.leaveType.toLowerCase()} leave?
+
+Reason (optional):`
+    );
+    if (reason === null) return; // cancelled
+
     try {
-      const response = await authenticatedFetch(
-        API_URLS.LEAVE_REQUESTS.REJECT(request.requestID),
-        { method: 'PUT' }
-      );
-      
-      if (response.ok) {
-        window.location.reload();
-      } else {
-        throw new Error('Failed to reject request');
-      }
+      await submitDecision(API_URLS.LEAVE_REQUESTS.REJECT(request.requestID), reason);
     } catch (error) {
       console.error('Reject error:', error);
-      alert('Failed to reject request');
+      alert(error.message);
     }
   };
 
@@ -92,6 +109,16 @@ const LeaveRequestsPage = () => {
           <strong>Duration:</strong> {request.totalDays} days<br/>
           <strong>Created:</strong> {new Date(request.createdAt).toLocaleDateString()}
         </Card.Text>
+
+        {request.status !== 'Pending' && request.decisionAt && (
+          <Card.Text style={{ color: '#94A3B8', fontSize: '0.875rem' }}>
+            <strong>{request.status} by:</strong> {request.approvedByName || 'Unknown'}
+            {' '}on {new Date(request.decisionAt).toLocaleDateString()}
+            {request.decisionReason && (
+              <><br/><strong>Reason:</strong> {request.decisionReason}</>
+            )}
+          </Card.Text>
+        )}
         
         {/* Admin can approve/reject, employees can only view */}
         <RoleBasedContent allowedRoles={['Admin']}>
@@ -140,15 +167,29 @@ const LeaveRequestsPage = () => {
         onSave={() => window.location.reload()}
       />
 
-      <Modal show={showApproveModal} onHide={() => setShowApproveModal(false)} centered>
+      <Modal show={showApproveModal} onHide={() => { setShowApproveModal(false); setDecisionReason(''); }} centered>
         <Modal.Header closeButton style={{ backgroundColor: '#1E293B', color: 'white', borderColor: '#28a745' }}>
           <Modal.Title>Approve Leave Request</Modal.Title>
         </Modal.Header>
         <Modal.Body style={{ backgroundColor: '#0F172A', color: 'white' }}>
-          Approve leave request for {requestToProcess?.employeeName}?
+          <p>
+            Approve {requestToProcess?.totalDays}-day {requestToProcess?.leaveType?.toLowerCase()} leave
+            for {requestToProcess?.employeeName}?
+          </p>
+          <Form.Group>
+            <Form.Label style={{ color: '#94A3B8' }}>Reason (optional)</Form.Label>
+            <Form.Control
+              as="textarea"
+              rows={2}
+              value={decisionReason}
+              onChange={(e) => setDecisionReason(e.target.value)}
+              placeholder="Recorded against this decision"
+              style={{ backgroundColor: '#1E293B', color: 'white', borderColor: '#374151' }}
+            />
+          </Form.Group>
         </Modal.Body>
         <Modal.Footer style={{ backgroundColor: '#1E293B', borderColor: '#28a745' }}>
-          <Button variant="secondary" onClick={() => setShowApproveModal(false)}>
+          <Button variant="secondary" onClick={() => { setShowApproveModal(false); setDecisionReason(''); }}>
             Cancel
           </Button>
           <Button variant="success" onClick={handleApprove}>

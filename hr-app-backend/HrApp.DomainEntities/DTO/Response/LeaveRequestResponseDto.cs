@@ -17,5 +17,10 @@ namespace HrApp.DomainEntities.DTO.Response
         public string Status { get; set; }
         public DateTime CreatedAt { get; set; }
         public int TotalDays => (EndDate - StartDate).Days + 1;
+
+        public Guid? ApprovedByEmployeeID { get; set; }
+        public string ApprovedByName { get; set; }
+        public DateTime? DecisionAt { get; set; }
+        public string DecisionReason { get; set; }
     }
 }

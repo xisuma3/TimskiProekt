@@ -12,6 +12,7 @@ namespace HrApp.Service.Interface
     {
         Task<IEnumerable<EmployeeResponseDto>> GetAllAsync();
         Task<EmployeeResponseDto> GetByIdAsync(Guid id);
+        Task<EmployeeResponseDto> GetByApplicationUserIdAsync(string applicationUserId);
         Task<EmployeeResponseDto> AddAsync(EmployeeRequestDto dto);
         Task UpdateAsync(Guid id, UpdateEmployeeRequestDto dto);
         Task DeleteAsync(Guid id);

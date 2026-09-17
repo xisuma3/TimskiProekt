@@ -1,11 +1,13 @@
 ﻿using HrApp.DomainEntities.DTO.Request;
 using HrApp.DomainEntities.DTO.Response;
 using HrApp.Service.Interface;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using HrAppWebApplication.Controllers;
 
-[ApiController]
 [Route("api/[controller]/[action]")]
-public class UserController : ControllerBase
+[Authorize(Roles = "Admin")]
+public class UserController : ApiControllerBase
 {
     private readonly IUserService _service;
 

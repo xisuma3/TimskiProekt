@@ -13,6 +13,13 @@ namespace HrApp.Service.Implementation
 {
     public class LeaveRequestService : ILeaveRequestService
     {
+        private const string StatusPending = "Pending";
+        private const string StatusApproved = "Approved";
+        private const string StatusRejected = "Rejected";
+
+        private static readonly HashSet<string> AllowedLeaveTypes =
+            new(StringComparer.OrdinalIgnoreCase) { "Vacation", "Sick", "Parental", "Unpaid" };
+
         private readonly ILeaveRequestRepository _repository;
         private readonly IEmployeeRepository _employeeRepository;
 
@@ -50,26 +57,43 @@ namespace HrApp.Service.Implementation
 
         public async Task<LeaveRequestResponseDto> CreateAsync(LeaveRequestRequestDto dto)
         {
-            // Validate date range first
-            if (dto.EndDate <= dto.StartDate)
+            var startDate = dto.StartDate.Date;
+            var endDate = dto.EndDate.Date;
+
+            if (endDate < startDate)
             {
-                throw new ArgumentException("End date must be after start date");
+                throw new ArgumentException("End date must be on or after start date");
             }
 
-            // Validate employee exists
+            if (string.IsNullOrWhiteSpace(dto.LeaveType) || !AllowedLeaveTypes.Contains(dto.LeaveType))
+            {
+                throw new ArgumentException(
+                    $"Leave type must be one of: {string.Join(", ", AllowedLeaveTypes)}");
+            }
+
             var employee = await _employeeRepository.GetByIdAsync(dto.EmployeeID);
             if (employee == null)
             {
                 throw new ArgumentException("Employee not found");
             }
 
+            // Stop the same days being booked twice. Rejected requests don't count.
+            var overlapping = await _repository.GetOverlappingAsync(dto.EmployeeID, startDate, endDate);
+            if (overlapping.Any())
+            {
+                var clash = overlapping.First();
+                throw new ArgumentException(
+                    $"This overlaps an existing {clash.Status.ToLowerInvariant()} request " +
+                    $"({clash.StartDate:yyyy-MM-dd} to {clash.EndDate:yyyy-MM-dd})");
+            }
+
             var leaveRequest = new LeaveRequest
             {
                 EmployeeID = dto.EmployeeID,
-                StartDate = dto.StartDate.Date, // Ensure time portion is removed
-                EndDate = dto.EndDate.Date,
+                StartDate = startDate,
+                EndDate = endDate,
                 LeaveType = dto.LeaveType,
-                Status = "Pending",
+                Status = StatusPending,
                 CreatedAt = DateTime.UtcNow
             };
 
@@ -77,21 +101,44 @@ namespace HrApp.Service.Implementation
             return await GetByIdAsync(created.RequestID);
         }
 
-        public async Task ApproveRequestAsync(Guid id)
+        public Task ApproveRequestAsync(Guid id, Guid? approverEmployeeId, string reason) =>
+            DecideAsync(id, StatusApproved, approverEmployeeId, reason);
+
+        public Task RejectRequestAsync(Guid id, Guid? approverEmployeeId, string reason) =>
+            DecideAsync(id, StatusRejected, approverEmployeeId, reason);
+
+        /// <summary>
+        /// Applies a decision to a request, recording who made it and when.
+        /// Only a Pending request can be decided — re-approving or flipping a settled
+        /// request is rejected rather than silently overwriting the audit trail.
+        /// </summary>
+        private async Task DecideAsync(Guid id, string newStatus, Guid? approverEmployeeId, string reason)
         {
             var request = await _repository.GetByIdAsync(id);
             if (request == null) throw new ArgumentException("Leave request not found");
 
-            request.Status = "Approved";
-            await _repository.UpdateAsync(request);
-        }
+            if (!string.Equals(request.Status, StatusPending, StringComparison.OrdinalIgnoreCase))
+            {
+                throw new InvalidOperationException(
+                    $"This request is already {request.Status.ToLowerInvariant()} and cannot be changed.");
+            }
 
-        public async Task RejectRequestAsync(Guid id)
-        {
-            var request = await _repository.GetByIdAsync(id);
-            if (request == null) throw new ArgumentException("Leave request not found");
+            if (approverEmployeeId.HasValue)
+            {
+                var approver = await _employeeRepository.GetByIdAsync(approverEmployeeId.Value);
+                if (approver == null) throw new ArgumentException("Approver not found");
 
-            request.Status = "Rejected";
+                if (approver.EmployeeID == request.EmployeeID)
+                {
+                    throw new InvalidOperationException("You cannot decide your own leave request.");
+                }
+            }
+
+            request.Status = newStatus;
+            request.ApprovedByEmployeeID = approverEmployeeId;
+            request.DecisionAt = DateTime.UtcNow;
+            request.DecisionReason = string.IsNullOrWhiteSpace(reason) ? null : reason.Trim();
+
             await _repository.UpdateAsync(request);
         }
 
@@ -111,7 +158,13 @@ namespace HrApp.Service.Implementation
                 EndDate = request.EndDate,
                 LeaveType = request.LeaveType,
                 Status = request.Status,
-                CreatedAt = request.CreatedAt
+                CreatedAt = request.CreatedAt,
+                ApprovedByEmployeeID = request.ApprovedByEmployeeID,
+                ApprovedByName = request.ApprovedBy != null
+                    ? $"{request.ApprovedBy.FirstName} {request.ApprovedBy.LastName}"
+                    : null,
+                DecisionAt = request.DecisionAt,
+                DecisionReason = request.DecisionReason
             };
         }
     }

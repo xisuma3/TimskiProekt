@@ -1,4 +1,4 @@
-// Program.cs
+﻿// Program.cs
 
 // Add these using statements at the top (if not already there)
 using Microsoft.AspNetCore.Identity;
@@ -11,6 +11,7 @@ using HrAppWebApplication;
 using HrApp.DomainEntities.Identity;
 using System.Text.Json.Serialization;
 using Microsoft.AspNetCore.Authentication.JwtBearer; // NEW!
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.IdentityModel.Tokens; // NEW!
 using System.Text;
 using Microsoft.OpenApi.Models; // NEW!
@@ -58,6 +59,16 @@ builder.Services.AddAuthentication(options =>
     };
 });
 // --- End JWT Authentication Configuration ---
+
+// Deny by default. Without this, an action with no [Authorize] attribute is fully
+// public, which is how the whole API ended up anonymous. Endpoints that must stay
+// open (login, register) opt out explicitly with [AllowAnonymous].
+builder.Services.AddAuthorization(options =>
+{
+    options.FallbackPolicy = new AuthorizationPolicyBuilder()
+        .RequireAuthenticatedUser()
+        .Build();
+});
 
 
 // --- Existing Service Registrations ---
@@ -144,6 +155,10 @@ if (app.Environment.IsDevelopment())
     app.UseSwaggerUI();
 }
 
+// Seeding a well-known admin password is a development convenience, not something
+// that should ever run in a deployed environment.
+var seedDevAdmin = app.Environment.IsDevelopment();
+
 app.UseHttpsRedirection();
 
 app.UseCors(MyAllowSpecificOrigins);
@@ -175,7 +190,7 @@ using (var scope = app.Services.CreateScope())
 
     // Optional: Create a default admin user for testing
     var adminUser = await userManager.FindByEmailAsync("admin@example.com");
-    if (adminUser == null)
+    if (adminUser == null && seedDevAdmin)
     {
         adminUser = new ApplicationUser { UserName = "admin@example.com", Email = "admin@example.com", EmailConfirmed = true };
         var createAdminResult = await userManager.CreateAsync(adminUser, "AdminP@ss123!");
@@ -183,6 +198,27 @@ using (var scope = app.Services.CreateScope())
         {
             await userManager.AddToRoleAsync(adminUser, "Admin");
             await userManager.AddToRoleAsync(adminUser, "Employee");
+        }
+    }
+
+    // An approver has to be a person in the org chart, not just a login: decisions are
+    // recorded against an Employee. Without this the admin can approve leave but the
+    // approval cannot be attributed to anyone.
+    if (adminUser != null)
+    {
+        var employeeRepository = scope.ServiceProvider.GetRequiredService<IEmployeeRepository>();
+        var linkedEmployee = await employeeRepository.GetByApplicationUserIdAsync(adminUser.Id);
+        if (linkedEmployee == null)
+        {
+            await employeeRepository.AddAsync(new HrApp.DomainEntities.Models.Employee
+            {
+                ApplicationUserId = adminUser.Id,
+                FirstName = "System",
+                LastName = "Administrator",
+                Email = adminUser.Email,
+                Position = "HR Administrator",
+                HireDate = DateTime.UtcNow.Date
+            });
         }
     }
 }
