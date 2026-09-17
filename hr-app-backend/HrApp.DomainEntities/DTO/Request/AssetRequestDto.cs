@@ -9,8 +9,8 @@ namespace HrApp.DomainEntities.DTO.Request
 {
     public class AssetRequestDto
     {
-        [Required]
-        public Guid EmployeeID { get; set; }
+        // Optional: an asset can be created into stock and assigned later.
+        public Guid? EmployeeID { get; set; }
 
         [Required]
         [StringLength(100)]

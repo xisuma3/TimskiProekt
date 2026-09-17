@@ -1,4 +1,4 @@
-using HrApp.DomainEntities.DTO.Request;
+﻿using HrApp.DomainEntities.DTO.Request;
 using HrApp.DomainEntities.DTO.Response;
 using HrApp.Service.Interface;
 using Microsoft.AspNetCore.Authorization;
@@ -67,6 +67,10 @@ namespace HrAppWebApplication.Controllers
             return NoContent();
         }
 
+        /// <summary>
+        /// Retires an employee. This is a soft delete: their leave decisions, asset custody
+        /// and generated documents are preserved and stay queryable.
+        /// </summary>
         [HttpDelete("{id}")]
         [Authorize(Roles = "Admin")]
         public async Task<IActionResult> Delete(Guid id)
@@ -76,6 +80,22 @@ namespace HrAppWebApplication.Controllers
 
             await _service.DeleteAsync(id);
             return NoContent();
+        }
+
+        /// <summary>Brings a retired employee back.</summary>
+        [HttpPost("{id}")]
+        [Authorize(Roles = "Admin")]
+        public async Task<IActionResult> Restore(Guid id)
+        {
+            try
+            {
+                await _service.RestoreAsync(id);
+                return NoContent();
+            }
+            catch (ArgumentException ex)
+            {
+                return NotFound(new { message = ex.Message });
+            }
         }
     }
 }

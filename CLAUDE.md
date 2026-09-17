@@ -42,7 +42,12 @@ dotnet run --project HrAppWebApplication --launch-profile http
   `Hosting environment: Development`.
 - HTTP profile serves at `http://localhost:5190`; HTTPS profile at `https://localhost:7033` (and `http://localhost:5137`). Swagger UI is at `/swagger` in Development.
 - The frontend (`config/api.js`) hard-defaults to `http://localhost:5190`, so use the **http** profile unless you also set `REACT_APP_API_URL`.
-- There are **no test projects** in the solution and no CI (`.github/` is empty).
+- `dotnet test HrApp.Tests/HrApp.Tests.csproj` runs the suite (53 tests). It uses the EF
+  **in-memory** provider, so it needs no SQL Server and covers *service behaviour* —
+  rules that live in the schema (filtered indexes, Restrict cascades) are not exercised
+  there.
+- CI is `.github/workflows/ci.yml`: backend build + test, a
+  `dotnet ef migrations has-pending-model-changes` drift gate, and a frontend build.
 
 ### Frontend (run from `hr-app-frontend-new/`)
 
@@ -170,19 +175,56 @@ Decisions go through one private `DecideAsync`:
 Approve/Reject accept an optional `LeaveDecisionRequestDto` body (`{ "reason": "..." }`)
 and still work with no body at all, which keeps older clients functioning.
 
+### Asset custody
+
+`Asset.EmployeeID` is the **current** holder and is nullable — an asset in stock is held
+by nobody. The chain lives in `AssetAssignment`: the row with `ReturnedDate == null` is
+the open period, closed ones are history.
+
+Move assets with `AssetService.AssignAsync` / `ReturnAsync`, never by writing
+`Asset.EmployeeID` directly — `AssignAsync` closes the previous period at the handover
+date so the prior holder is preserved. `AssetController.Update` deliberately does *not*
+reassign. Guards: the current holder cannot be re-assigned the same asset (409),
+returning something already in stock fails (409), and neither a handover nor a return can
+be back-dated before the open period began (400).
+
+### Leave entitlement
+
+`LeaveEntitlement` is one allowance per (employee, year, leave type). Balance is
+**derived, never stored** — a running counter drifts as soon as a request is edited or
+deleted. Remaining = allocated + carried over − (approved + pending); pending days count,
+or an employee with 2 days left could file three more requests and have them all
+approvable.
+
+**A missing entitlement row means uncapped, not zero.** Sick leave is usually governed by
+policy rather than a day count, so `LeaveRequestService` skips the check when
+`IsTracked` is false.
+
+A request spanning New Year is charged to **both** years and must fit in each — see
+`LeaveEntitlementService.DaysWithinYear`.
+
 ### Database
 
 - SQL Server via `DefaultConnection` in `appsettings.json` (defaults to `(localdb)\MSSQLLocalDB`, DB `HRApp`).
-- **No EF migrations are committed and `Program.cs` does not call `EnsureCreated`/`Migrate`.** The schema must already exist before the app starts — startup seeds roles/admin, which needs the Identity tables present. A new `DbSet` will *not* create its table; see the next bullet for how schema changes are applied here.
-- **Schema changes are applied by numbered scripts in `db/`,** not EF migrations. The
-  applied migrations in `__EFMigrationsHistory` are not committed to the repo and there is
-  no model snapshot, so `dotnet ef migrations add` would try to recreate the whole schema.
-  Scripts are idempotent and re-runnable:
-  `sqlcmd -S "(localdb)\MSSQLLocalDB" -E -d HRApp -i db/002_leave_request_decision_audit.sql`
-  (use `-I` if a statement needs `QUOTED_IDENTIFIER ON`). Building a proper baseline
-  migration remains the right long-term fix.
-- **Deletes cascade hard.** `OnModelCreating` cascades `Employee` → `EmployeeDossier`, `LeaveRequests`, `Assets`, **and `GeneratedDocuments`**. Deleting one employee destroys their entire signed-document history. There is no soft delete. Treat any new delete path with the same suspicion.
-- A legacy `Users` table still exists in the database and `Models/User.cs` still compiles, but `DbSet<User>` was removed from the context. It is dead.
+- **EF migrations own the schema** (`HrApp.Repository/Migrations/`). A new database is
+  built entirely by `dotnet ef database update --project HrApp.Repository --startup-project HrAppWebApplication`.
+  `db/README.md` covers the one-time scripts an older database needs first.
+- Add a schema change with `dotnet ef migrations add <Name> ...`, never by hand. CI fails
+  on a model change committed without its migration.
+- **Watch out on legacy databases.** The original tables were hand-written, so their
+  constraints carry SQL Server's auto-generated names (`FK__Assets__Employee__3D5E1FD2`,
+  `UQ__Employee__A9D1...`) rather than EF's. The two migrations after `InitialBaseline`
+  open with a `migrationBuilder.Sql` block that drops constraints **by column** instead of
+  by name for exactly this reason. Anything after them is EF-canonical.
+- **Deleting an employee is a soft delete.** `Employee.IsDeleted`/`DeletedAt`;
+  `EmployeeRepository` filters them out of `GetAllAsync`, `GetByIdAsync` and
+  `GetByApplicationUserIdAsync`, with `GetByIdIncludingDeletedAsync` for history. Their
+  leave decisions, asset custody and generated documents survive, and those FKs are
+  `Restrict` so even a hard delete cannot take them. `EmployeeDossier` stays `Cascade` —
+  it is current-state PII that should go on erasure.
+- The unique index on `Employee.Email` is **filtered** (`WHERE IsDeleted = 0`) so a retired
+  employee does not permanently reserve their address. `Asset.SerialNumber`'s is filtered
+  on `IS NOT NULL`, because SQL Server allows only one NULL in a plain unique index.
 
 ## Frontend architecture (`hr-app-frontend-new`)
 
@@ -207,8 +249,7 @@ and still work with no body at all, which keeps older clients functioning.
 - **`UserController` is broken at runtime.** It depends on `IUserService`, but `IUserService`/`IUserRepository` registrations are **commented out** in `Program.cs` ("not properly implemented"). Any `/api/User/*` call throws a DI resolution error. Note `authService.fetchUserDetails` calls `USER.GET_BY_ID` — so that path is dead too.
 - **`HrAppDbContext` lives in the `HrApp.Repository` project but is declared under `namespace HrAppWebApplication`.** Repositories therefore `using HrAppWebApplication;` to reach the context — don't be misled by the namespace.
 - **Several request DTOs have no validation attributes at all**: `DepartmentRequestDto`, `EmployeeRequestDto`, `UpdateEmployeeRequestDto`, `PreviewTemplateRequest`, `UserRequestDto`. `ModelState.IsValid` is therefore meaningless for those endpoints.
-- **`EmployeeService.UpdateAsync` does not null-check** the result of `GetByIdAsync`, so editing a non-existent id throws an NRE → HTTP 500 instead of 404.
-- **`AssetService.CreateAsync` doesn't validate the employee exists** and doesn't pre-check the unique `SerialNumber` index, so duplicates surface as HTTP 500 rather than a 400 with a usable message.
+- **`Asset.Description` and `SerialNumber` are nullable** and `AssetRequestDto` treats them as optional. They were previously non-nullable in the model but nullable in the database, so creating an asset without a description failed with a `DbUpdateException` → HTTP 500.
 - `WeatherForecastController`/`WeatherForecast.cs` are leftover scaffolding.
 - Committed `bin/`/`obj/` artifacts appear as modified in `git status`; they are build output, not source changes.
 
@@ -219,3 +260,7 @@ Project agents live in `.claude/agents/`:
 - **`authz-audit`** — sweeps every controller action for `[Authorize]` coverage and reports unguarded endpoints by blast radius. Use before shipping, and after adding any controller.
 - **`api-contract-check`** — diffs `hr-app-frontend-new/src/config/api.js` against the actions the backend actually declares, catching 404s like the `GET_MY_*` family before they reach the UI.
 - **`new-resource`** — scaffolds a resource through all six layers in the established pattern, including the `Program.cs` registration that is routinely forgotten.
+
+When you add or change business rules, add cover in `HrApp.Tests`. The suite is built
+around `TestHarness`, which wires a real in-memory `DbContext`, real repositories and
+real services together — add a fixture builder there rather than reaching for mocks.

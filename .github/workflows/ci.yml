@@ -1,0 +1,114 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+  workflow_dispatch:
+
+# A newer push to the same branch makes an in-flight run redundant.
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  backend:
+    name: Backend (build + test)
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: hr-app-backend
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up .NET
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '8.0.x'
+
+      # Cache by lockfile-ish inputs: any project file change invalidates it.
+      - name: Cache NuGet packages
+        uses: actions/cache@v4
+        with:
+          path: ~/.nuget/packages
+          key: nuget-${{ runner.os }}-${{ hashFiles('hr-app-backend/**/*.csproj') }}
+          restore-keys: nuget-${{ runner.os }}-
+
+      - name: Restore
+        run: dotnet restore HrApp.sln
+
+      - name: Build
+        run: dotnet build HrApp.sln --no-restore --configuration Release
+
+      # The suite uses the EF in-memory provider, so no SQL Server is needed here.
+      - name: Test
+        run: >
+          dotnet test HrApp.Tests/HrApp.Tests.csproj
+          --no-build --configuration Release
+          --logger "trx;LogFileName=test-results.trx"
+          --results-directory ../TestResults
+
+      - name: Upload test results
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: backend-test-results
+          path: TestResults/
+          if-no-files-found: ignore
+
+  migrations:
+    name: Migrations are in sync with the model
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: hr-app-backend
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up .NET
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '8.0.x'
+
+      - name: Install EF tools
+        run: dotnet tool install --global dotnet-ef --version 9.*
+
+      # Catches the common mistake of changing an entity but forgetting the migration.
+      # `migrations has-pending-model-changes` exits non-zero when the model and the
+      # last migration's snapshot disagree.
+      - name: Check for un-migrated model changes
+        run: >
+          dotnet ef migrations has-pending-model-changes
+          --project HrApp.Repository
+          --startup-project HrAppWebApplication
+
+  frontend:
+    name: Frontend (build)
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: hr-app-frontend-new
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: npm
+          cache-dependency-path: hr-app-frontend-new/package-lock.json
+
+      - name: Install
+        run: npm ci
+
+      # NOT CI=true: the app still carries pre-existing no-unused-vars warnings, and
+      # CI=true promotes every warning to an error. Flip this to `CI=true npm run build`
+      # once those are cleaned up, so warnings stop accumulating.
+      - name: Build
+        run: npm run build
+        env:
+          CI: false

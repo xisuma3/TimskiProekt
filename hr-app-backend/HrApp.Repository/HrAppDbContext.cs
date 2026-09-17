@@ -21,7 +21,9 @@ namespace HrAppWebApplication
         public DbSet<Employee> Employees { get; set; }
         public DbSet<EmployeeDossier> EmployeeDossiers { get; set; }
         public DbSet<LeaveRequest> LeaveRequests { get; set; }
+        public DbSet<LeaveEntitlement> LeaveEntitlements { get; set; }
         public DbSet<Asset> Assets { get; set; }
+        public DbSet<AssetAssignment> AssetAssignments { get; set; }
         public DbSet<DocumentTemplate> DocumentTemplates { get; set; }
         public DbSet<GeneratedDocument> GeneratedDocuments { get; set; }
 
@@ -70,7 +72,9 @@ namespace HrAppWebApplication
                 entity.Property(e => e.FirstName).HasMaxLength(50);
                 entity.Property(e => e.LastName).HasMaxLength(50);
                 entity.Property(e => e.Email).HasMaxLength(255);
-                entity.HasIndex(e => e.Email).IsUnique();
+                // Filtered, so a retired employee does not permanently reserve their
+                // email address against a re-hire or a new joiner.
+                entity.HasIndex(e => e.Email).IsUnique().HasFilter("[IsDeleted] = 0");
              
                 entity.Property(e => e.HireDate);
                 entity.Property(e => e.Position).HasMaxLength(100);
@@ -89,6 +93,9 @@ namespace HrAppWebApplication
                     .WithMany(m => m.Mentees)
                     .HasForeignKey(e => e.MentorID)
                     .OnDelete(DeleteBehavior.Restrict);
+
+                entity.Property(e => e.IsDeleted).HasDefaultValue(false);
+                entity.HasIndex(e => e.IsDeleted);
             });
 
             // EmployeeDossier configuration
@@ -118,7 +125,7 @@ namespace HrAppWebApplication
                 entity.HasOne(l => l.Employee)
                     .WithMany(e => e.LeaveRequests)
                     .HasForeignKey(l => l.EmployeeID)
-                    .OnDelete(DeleteBehavior.Cascade);
+                    .OnDelete(DeleteBehavior.Restrict);
 
                 entity.Property(l => l.StartDate).IsRequired();
                 entity.Property(l => l.EndDate).IsRequired();
@@ -147,6 +154,27 @@ namespace HrAppWebApplication
                     .OnDelete(DeleteBehavior.Restrict);
             });
 
+            // LeaveEntitlement configuration
+            modelBuilder.Entity<LeaveEntitlement>(entity =>
+            {
+                entity.HasKey(l => l.EntitlementID);
+
+                // Restrict: an allowance is part of the employment record.
+                entity.HasOne(l => l.Employee)
+                    .WithMany()
+                    .HasForeignKey(l => l.EmployeeID)
+                    .OnDelete(DeleteBehavior.Restrict);
+
+                entity.Property(l => l.LeaveType).IsRequired().HasMaxLength(50);
+                entity.Property(l => l.DaysAllocated).HasColumnType("decimal(5,2)");
+                entity.Property(l => l.DaysCarriedOver).HasColumnType("decimal(5,2)");
+
+                entity.Ignore(l => l.TotalAvailable);
+
+                // One allowance per employee per year per type.
+                entity.HasIndex(l => new { l.EmployeeID, l.Year, l.LeaveType }).IsUnique();
+            });
+
             // Asset configuration
             modelBuilder.Entity<Asset>(entity =>
             {
@@ -155,15 +183,45 @@ namespace HrAppWebApplication
                 entity.HasOne(a => a.Employee)
                     .WithMany(e => e.Assets)
                     .HasForeignKey(a => a.EmployeeID)
-                    .OnDelete(DeleteBehavior.Cascade);
+                    .OnDelete(DeleteBehavior.Restrict);
 
                 entity.Property(a => a.Name).IsRequired().HasMaxLength(100);
                 entity.Property(a => a.Description).HasMaxLength(500);
                 entity.Property(a => a.SerialNumber).HasMaxLength(100);
-                entity.HasIndex(a => a.SerialNumber).IsUnique();
+                // Filtered: SQL Server allows only one NULL in a plain unique index, which
+                // would cap the estate at a single asset with no serial number.
+                entity.HasIndex(a => a.SerialNumber).IsUnique().HasFilter("[SerialNumber] IS NOT NULL");
 
-                entity.Property(a => a.AssignmentDate).HasDefaultValueSql("GETDATE()");
                 entity.Property(a => a.IsActive).HasDefaultValue(true);
+            });
+
+            // AssetAssignment configuration — the custody chain
+            modelBuilder.Entity<AssetAssignment>(entity =>
+            {
+                entity.HasKey(a => a.AssignmentID);
+
+                entity.HasOne(a => a.Asset)
+                    .WithMany(a => a.Assignments)
+                    .HasForeignKey(a => a.AssetID)
+                    .OnDelete(DeleteBehavior.Cascade);
+
+                // Restrict: retiring an employee must not erase the record that they
+                // once held company equipment.
+                entity.HasOne(a => a.Employee)
+                    .WithMany()
+                    .HasForeignKey(a => a.EmployeeID)
+                    .OnDelete(DeleteBehavior.Restrict);
+
+                entity.Property(a => a.AssignedDate).HasDefaultValueSql("GETDATE()");
+                entity.Property(a => a.Notes).HasMaxLength(500);
+                entity.Property(a => a.ReturnCondition).HasMaxLength(200);
+
+                entity.Ignore(a => a.IsOpen);
+
+                // Finding the current holder, and an employee's held assets, are the two
+                // hot paths.
+                entity.HasIndex(a => new { a.AssetID, a.ReturnedDate });
+                entity.HasIndex(a => new { a.EmployeeID, a.ReturnedDate });
             });
 
             // DocumentTemplate configuration
@@ -188,7 +246,7 @@ namespace HrAppWebApplication
                 entity.HasOne(g => g.Employee)
                     .WithMany(e => e.GeneratedDocuments)
                     .HasForeignKey(g => g.EmployeeID)
-                    .OnDelete(DeleteBehavior.Cascade);
+                    .OnDelete(DeleteBehavior.Restrict);
 
                 entity.HasOne(g => g.DocumentTemplate)
                     .WithMany(t => t.GeneratedDocuments)

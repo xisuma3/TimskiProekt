@@ -50,7 +50,6 @@ namespace HrApp.Repository.Implementation
 
         public async Task<Asset> AddAsync(Asset asset)
         {
-            asset.AssignmentDate = DateTime.UtcNow;
             _context.Assets.Add(asset);
             await _context.SaveChangesAsync();
             return asset;

@@ -148,6 +148,7 @@ namespace HrApp.Service.Implementation
         {
 
             var existingEmployee = await _repository.GetByIdAsync(id);
+            if (existingEmployee == null) throw new ArgumentException("Employee not found");
 
             //var employee = new Employee
             //{
@@ -180,6 +181,14 @@ namespace HrApp.Service.Implementation
         public async Task DeleteAsync(Guid id)
         {
             await _repository.DeleteAsync(id);
+        }
+
+        public async Task RestoreAsync(Guid id)
+        {
+            var employee = await _repository.GetByIdIncludingDeletedAsync(id);
+            if (employee == null) throw new ArgumentException("Employee not found");
+
+            await _repository.RestoreAsync(id);
         }
 
       

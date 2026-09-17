@@ -15,6 +15,13 @@ namespace HrApp.Repository.Interface
         Task<IEnumerable<LeaveRequest>> GetPendingRequestsAsync();
         Task<IEnumerable<LeaveRequest>> GetOverlappingAsync(
             Guid employeeId, DateTime startDate, DateTime endDate, Guid? excludeRequestId = null);
+
+        /// <summary>
+        /// Requests of one type that touch a calendar year at all. A request may straddle
+        /// New Year, so the caller apportions days between years rather than assuming a
+        /// request belongs wholly to one.
+        /// </summary>
+        Task<IEnumerable<LeaveRequest>> GetTouchingYearAsync(Guid employeeId, int year, string leaveType);
         Task<LeaveRequest> AddAsync(LeaveRequest leaveRequest);
         Task UpdateAsync(LeaveRequest leaveRequest);
         Task DeleteAsync(Guid id);

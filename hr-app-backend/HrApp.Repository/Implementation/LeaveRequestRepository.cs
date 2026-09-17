@@ -73,6 +73,20 @@ namespace HrApp.Repository.Implementation
             return await query.ToListAsync();
         }
 
+        public async Task<IEnumerable<LeaveRequest>> GetTouchingYearAsync(Guid employeeId, int year, string leaveType)
+        {
+            var yearStart = new DateTime(year, 1, 1);
+            var yearEnd = new DateTime(year, 12, 31);
+
+            return await _context.LeaveRequests
+                .Where(lr => lr.EmployeeID == employeeId
+                             && lr.LeaveType == leaveType
+                             && lr.Status != "Rejected"
+                             && lr.StartDate <= yearEnd
+                             && lr.EndDate >= yearStart)
+                .ToListAsync();
+        }
+
         public async Task<LeaveRequest> AddAsync(LeaveRequest leaveRequest)
         {
             leaveRequest.CreatedAt = DateTime.UtcNow;

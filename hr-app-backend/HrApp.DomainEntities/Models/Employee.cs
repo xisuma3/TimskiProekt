@@ -38,5 +38,12 @@ namespace HrApp.DomainEntities.Models
         public string? ApplicationUserId { get; set; }
         public virtual ApplicationUser? ApplicationUser { get; set; }
 
+        // --- Soft delete ---
+        // Employees are retired, not erased. Their leave decisions, asset custody and
+        // signed documents are records of fact that must outlive the employment, so
+        // EmployeeRepository filters these out of normal reads instead of deleting rows.
+        public bool IsDeleted { get; set; }
+        public DateTime? DeletedAt { get; set; }
+
     }
 }

@@ -22,13 +22,16 @@ namespace HrApp.Service.Implementation
 
         private readonly ILeaveRequestRepository _repository;
         private readonly IEmployeeRepository _employeeRepository;
+        private readonly ILeaveEntitlementService _entitlementService;
 
         public LeaveRequestService(
             ILeaveRequestRepository repository,
-            IEmployeeRepository employeeRepository)
+            IEmployeeRepository employeeRepository,
+            ILeaveEntitlementService entitlementService)
         {
             _repository = repository;
             _employeeRepository = employeeRepository;
+            _entitlementService = entitlementService;
         }
 
         public async Task<IEnumerable<LeaveRequestResponseDto>> GetAllAsync()
@@ -87,6 +90,10 @@ namespace HrApp.Service.Implementation
                     $"({clash.StartDate:yyyy-MM-dd} to {clash.EndDate:yyyy-MM-dd})");
             }
 
+            // Entitlement. A request spanning New Year is charged to both years, so each
+            // year it touches has to have the days available.
+            await GuardSufficientBalance(dto.EmployeeID, startDate, endDate, dto.LeaveType);
+
             var leaveRequest = new LeaveRequest
             {
                 EmployeeID = dto.EmployeeID,
@@ -99,6 +106,43 @@ namespace HrApp.Service.Implementation
 
             var created = await _repository.AddAsync(leaveRequest);
             return await GetByIdAsync(created.RequestID);
+        }
+
+        /// <summary>
+        /// Rejects the request if it would take the employee past their allowance in any
+        /// year it touches. Leave types with no entitlement row are uncapped and skipped.
+        /// </summary>
+        private async Task GuardSufficientBalance(
+            Guid employeeId, DateTime startDate, DateTime endDate, string leaveType)
+        {
+            for (var year = startDate.Year; year <= endDate.Year; year++)
+            {
+                var balance = await _entitlementService.GetBalanceAsync(employeeId, year, leaveType);
+                if (!balance.IsTracked) continue;
+
+                var daysThisYear = DaysInYear(startDate, endDate, year);
+                if (daysThisYear == 0) continue;
+
+                if (daysThisYear > balance.DaysRemaining)
+                {
+                    var yearNote = startDate.Year == endDate.Year ? "" : $" in {year}";
+                    throw new ArgumentException(
+                        $"Not enough {leaveType.ToLowerInvariant()} leave{yearNote}: " +
+                        $"requesting {daysThisYear} day(s) but only {balance.DaysRemaining} of " +
+                        $"{balance.TotalAvailable} remain ({balance.DaysApproved} approved, {balance.DaysPending} pending).");
+                }
+            }
+        }
+
+        private static int DaysInYear(DateTime startDate, DateTime endDate, int year)
+        {
+            var yearStart = new DateTime(year, 1, 1);
+            var yearEnd = new DateTime(year, 12, 31);
+
+            var start = startDate.Date > yearStart ? startDate.Date : yearStart;
+            var end = endDate.Date < yearEnd ? endDate.Date : yearEnd;
+
+            return end < start ? 0 : (end - start).Days + 1;
         }
 
         public Task ApproveRequestAsync(Guid id, Guid? approverEmployeeId, string reason) =>

@@ -1,4 +1,4 @@
-using HrApp.DomainEntities.Models;
+﻿using HrApp.DomainEntities.Models;
 using HrApp.Repository.Interface;
 using HrApp.Service.Interface;
 using System.Net;
@@ -119,7 +119,7 @@ namespace HrApp.Service.Implementation
                 ["asset.serialNumber"] = asset.SerialNumber,
                 ["asset.description"] = asset.Description,
                 ["asset.isActive"] = asset.IsActive.ToString(),
-                ["asset.assignmentDate"] = asset.AssignmentDate.ToString("yyyy-MM-dd")
+                ["asset.assignmentDate"] = asset.AssignmentDate?.ToString("yyyy-MM-dd")
             };
         }
 

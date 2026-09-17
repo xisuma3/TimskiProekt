@@ -16,5 +16,6 @@ namespace HrApp.Service.Interface
         Task<EmployeeResponseDto> AddAsync(EmployeeRequestDto dto);
         Task UpdateAsync(Guid id, UpdateEmployeeRequestDto dto);
         Task DeleteAsync(Guid id);
+        Task RestoreAsync(Guid id);
     }
 }

@@ -1,4 +1,4 @@
-using HrApp.DomainEntities.DTO.Request;
+﻿using HrApp.DomainEntities.DTO.Request;
 using HrApp.DomainEntities.DTO.Response;
 using HrApp.Service.Interface;
 using Microsoft.AspNetCore.Authorization;
@@ -80,6 +80,64 @@ namespace HrAppWebApplication.Controllers
         {
             await _service.DeleteAsync(id);
             return NoContent();
+        }
+
+        // --- Custody ---
+
+        /// <summary>Hands the asset to an employee, closing any open assignment first.</summary>
+        [HttpPost("{id}")]
+        [Authorize(Roles = "Admin")]
+        public async Task<ActionResult<AssetAssignmentResponseDto>> Assign(Guid id, [FromBody] AssignAssetRequestDto dto)
+        {
+            try
+            {
+                return Ok(await _service.AssignAsync(id, dto));
+            }
+            catch (ArgumentException ex)
+            {
+                return BadRequest(new { message = ex.Message });
+            }
+            catch (InvalidOperationException ex)
+            {
+                return Conflict(new { message = ex.Message });
+            }
+        }
+
+        /// <summary>Takes the asset back into stock.</summary>
+        [HttpPost("{id}")]
+        [Authorize(Roles = "Admin")]
+        public async Task<ActionResult<AssetAssignmentResponseDto>> Return(Guid id, [FromBody] ReturnAssetRequestDto? dto = null)
+        {
+            try
+            {
+                return Ok(await _service.ReturnAsync(id, dto ?? new ReturnAssetRequestDto()));
+            }
+            catch (ArgumentException ex)
+            {
+                return BadRequest(new { message = ex.Message });
+            }
+            catch (InvalidOperationException ex)
+            {
+                return Conflict(new { message = ex.Message });
+            }
+        }
+
+        /// <summary>Who has held this asset, newest first.</summary>
+        [HttpGet("{id}")]
+        [Authorize(Roles = "Admin")]
+        public async Task<ActionResult<IEnumerable<AssetAssignmentResponseDto>>> GetHistory(Guid id)
+        {
+            return Ok(await _service.GetHistoryAsync(id));
+        }
+
+        /// <summary>Everything the caller has ever held, including returned items.</summary>
+        [HttpGet]
+        public async Task<ActionResult<IEnumerable<AssetAssignmentResponseDto>>> GetMyAssetHistory()
+        {
+            var me = await _employeeService.GetByApplicationUserIdAsync(CurrentApplicationUserId);
+            if (me == null) return Ok(Array.Empty<AssetAssignmentResponseDto>());
+
+            return Ok(await _service.GetEmployeeHistoryAsync(me.EmployeeID));
         }
     }
 }

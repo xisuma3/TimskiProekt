@@ -213,18 +213,14 @@ Building a proper baseline migration remains the right long-term fix.
 
 ## Deliberately not done
 
-These are features rather than fixes, and were left out of scope:
+*(All five of these were subsequently built — see
+[`FEATURES.md`](FEATURES.md).)*
 
-- **Leave entitlement / balance.** Nothing tracks how much leave anyone has; an employee
-  can still book 300 days across non-overlapping requests.
-- **Asset custody history.** Reassignment still overwrites the holder; there is no
-  transfer record and no return date, only `IsActive`.
-- **Cascade delete of document history.** Deleting an `Employee` still destroys their
-  dossier, leave history, assets and **every generated document**. No soft delete.
-- **Committed migrations** (see above) and **tests / CI** — there are no test projects
-  and `.github/` is empty, so none of the above is protected against regression.
-
----
+- **Leave entitlement / balance.**
+- **Asset custody history.**
+- **Cascade delete of document history.**
+- **Committed migrations.**
+- **Tests / CI.**
 
 ## Test data
 

@@ -88,6 +88,11 @@ builder.Services.AddScoped<IEmployeeDossierService, EmployeeDossierService>();
 builder.Services.AddScoped<IAssetRepository, AssetRepository>();
 builder.Services.AddScoped<IAssetService, AssetService>();
 
+builder.Services.AddScoped<IAssetAssignmentRepository, AssetAssignmentRepository>();
+
+builder.Services.AddScoped<ILeaveEntitlementRepository, LeaveEntitlementRepository>();
+builder.Services.AddScoped<ILeaveEntitlementService, LeaveEntitlementService>();
+
 builder.Services.AddScoped<ILeaveRequestRepository, LeaveRequestRepository>();
 builder.Services.AddScoped<ILeaveRequestService, LeaveRequestService>();
 

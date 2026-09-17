@@ -17,5 +17,11 @@ namespace HrApp.Service.Interface
         Task<AssetResponseDto> CreateAsync(AssetRequestDto dto);
         Task UpdateAsync(Guid id, AssetRequestDto dto);
         Task DeleteAsync(Guid id);
+
+        // --- Custody ---
+        Task<AssetAssignmentResponseDto> AssignAsync(Guid assetId, AssignAssetRequestDto dto);
+        Task<AssetAssignmentResponseDto> ReturnAsync(Guid assetId, ReturnAssetRequestDto dto);
+        Task<IEnumerable<AssetAssignmentResponseDto>> GetHistoryAsync(Guid assetId);
+        Task<IEnumerable<AssetAssignmentResponseDto>> GetEmployeeHistoryAsync(Guid employeeId);
     }
 }
