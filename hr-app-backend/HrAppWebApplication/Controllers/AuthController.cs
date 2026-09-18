@@ -10,6 +10,7 @@ using System.Security.Claims;
 using System.Text;
 using HrApp.DomainEntities.DTO.Request;
 using HrApp.Service.Interface;
+using HrApp.Service.Implementation;
 
 namespace HrAppWebApplication.Controllers
 {
@@ -19,24 +20,27 @@ namespace HrAppWebApplication.Controllers
     {
         private readonly UserManager<ApplicationUser> _userManager;
         private readonly SignInManager<ApplicationUser> _signInManager;
-        private readonly IConfiguration _configuration;
+        private readonly JwtSettings _jwtSettings;
         private readonly IEmployeeService _employeeService;
+        private readonly IEmployeeAccountStatusValidator _accountStatusValidator;
 
         public AuthController(
             UserManager<ApplicationUser> userManager,
             SignInManager<ApplicationUser> signInManager,
-            IConfiguration configuration,
-            IEmployeeService employeeService)
+            JwtSettings jwtSettings,
+            IEmployeeService employeeService,
+            IEmployeeAccountStatusValidator accountStatusValidator)
         {
             _userManager = userManager;
             _signInManager = signInManager;
-            _configuration = configuration;
+            _jwtSettings = jwtSettings;
             _employeeService = employeeService;
+            _accountStatusValidator = accountStatusValidator;
         }
 
         // --- User Registration Endpoint ---
         [HttpPost("register")]
-        [AllowAnonymous]
+        [Authorize(Roles = "Admin")]
         public async Task<IActionResult> Register([FromBody] RegisterRequestDto model)
         {
             if (!ModelState.IsValid)
@@ -55,34 +59,52 @@ namespace HrAppWebApplication.Controllers
 
             if (result.Succeeded)
             {
-                await _userManager.AddToRoleAsync(user, "Employee");
+                try
+                {
+                    var roleResult = await _userManager.AddToRoleAsync(user, "Employee");
+                    if (!roleResult.Succeeded)
+                    {
+                        await _userManager.DeleteAsync(user);
+                        return BadRequest(new { Message = "Unable to create account." });
+                    }
+                }
+                catch
+                {
+                    await _userManager.DeleteAsync(user);
+                    return BadRequest(new { Message = "Unable to create account." });
+                }
 
                 // Create the Employee record linked to this ApplicationUser
-                var employeeDto = new EmployeeRequestDto
+                try
                 {
-                    ApplicationUserId = user.Id,
-                    Email = user.Email,
-                    // Use provided employee details or defaults
-                    FirstName = !string.IsNullOrEmpty(model.FirstName) ? model.FirstName : user.UserName,
-                    LastName = model.LastName ?? "",
-                    Position = model.Position ?? "",
-                    DepartmentID = model.DepartmentID,
-                    HireDate = model.HireDate ?? DateTime.Now,
-                    ManagerID = null,
-                    MentorID = null
-                };
-
-                var createdEmployee = await _employeeService.AddAsync(employeeDto);
-
-                return Ok(new
+                    var employeeDto = new EmployeeRequestDto
+                    {
+                        ApplicationUserId = user.Id,
+                        Email = user.Email,
+                        FirstName = !string.IsNullOrEmpty(model.FirstName) ? model.FirstName : user.UserName,
+                        LastName = model.LastName ?? "",
+                        Position = model.Position ?? "",
+                        DepartmentID = model.DepartmentID,
+                        HireDate = model.HireDate ?? DateTime.Now,
+                        ManagerID = null,
+                        MentorID = null
+                    };
+                    var createdEmployee = await _employeeService.AddAsync(employeeDto);
+                    return Ok(new
+                    {
+                        Message = "User and employee created successfully!",
+                        UserId = user.Id,
+                        EmployeeId = createdEmployee.EmployeeID
+                    });
+                }
+                catch
                 {
-                    Message = "User and employee created successfully!",
-                    UserId = user.Id,
-                    EmployeeId = createdEmployee.EmployeeID
-                });
+                    await _userManager.DeleteAsync(user);
+                    return BadRequest(new { Message = "Unable to create account." });
+                }
             }
             
-            return BadRequest(result.Errors);
+            return BadRequest(new { Message = "Unable to create account." });
             /*return Ok(new
             {
                 Message = "User created successfully!",
@@ -106,10 +128,15 @@ namespace HrAppWebApplication.Controllers
                 return Unauthorized(new { Message = "Invalid credentials." });
             }
 
-            var result = await _signInManager.CheckPasswordSignInAsync(user, model.Password, lockoutOnFailure: false);
+            var result = await _signInManager.CheckPasswordSignInAsync(user, model.Password, lockoutOnFailure: true);
 
             if (result.Succeeded)
             {
+                if (!await _accountStatusValidator.CanAuthenticateAsync(user.Id))
+                {
+                    return Unauthorized(new { Message = "Invalid credentials." });
+                }
+
                 // Generate JWT token
                 var token = await GenerateJwtToken(user);
                 var roles = await _userManager.GetRolesAsync(user);
@@ -122,18 +149,7 @@ namespace HrAppWebApplication.Controllers
                     Roles = roles
                 });
             }
-            else if (result.IsLockedOut)
-            {
-                return Unauthorized(new { Message = "Account locked out." });
-            }
-            else if (result.IsNotAllowed)
-            {
-                return Unauthorized(new { Message = "Login not allowed (e.g., email not confirmed)." });
-            }
-            else
-            {
-                return Unauthorized(new { Message = "Invalid credentials." });
-            }
+            return Unauthorized(new { Message = "Invalid credentials." });
         }
 
         // --- Helper method to generate JWT Token ---
@@ -155,13 +171,13 @@ namespace HrAppWebApplication.Controllers
                 claims.Add(new Claim(ClaimTypes.Role, role));
             }
 
-            var key = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(_configuration["Jwt:Key"]));
+            var key = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(_jwtSettings.Key));
             var creds = new SigningCredentials(key, SecurityAlgorithms.HmacSha256);
-            var expires = DateTime.Now.AddMinutes(Convert.ToDouble(_configuration["Jwt:DurationInMinutes"]));
+            var expires = DateTime.UtcNow.AddMinutes(_jwtSettings.DurationInMinutes);
 
             var token = new JwtSecurityToken(
-                issuer: _configuration["Jwt:Issuer"],
-                audience: _configuration["Jwt:Audience"],
+                issuer: _jwtSettings.Issuer,
+                audience: _jwtSettings.Audience,
                 claims: claims,
                 expires: expires,
                 signingCredentials: creds

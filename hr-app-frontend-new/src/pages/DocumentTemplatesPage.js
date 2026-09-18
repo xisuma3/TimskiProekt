@@ -3,8 +3,10 @@ import { Card, Badge, Button, Row, Col } from 'react-bootstrap';
 import DataPage from '../components/DataPage';
 import DocumentTemplateModal from '../components/DocumentTemplateModal';
 import { API_URLS } from '../config/api';
+import { isAdmin } from '../services/authService';
 
 const DocumentTemplatesPage = () => {
+  const admin = isAdmin();
   const renderTemplateCard = (template, onEdit, onDelete) => (
     <Card className="shadow" style={{ backgroundColor: '#1E293B', borderColor: '#6366F1', color: 'white' }}>
       <Card.Body>
@@ -12,11 +14,13 @@ const DocumentTemplatesPage = () => {
           <Card.Title style={{ color: '#6366F1' }}>
             {template.templateName}
           </Card.Title>
+          {admin && (
           <div>
             <Button 
               variant="outline-light" 
               size="sm" 
               className="me-1"
+              aria-label="Edit template"
               onClick={() => onEdit(template)}
             >
               <i className="bi bi-pencil"></i>
@@ -24,16 +28,18 @@ const DocumentTemplatesPage = () => {
             <Button 
               variant="outline-danger" 
               size="sm"
+              aria-label="Delete template"
               onClick={() => onDelete(template)}
             >
               <i className="bi bi-trash"></i>
             </Button>
           </div>
+          )}
         </div>
         <Card.Subtitle className="mb-2" style={{ color: '#94A3B8' }}>
           Template ID: {template.templateID}
         </Card.Subtitle>
-        <Card.Text>
+        <div className="card-text">
           <Badge 
             bg={template.templateType === 'Asset' ? 'primary' : 
                  template.templateType === 'Employment' ? 'success' : 'warning'}
@@ -63,7 +69,7 @@ const DocumentTemplatesPage = () => {
               : 'No content available'
             }
           </div>
-        </Card.Text>
+        </div>
       </Card.Body>
     </Card>
   );
@@ -95,8 +101,8 @@ const DocumentTemplatesPage = () => {
         renderCard={renderTemplateCard}
         searchPlaceholder="Search templates..."
         createButtonText="Create Template"
-        modalComponent={DocumentTemplateModal}
-        onDelete={handleDelete}
+        modalComponent={admin ? DocumentTemplateModal : null}
+        onDelete={admin ? handleDelete : null}
         deleteConfirmText="Are you sure you want to delete this template? This action cannot be undone."
         useMinHeight={false}
       />
@@ -108,7 +114,7 @@ const DocumentTemplatesPage = () => {
             <Card.Title style={{ color: '#F59E0B' }}>
               <i className="bi bi-info-circle me-2"></i>Template Placeholder Guide
             </Card.Title>
-            <Card.Text style={{ color: '#94A3B8' }}>
+            <div style={{ color: '#94A3B8' }}>
               <strong>Available Placeholders for Template Content:</strong>
               <Row className="mt-2">
                 <Col md={6}>
@@ -136,7 +142,7 @@ const DocumentTemplatesPage = () => {
                   </div>
                 </Col>
               </Row>
-            </Card.Text>
+            </div>
           </Card.Body>
         </Card>
       </div>

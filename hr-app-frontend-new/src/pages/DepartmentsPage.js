@@ -102,7 +102,7 @@ const DepartmentsPage = () => {
       <DataPage
         title="Department Directory"
         apiEndpoint={API_URLS.DEPARTMENTS.GET_ALL()}
-        searchFields={['departmentName', 'description', 'location']}
+        searchFields={['name', 'description', 'location']}
         renderCard={renderDepartmentCard}
         searchPlaceholder="Search departments..."
         showAddButton={true}
@@ -121,7 +121,7 @@ const DepartmentsPage = () => {
           <Modal.Title>Confirm Delete</Modal.Title>
         </Modal.Header>
         <Modal.Body style={{ backgroundColor: '#0F172A', color: 'white' }}>
-          Are you sure you want to delete department "{departmentToDelete?.departmentName}"?
+          Are you sure you want to delete department "{departmentToDelete?.name}"?
           <br />
           <small className="text-muted">This action cannot be undone.</small>
         </Modal.Body>
@@ -138,4 +138,4 @@ const DepartmentsPage = () => {
   );
 };
 
-export default DepartmentsPage; 
+export default DepartmentsPage;

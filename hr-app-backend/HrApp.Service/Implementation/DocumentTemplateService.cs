@@ -14,10 +14,14 @@ namespace HrApp.Service.Implementation
     public class DocumentTemplateService : IDocumentTemplateService
     {
         private readonly IDocumentTemplateRepository _repository;
+        private readonly ITemplateHtmlSanitizer _htmlSanitizer;
 
-        public DocumentTemplateService(IDocumentTemplateRepository repository)
+        public DocumentTemplateService(
+            IDocumentTemplateRepository repository,
+            ITemplateHtmlSanitizer htmlSanitizer)
         {
             _repository = repository;
+            _htmlSanitizer = htmlSanitizer;
         }
 
         public async Task<IEnumerable<DocumentTemplateResponseDto>> GetAllAsync()
@@ -57,7 +61,7 @@ namespace HrApp.Service.Implementation
             {
                 TemplateName = dto.TemplateName,
                 Description = dto.Description,
-                TemplateContent = dto.TemplateContent,
+                TemplateContent = _htmlSanitizer.Sanitize(dto.TemplateContent),
                 TemplateType = dto.TemplateType
             };
 
@@ -82,7 +86,7 @@ namespace HrApp.Service.Implementation
 
             existingTemplate.TemplateName = dto.TemplateName;
             existingTemplate.Description = dto.Description;
-            existingTemplate.TemplateContent = dto.TemplateContent;
+            existingTemplate.TemplateContent = _htmlSanitizer.Sanitize(dto.TemplateContent);
             existingTemplate.TemplateType = dto.TemplateType;
 
             await _repository.UpdateAsync(existingTemplate);
@@ -102,7 +106,7 @@ namespace HrApp.Service.Implementation
         public async Task<string> GetTemplateContentAsync(Guid id)
         {
             var template = await _repository.GetByIdAsync(id);
-            return template?.TemplateContent;
+            return template == null ? null : _htmlSanitizer.Sanitize(template.TemplateContent);
         }
 
         private DocumentTemplateResponseDto MapToDto(DocumentTemplate template)
@@ -112,7 +116,7 @@ namespace HrApp.Service.Implementation
                 TemplateID = template.TemplateID,
                 TemplateName = template.TemplateName,
                 Description = template.Description,
-                TemplateContent = template.TemplateContent,
+                TemplateContent = _htmlSanitizer.Sanitize(template.TemplateContent),
                 TemplateType = template.TemplateType,
                 LastModifiedDate = GetLastModifiedDate(template),
                 GeneratedDocumentsCount = template.GeneratedDocuments?.Count ?? 0

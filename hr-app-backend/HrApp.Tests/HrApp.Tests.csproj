@@ -12,6 +12,7 @@
   <ItemGroup>
     <PackageReference Include="coverlet.collector" Version="6.0.0" />
     <PackageReference Include="Microsoft.EntityFrameworkCore.InMemory" Version="9.0.5" />
+    <PackageReference Include="Microsoft.AspNetCore.TestHost" Version="8.0.13" />
     <PackageReference Include="Microsoft.NET.Test.Sdk" Version="17.8.0" />
     <PackageReference Include="xunit" Version="2.5.3" />
     <PackageReference Include="xunit.runner.visualstudio" Version="2.5.3" />
@@ -25,6 +26,7 @@
     <ProjectReference Include="..\HrApp.Service\HrApp.Service.csproj" />
     <ProjectReference Include="..\HrApp.Repository\HrApp.Repository.csproj" />
     <ProjectReference Include="..\HrApp.DomainEntities\HrApp.DomainEntities.csproj" />
+    <ProjectReference Include="..\HrAppWebApplication\HrAppWebApplication.csproj" />
   </ItemGroup>
 
 </Project>

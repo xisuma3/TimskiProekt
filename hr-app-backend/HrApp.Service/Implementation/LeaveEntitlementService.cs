@@ -52,6 +52,7 @@ namespace HrApp.Service.Implementation
             if (employee == null) throw new ArgumentException("Employee not found");
 
             GuardLeaveType(dto.LeaveType);
+            GuardDays(dto);
 
             var existing = await _repository.GetForAsync(dto.EmployeeID, dto.Year, dto.LeaveType);
             if (existing != null)
@@ -76,10 +77,21 @@ namespace HrApp.Service.Implementation
             if (entitlement == null) throw new ArgumentException("Entitlement not found");
 
             GuardLeaveType(dto.LeaveType);
+            GuardDays(dto);
+
+            var employee = await _employeeRepository.GetByIdAsync(dto.EmployeeID);
+            if (employee == null) throw new ArgumentException("Employee not found");
+
+            var duplicate = await _repository.GetForAsync(dto.EmployeeID, dto.Year, dto.LeaveType);
+            if (duplicate != null && duplicate.EntitlementID != id)
+            {
+                throw new InvalidOperationException(
+                    $"{employee.FirstName} {employee.LastName} already has a {dto.LeaveType} allowance for {dto.Year}. Edit it instead.");
+            }
 
             // Reducing an allowance below what is already committed would produce a
             // negative balance that nobody can act on.
-            var balance = await GetBalanceAsync(entitlement.EmployeeID, entitlement.Year, dto.LeaveType);
+            var balance = await GetBalanceAsync(dto.EmployeeID, dto.Year, dto.LeaveType);
             var newTotal = dto.DaysAllocated + dto.DaysCarriedOver;
             if (newTotal < balance.DaysCommitted)
             {
@@ -87,6 +99,7 @@ namespace HrApp.Service.Implementation
                     $"Cannot reduce the allowance to {newTotal} days: {balance.DaysCommitted} are already approved or pending.");
             }
 
+            entitlement.EmployeeID = dto.EmployeeID;
             entitlement.Year = dto.Year;
             entitlement.LeaveType = dto.LeaveType;
             entitlement.DaysAllocated = dto.DaysAllocated;
@@ -164,6 +177,12 @@ namespace HrApp.Service.Implementation
         {
             if (!LeaveTypes.Contains(leaveType, StringComparer.OrdinalIgnoreCase))
                 throw new ArgumentException($"Leave type must be one of: {string.Join(", ", LeaveTypes)}");
+        }
+
+        private static void GuardDays(LeaveEntitlementRequestDto dto)
+        {
+            if (dto.DaysAllocated < 0 || dto.DaysCarriedOver < 0)
+                throw new ArgumentException("Allocated and carried-over days cannot be negative.");
         }
 
         private static LeaveEntitlementResponseDto MapToDto(LeaveEntitlement entitlement)

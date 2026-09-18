@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Card, Badge, ProgressBar } from 'react-bootstrap';
+import { Card, Badge, Button, ButtonGroup, ProgressBar } from 'react-bootstrap';
 import DataPage from '../components/DataPage';
 import LeaveEntitlementModal from '../components/LeaveEntitlementModal';
 import { authenticatedFetch } from '../services/authService';
@@ -23,7 +23,7 @@ const LeaveEntitlementsPage = () => {
     if (!response.ok) throw new Error('Failed to delete the allowance');
   };
 
-  const renderCard = (entitlement) => (
+  const renderCard = (entitlement, onEdit, onDelete) => (
     <Card className="shadow h-100" style={{ backgroundColor: '#1E293B', borderColor: '#6366F1', color: 'white' }}>
       <Card.Body>
         <div className="d-flex justify-content-between align-items-start mb-2">
@@ -42,6 +42,16 @@ const LeaveEntitlementsPage = () => {
           )}
           <strong>Total available:</strong> {entitlement.totalAvailable} days
         </Card.Text>
+        <div className="d-flex justify-content-end">
+          <ButtonGroup size="sm">
+            <Button variant="outline-primary" onClick={() => onEdit(entitlement)}>
+              <i className="bi bi-pencil"></i>
+            </Button>
+            <Button variant="outline-danger" onClick={() => onDelete(entitlement)}>
+              <i className="bi bi-trash"></i>
+            </Button>
+          </ButtonGroup>
+        </div>
       </Card.Body>
     </Card>
   );
@@ -53,9 +63,9 @@ const LeaveEntitlementsPage = () => {
       searchFields={['employeeName', 'leaveType']}
       renderCard={renderCard}
       searchPlaceholder="Search allowances…"
-      showAddButton={true}
       createButtonText="New Allowance"
       modalComponent={(props) => <LeaveEntitlementModal {...props} employees={employees} />}
+      modalItemProp="item"
       onDelete={handleDelete}
       deleteConfirmText="Delete this allowance? The leave type becomes uncapped for that year."
     />

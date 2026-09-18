@@ -42,6 +42,15 @@ namespace HrApp.Repository.Implementation
                 .FirstOrDefaultAsync(e => e.EmployeeID == id);
         }
 
+        public async Task<Employee> GetForDocumentProcessingAsync(Guid id)
+        {
+            return await _context.Employees
+                .Where(e => !e.IsDeleted)
+                .Include(e => e.Department)
+                .Include(e => e.EmployeeDossier)
+                .FirstOrDefaultAsync(e => e.EmployeeID == id);
+        }
+
         public async Task<Employee> AddAsync(Employee employee)
         {
             _context.Employees.Add(employee);
@@ -167,6 +176,12 @@ namespace HrApp.Repository.Implementation
                 .Include(e => e.Assets)
                 .Include(e => e.GeneratedDocuments)
                 .Include(e => e.LeaveRequests)
+                .FirstOrDefaultAsync(e => e.ApplicationUserId == applicationUserId);
+        }
+
+        public async Task<Employee> GetByApplicationUserIdIncludingDeletedAsync(string applicationUserId)
+        {
+            return await _context.Employees
                 .FirstOrDefaultAsync(e => e.ApplicationUserId == applicationUserId);
         }
     }
