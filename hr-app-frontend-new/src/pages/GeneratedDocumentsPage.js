@@ -9,6 +9,7 @@ import { isAdmin } from '../services/authService';
 const GeneratedDocumentsPage = () => {
   const [viewingDocument, setViewingDocument] = useState(null);
   const [showViewModal, setShowViewModal] = useState(false);
+  const admin = isAdmin();
 
   const renderDocumentCard = (document, onEdit, onDelete) => (
     <Card className="shadow" style={{ backgroundColor: '#1E293B', borderColor: '#6366F1', color: 'white' }}>
@@ -22,23 +23,25 @@ const GeneratedDocumentsPage = () => {
               variant="outline-light" 
               size="sm" 
               className="me-1"
+              aria-label="View document"
               onClick={() => handleViewDocument(document)}
             >
               <i className="bi bi-eye"></i>
             </Button>
-            <Button 
+            {admin && <Button
               variant="outline-danger" 
               size="sm"
+              aria-label="Delete document"
               onClick={() => onDelete(document)}
             >
               <i className="bi bi-trash"></i>
-            </Button>
+            </Button>}
           </div>
         </div>
         <Card.Subtitle className="mb-2" style={{ color: '#94A3B8' }}>
           Document ID: {document.documentID}
         </Card.Subtitle>
-        <Card.Text>
+        <div className="card-text">
           <Badge 
             bg={document.documentType === 'Asset' ? 'primary' : 
                  document.documentType === 'Employment' ? 'success' : 'warning'}
@@ -47,7 +50,7 @@ const GeneratedDocumentsPage = () => {
             {document.documentType || 'Unknown'}
           </Badge>
           <br />
-          <strong>Employee:</strong> {isAdmin() ? document.employeeName : 'My Document'}
+          <strong>Employee:</strong> {admin ? document.employeeName : 'My Document'}
           <br />
           <strong>Generated:</strong> {new Date(document.generatedDate).toLocaleDateString()}
           <br />
@@ -62,7 +65,7 @@ const GeneratedDocumentsPage = () => {
           >
             {document.contentPreview || 'No content available'}
           </div>
-        </Card.Text>
+        </div>
       </Card.Body>
     </Card>
   );
@@ -95,19 +98,19 @@ const GeneratedDocumentsPage = () => {
     }
   };
 
-  const apiEndpoint = isAdmin() ? API_URLS.GENERATED_DOCUMENTS.GET_ALL() : API_URLS.GENERATED_DOCUMENTS.GET_MY_DOCUMENTS();
+  const apiEndpoint = admin ? API_URLS.GENERATED_DOCUMENTS.GET_ALL() : API_URLS.GENERATED_DOCUMENTS.GET_MY_DOCUMENTS();
 
   return (
     <>
       <DataPage
-        title={isAdmin() ? "Generated Documents" : "My Generated Documents"}
+        title={admin ? "Generated Documents" : "My Generated Documents"}
         apiEndpoint={apiEndpoint}
-        searchFields={isAdmin() ? ['templateName', 'employeeName', 'documentType'] : ['templateName', 'documentType']}
+        searchFields={admin ? ['templateName', 'employeeName', 'documentType'] : ['templateName', 'documentType']}
         renderCard={renderDocumentCard}
-        searchPlaceholder={isAdmin() ? "Search documents..." : "Search my documents..."}
+        searchPlaceholder={admin ? "Search documents..." : "Search my documents..."}
         createButtonText="Generate Document"
-        modalComponent={DocumentGenerationModal}
-        onDelete={handleDelete}
+        modalComponent={admin ? DocumentGenerationModal : null}
+        onDelete={admin ? handleDelete : null}
         deleteConfirmText="Are you sure you want to delete this generated document? This action cannot be undone."
       />
 

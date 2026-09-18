@@ -13,6 +13,8 @@ const EmployeeModal = ({ show, onHide, employee = null, onSave, departments = []
     hireDate: '',
     managerName: '',
     mentorName: '',
+    managerID: null,
+    mentorID: null,
     password: '',
     confirmPassword: '',
     applicationUserId: ''
@@ -39,7 +41,7 @@ const EmployeeModal = ({ show, onHide, employee = null, onSave, departments = []
     if (employee) {
       // Find department ID by matching department name
       const matchingDept = departments.find(dept => dept.name === employee.departmentName);
-      const departmentID = matchingDept ? matchingDept.departmentID : '';
+      const departmentID = employee.departmentID || (matchingDept ? matchingDept.departmentID : '');
       
       setFormData({
         firstName: employee.firstName || '',
@@ -50,6 +52,8 @@ const EmployeeModal = ({ show, onHide, employee = null, onSave, departments = []
         hireDate: employee.hireDate ? new Date(employee.hireDate).toISOString().split('T')[0] : '',
         managerName: employee.managerName || '',
         mentorName: employee.mentorName || '',
+        managerID: employee.managerID || null,
+        mentorID: employee.mentorID || null,
         password: '',
         confirmPassword: '',
         applicationUserId: employee.applicationUserId || ''
@@ -65,6 +69,8 @@ const EmployeeModal = ({ show, onHide, employee = null, onSave, departments = []
         hireDate: '',
         managerName: '',
         mentorName: '',
+        managerID: null,
+        mentorID: null,
         password: '',
         confirmPassword: '',
         applicationUserId: generateUUID()
@@ -88,8 +94,8 @@ const EmployeeModal = ({ show, onHide, employee = null, onSave, departments = []
           Position: formData.position,
           DepartmentID: formData.departmentID || null,
           HireDate: formData.hireDate,
-          ManagerID: null,
-          MentorID: null
+          ManagerID: formData.managerID,
+          MentorID: formData.mentorID
         };
         
         const response = await authenticatedFetch(
@@ -271,7 +277,7 @@ const EmployeeModal = ({ show, onHide, employee = null, onSave, departments = []
                   type="text"
                   name="managerName"
                   value={formData.managerName}
-                  onChange={handleChange}
+                  readOnly
                   style={{ backgroundColor: '#1E293B', color: 'white', borderColor: '#6366F1' }}
                 />
               </Form.Group>
@@ -283,7 +289,7 @@ const EmployeeModal = ({ show, onHide, employee = null, onSave, departments = []
                   type="text"
                   name="mentorName"
                   value={formData.mentorName}
-                  onChange={handleChange}
+                  readOnly
                   style={{ backgroundColor: '#1E293B', color: 'white', borderColor: '#6366F1' }}
                 />
               </Form.Group>
@@ -344,4 +350,4 @@ const EmployeeModal = ({ show, onHide, employee = null, onSave, departments = []
   );
 };
 
-export default EmployeeModal; 
+export default EmployeeModal;

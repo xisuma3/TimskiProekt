@@ -15,9 +15,11 @@ using Microsoft.AspNetCore.Authorization;
 using Microsoft.IdentityModel.Tokens; // NEW!
 using System.Text;
 using Microsoft.OpenApi.Models; // NEW!
+using System.Security.Claims;
 
 var builder = WebApplication.CreateBuilder(args);
 var MyAllowSpecificOrigins = "_myAllowSpecificOrigins";
+var jwtSettings = JwtSettings.Create(builder.Configuration["Jwt:Key"], builder.Configuration["Jwt:Issuer"], builder.Configuration["Jwt:Audience"], builder.Configuration["Jwt:DurationInMinutes"]);
 
 // --- Services Configuration ---
 var connectionString = builder.Configuration.GetConnectionString("DefaultConnection") ??
@@ -29,6 +31,9 @@ builder.Services.AddDbContext<HrAppDbContext>(options =>
 builder.Services.AddIdentity<ApplicationUser, IdentityRole>(options =>
 {
     options.SignIn.RequireConfirmedAccount = true;
+    options.Lockout.AllowedForNewUsers = true;
+    options.Lockout.MaxFailedAccessAttempts = 5;
+    options.Lockout.DefaultLockoutTimeSpan = TimeSpan.FromMinutes(15);
     options.Password.RequireDigit = false;
     options.Password.RequiredLength = 6;
     options.Password.RequireNonAlphanumeric = false;
@@ -53,9 +58,24 @@ builder.Services.AddAuthentication(options =>
         ValidateAudience = true,
         ValidateLifetime = true,
         ValidateIssuerSigningKey = true,
-        ValidIssuer = builder.Configuration["Jwt:Issuer"],
-        ValidAudience = builder.Configuration["Jwt:Audience"],
-        IssuerSigningKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(builder.Configuration["Jwt:Key"]))
+        ValidIssuer = jwtSettings.Issuer,
+        ValidAudience = jwtSettings.Audience,
+        IssuerSigningKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(jwtSettings.Key)),
+        ClockSkew = TimeSpan.FromMinutes(1)
+    };
+    options.Events = new JwtBearerEvents
+    {
+        OnTokenValidated = async context =>
+        {
+            var applicationUserId = context.Principal?.FindFirstValue(ClaimTypes.NameIdentifier);
+            var accountStatusValidator = context.HttpContext.RequestServices
+                .GetRequiredService<IEmployeeAccountStatusValidator>();
+
+            if (!await accountStatusValidator.CanAuthenticateAsync(applicationUserId))
+            {
+                context.Fail("Invalid account status.");
+            }
+        }
     };
 });
 // --- End JWT Authentication Configuration ---
@@ -77,10 +97,8 @@ builder.Services.AddScoped<IDepartmentService, DepartmentService>();
 
 builder.Services.AddScoped<IEmployeeRepository, EmployeeRepository>();
 builder.Services.AddScoped<IEmployeeService, EmployeeService>();
-
-// Commented out as these classes are not properly implemented
-// builder.Services.AddScoped<IUserRepository, UserRepository>();
-// builder.Services.AddScoped<IUserService, UserService>();
+builder.Services.AddScoped<IEmployeeAccountStatusValidator, EmployeeAccountStatusValidator>();
+builder.Services.AddSingleton(jwtSettings);
 
 builder.Services.AddScoped<IEmployeeDossierRepository, EmployeeDossierRepository>();
 builder.Services.AddScoped<IEmployeeDossierService, EmployeeDossierService>();
@@ -97,6 +115,7 @@ builder.Services.AddScoped<ILeaveRequestRepository, LeaveRequestRepository>();
 builder.Services.AddScoped<ILeaveRequestService, LeaveRequestService>();
 
 builder.Services.AddScoped<IDocumentTemplateRepository, DocumentTemplateRepository>();
+builder.Services.AddSingleton<ITemplateHtmlSanitizer, TemplateHtmlSanitizer>();
 builder.Services.AddScoped<IDocumentTemplateService, DocumentTemplateService>();
 
 builder.Services.AddScoped<IGeneratedDocumentRepository, GeneratedDocumentRepository>();
@@ -193,37 +212,32 @@ using (var scope = app.Services.CreateScope())
         await roleManager.CreateAsync(new IdentityRole("Admin"));
     }
 
-    // Optional: Create a default admin user for testing
-    var adminUser = await userManager.FindByEmailAsync("admin@example.com");
-    if (adminUser == null && seedDevAdmin)
+    if (seedDevAdmin)
     {
-        adminUser = new ApplicationUser { UserName = "admin@example.com", Email = "admin@example.com", EmailConfirmed = true };
-        var createAdminResult = await userManager.CreateAsync(adminUser, "AdminP@ss123!");
-        if (createAdminResult.Succeeded)
+        var adminUser = await userManager.FindByEmailAsync("admin@example.com");
+        if (adminUser == null)
         {
-            await userManager.AddToRoleAsync(adminUser, "Admin");
-            await userManager.AddToRoleAsync(adminUser, "Employee");
-        }
-    }
-
-    // An approver has to be a person in the org chart, not just a login: decisions are
-    // recorded against an Employee. Without this the admin can approve leave but the
-    // approval cannot be attributed to anyone.
-    if (adminUser != null)
-    {
-        var employeeRepository = scope.ServiceProvider.GetRequiredService<IEmployeeRepository>();
-        var linkedEmployee = await employeeRepository.GetByApplicationUserIdAsync(adminUser.Id);
-        if (linkedEmployee == null)
-        {
-            await employeeRepository.AddAsync(new HrApp.DomainEntities.Models.Employee
+            adminUser = new ApplicationUser { UserName = "admin@example.com", Email = "admin@example.com", EmailConfirmed = true };
+            var createAdminResult = await userManager.CreateAsync(adminUser, "AdminP@ss123!");
+            if (createAdminResult.Succeeded)
             {
-                ApplicationUserId = adminUser.Id,
-                FirstName = "System",
-                LastName = "Administrator",
-                Email = adminUser.Email,
-                Position = "HR Administrator",
-                HireDate = DateTime.UtcNow.Date
-            });
+                await userManager.AddToRoleAsync(adminUser, "Admin");
+                await userManager.AddToRoleAsync(adminUser, "Employee");
+            }
+            else
+            {
+                adminUser = null;
+            }
+        }
+
+        // An approver has to be a person in the org chart, not just a login: decisions are
+        // recorded against an Employee. Without this the admin can approve leave but the
+        // approval cannot be attributed to anyone.
+        if (adminUser != null)
+        {
+            var employeeRepository = scope.ServiceProvider.GetRequiredService<IEmployeeRepository>();
+            var employeeSeeder = new DevelopmentAdminEmployeeSeeder(employeeRepository);
+            await employeeSeeder.EnsureLinkedEmployeeAsync(adminUser.Id, adminUser.Email);
         }
     }
 }

@@ -32,9 +32,9 @@ namespace HrApp.Service.Implementation
                 Email = e?.Email,
                 HireDate = e.HireDate,
                 Position = e?.Position,
-                //DepartmentID = e.DepartmentID?,
+                DepartmentID = e.DepartmentID,
                 DepartmentName = e?.Department?.Name ?? string.Empty,
-                //ManagerID = e.ManagerID,
+                ManagerID = e.ManagerID,
                 ManagerName = e.Manager != null ? $"{e.Manager.FirstName} {e.Manager.LastName}" : null,
                 MentorID = e.MentorID,
                 MentorName = e.Mentor != null ? $"{e.Mentor.FirstName} {e.Mentor.LastName}" : null

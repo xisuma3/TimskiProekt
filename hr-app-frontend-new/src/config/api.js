@@ -13,8 +13,7 @@ const API_CONFIG = {
     GENERATED_DOCUMENT: '/api/GeneratedDocument',
     LEAVE_REQUEST: '/api/LeaveRequest',
     EMPLOYEE_DOSSIER: '/api/EmployeeDossier',
-    LEAVE_ENTITLEMENT: '/api/LeaveEntitlement',
-    USER: '/api/User'
+    LEAVE_ENTITLEMENT: '/api/LeaveEntitlement'
   }
 };
 
@@ -89,7 +88,6 @@ export const API_URLS = {
     GET_ALL: () => buildApiUrl(API_CONFIG.ENDPOINTS.LEAVE_REQUEST, '/GetAll'),
     GET_MY_REQUESTS: () => buildApiUrl(API_CONFIG.ENDPOINTS.LEAVE_REQUEST, '/GetMyLeaveRequests'),
     CREATE: () => buildApiUrl(API_CONFIG.ENDPOINTS.LEAVE_REQUEST, '/Create'),
-    UPDATE: (id) => buildApiUrl(API_CONFIG.ENDPOINTS.LEAVE_REQUEST, `/Update/${id}`),
     DELETE: (id) => buildApiUrl(API_CONFIG.ENDPOINTS.LEAVE_REQUEST, `/Delete/${id}`),
     APPROVE: (id) => buildApiUrl(API_CONFIG.ENDPOINTS.LEAVE_REQUEST, `/Approve/${id}/approve`),
     REJECT: (id) => buildApiUrl(API_CONFIG.ENDPOINTS.LEAVE_REQUEST, `/Reject/${id}/reject`),
@@ -121,15 +119,6 @@ export const API_URLS = {
     CREATE: () => buildApiUrl(API_CONFIG.ENDPOINTS.EMPLOYEE_DOSSIER, '/Create'),
     UPDATE: (id) => buildApiUrl(API_CONFIG.ENDPOINTS.EMPLOYEE_DOSSIER, `/Update/${id}`),
     DELETE: (id) => buildApiUrl(API_CONFIG.ENDPOINTS.EMPLOYEE_DOSSIER, `/Delete/${id}`)
-  },
-
-  // User endpoints
-  USER: {
-    GET_ALL: () => buildApiUrl(API_CONFIG.ENDPOINTS.USER, '/GetAll'),
-    GET_BY_ID: (id) => buildApiUrl(API_CONFIG.ENDPOINTS.USER, `/GetById/${id}`),
-    CREATE: () => buildApiUrl(API_CONFIG.ENDPOINTS.USER, '/Create'),
-    UPDATE: (id) => buildApiUrl(API_CONFIG.ENDPOINTS.USER, `/Edit/${id}`),
-    DELETE: (id) => buildApiUrl(API_CONFIG.ENDPOINTS.USER, `/Delete/${id}`)
   }
 };
 

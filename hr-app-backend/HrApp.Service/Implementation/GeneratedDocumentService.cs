@@ -18,17 +18,20 @@ namespace HrApp.Service.Implementation
         private readonly IEmployeeRepository _employeeRepository;
         private readonly IDocumentTemplateRepository _templateRepository;
         private readonly ITemplateProcessingService _templateProcessingService;
+        private readonly ITemplateHtmlSanitizer _htmlSanitizer;
 
         public GeneratedDocumentService(
             IGeneratedDocumentRepository documentRepository,
             IEmployeeRepository employeeRepository,
             IDocumentTemplateRepository templateRepository,
-            ITemplateProcessingService templateProcessingService)
+            ITemplateProcessingService templateProcessingService,
+            ITemplateHtmlSanitizer htmlSanitizer)
         {
             _documentRepository = documentRepository;
             _employeeRepository = employeeRepository;
             _templateRepository = templateRepository;
             _templateProcessingService = templateProcessingService;
+            _htmlSanitizer = htmlSanitizer;
         }
 
         public async Task<IEnumerable<GeneratedDocumentResponseDto>> GetAllAsync()
@@ -94,7 +97,7 @@ namespace HrApp.Service.Implementation
         public async Task<string> GetDocumentContentAsync(Guid id)
         {
             var document = await _documentRepository.GetByIdAsync(id);
-            return document?.Content;
+            return document == null ? null : _htmlSanitizer.Sanitize(document.Content);
         }
 
         private GeneratedDocumentResponseDto MapToDto(GeneratedDocument document)

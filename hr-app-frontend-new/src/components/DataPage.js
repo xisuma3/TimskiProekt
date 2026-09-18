@@ -14,6 +14,7 @@ const DataPage = ({
   onAddClick = null,
   createButtonText = "Add New",
   modalComponent: ModalComponent = null,
+  modalItemProp = 'editingTemplate',
   onDelete = null,
   deleteConfirmText = "Are you sure you want to delete this item?",
   useMinHeight = true
@@ -30,6 +31,7 @@ const DataPage = ({
 
   const fetchData = useCallback(() => {
     setLoading(true);
+    setError(null);
     authenticatedFetch(apiEndpoint)
       .then((response) => {
         if (!response.ok) {
@@ -41,6 +43,7 @@ const DataPage = ({
         // Ensure data is always an array for consistent handling
         const arrayData = Array.isArray(data) ? data : [data];
         setData(arrayData);
+        setError(null);
         setLoading(false);
       })
       .catch((err) => {
@@ -182,7 +185,7 @@ const DataPage = ({
             show={showModal}
             onHide={() => setShowModal(false)}
             onSave={handleModalSave}
-            editingTemplate={editingItem}
+            {...{ [modalItemProp]: editingItem }}
             onGenerate={handleModalSave}
           />
         )}
@@ -223,4 +226,4 @@ const DataPage = ({
   );
 };
 
-export default DataPage; 
+export default DataPage;

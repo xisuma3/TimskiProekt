@@ -28,14 +28,6 @@ const LandingPage = () => (
           >
             Login
           </Button>
-          <Button
-            variant="outline-light"
-            size="lg"
-            href="/register"
-            style={{ fontWeight: 'bold' }}
-          >
-            Register
-          </Button>
         </Col>
       </Row>
       <Row className="justify-content-center mt-5">

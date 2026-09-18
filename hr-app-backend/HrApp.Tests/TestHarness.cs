@@ -29,12 +29,17 @@ namespace HrApp.Tests
         public AssetAssignmentRepository AssetAssignments { get; }
         public LeaveEntitlementRepository Entitlements { get; }
         public DocumentTemplateRepository Templates { get; }
+        public GeneratedDocumentRepository GeneratedDocuments { get; }
 
         public LeaveEntitlementService EntitlementService { get; }
         public LeaveRequestService LeaveRequestService { get; }
         public AssetService AssetService { get; }
         public TemplateProcessingService TemplateService { get; }
+        public TemplateHtmlSanitizer TemplateHtmlSanitizer { get; }
+        public GeneratedDocumentService GeneratedDocumentService { get; }
+        public DocumentTemplateService DocumentTemplateService { get; }
         public EmployeeService EmployeeService { get; }
+        public EmployeeAccountStatusValidator AccountStatusValidator { get; }
 
         public TestHarness()
         {
@@ -51,12 +56,17 @@ namespace HrApp.Tests
             AssetAssignments = new AssetAssignmentRepository(Context);
             Entitlements = new LeaveEntitlementRepository(Context);
             Templates = new DocumentTemplateRepository(Context);
+            GeneratedDocuments = new GeneratedDocumentRepository(Context);
 
             EntitlementService = new LeaveEntitlementService(Entitlements, LeaveRequests, Employees);
             LeaveRequestService = new LeaveRequestService(LeaveRequests, Employees, EntitlementService);
             AssetService = new AssetService(Assets, AssetAssignments, Employees);
-            TemplateService = new TemplateProcessingService(Templates, Employees, Assets);
+            TemplateHtmlSanitizer = new TemplateHtmlSanitizer();
+            DocumentTemplateService = new DocumentTemplateService(Templates, TemplateHtmlSanitizer);
+            TemplateService = new TemplateProcessingService(Templates, Employees, Assets, TemplateHtmlSanitizer);
+            GeneratedDocumentService = new GeneratedDocumentService(GeneratedDocuments, Employees, Templates, TemplateService, TemplateHtmlSanitizer);
             EmployeeService = new EmployeeService(Employees);
+            AccountStatusValidator = new EmployeeAccountStatusValidator(Employees);
         }
 
         // --- Fixture builders -------------------------------------------------------

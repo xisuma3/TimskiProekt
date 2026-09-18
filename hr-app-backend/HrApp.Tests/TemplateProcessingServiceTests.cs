@@ -43,7 +43,7 @@ namespace HrApp.Tests
             var result = await h.TemplateService.ProcessTemplateAsync(
                 template.TemplateID, employee.EmployeeID, new List<Guid> { asset.AssetID });
 
-            Assert.Equal($"Monitor {token} end", result);
+            Assert.Equal($"Monitor {token.Replace("&", "&amp;")} end", result);
         }
 
         [Fact]
@@ -61,7 +61,7 @@ namespace HrApp.Tests
             var result = await h.TemplateService.ProcessTemplateAsync(
                 template.TemplateID, employee.EmployeeID, new List<Guid> { a1.AssetID, a2.AssetID });
 
-            Assert.Equal("A:[Laptop][Chair]|B:<SN-1><SN-2>", result);
+            Assert.Equal("A:[Laptop][Chair]|B:&lt;SN-1&gt;&lt;SN-2&gt;", result);
         }
 
         [Fact]
