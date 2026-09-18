@@ -64,6 +64,15 @@ jobs:
     defaults:
       run:
         working-directory: hr-app-backend
+    env:
+      # dotnet-ef's design-time tooling discovers the DbContext by running the app's own
+      # Program.cs, which now builds a JwtSettings before the host exists. These are
+      # CI-only placeholders that only need to satisfy that startup-time shape check —
+      # nothing here ever signs a real token, so a fixed, non-secret value is fine for
+      # issuer/audience/duration. The key itself is generated fresh per run below.
+      Jwt__Issuer: ci-model-check
+      Jwt__Audience: ci-model-check
+      Jwt__DurationInMinutes: '60'
 
     steps:
       - uses: actions/checkout@v4
@@ -75,6 +84,17 @@ jobs:
 
       - name: Install EF tools
         run: dotnet tool install --global dotnet-ef --version 9.*
+
+      # JwtSettings.Create rejects a missing/short key before the host can build, which is
+      # correct in production but means the design-time host EF spins up to discover the
+      # DbContext needs *some* syntactically valid key. Generate one fresh for this job run
+      # only, mask it so it can't land in logs, and hand it to later steps via GITHUB_ENV —
+      # it is never written to a file, appsettings, or committed anywhere.
+      - name: Generate an ephemeral JWT signing key for the model check
+        run: |
+          key=$(openssl rand -hex 32)
+          echo "::add-mask::$key"
+          echo "Jwt__Key=$key" >> "$GITHUB_ENV"
 
       # Catches the common mistake of changing an entity but forgetting the migration.
       # `migrations has-pending-model-changes` exits non-zero when the model and the
