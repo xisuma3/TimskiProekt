@@ -771,6 +771,119 @@ textarea.form-control { min-height: 96px; }
   .cal-title { min-width: 0; font-size: 1rem; }
 }
 
+/* ---------- Date range picker (leave request form) ---------- */
+.drp { position: relative; border: 1px solid var(--hr-border); border-radius: 14px; padding: 14px 16px 12px; background: var(--hr-surface); }
+.drp-nav { position: absolute; inset: 10px 12px auto 12px; display: flex; justify-content: space-between; pointer-events: none; }
+.drp-nav-btn {
+  pointer-events: auto;
+  width: 34px;
+  height: 34px;
+  display: grid;
+  place-items: center;
+  border: 1px solid var(--hr-border-strong);
+  border-radius: 9px;
+  background: var(--hr-surface);
+  color: var(--hr-text);
+  cursor: pointer;
+}
+.drp-nav-btn:hover:not(:disabled) { background: var(--hr-surface-muted); }
+.drp-nav-btn:disabled { opacity: 0.35; cursor: default; }
+.drp-months { display: grid; grid-template-columns: 1fr 1fr; gap: 28px; }
+.drp-month-title {
+  height: 34px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 0.85rem;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--hr-text-muted);
+  margin-bottom: 6px;
+}
+.drp-grid { display: grid; grid-template-columns: repeat(7, minmax(0, 1fr)); row-gap: 4px; }
+.drp-weekday {
+  text-decoration: none;
+  text-align: center;
+  font-size: 0.72rem;
+  font-weight: 700;
+  color: var(--hr-text-subtle);
+  padding-bottom: 6px;
+  cursor: default;
+}
+.drp-weekday.is-weekend { color: var(--hr-placeholder); }
+/* Bootstrap's reboot underlines abbr[title]; the full day name stays as the tooltip. */
+.drp-weekday[title] { text-decoration: none; border-bottom: 0; cursor: default; }
+.drp-day {
+  position: relative;
+  height: 38px;
+  border: 0;
+  background: transparent;
+  color: var(--hr-text);
+  font-size: 0.875rem;
+  font-weight: 500;
+  border-radius: 9px;
+  cursor: pointer;
+  transition: background-color 120ms ease, color 120ms ease;
+}
+.drp-day.is-weekend { color: var(--hr-text-muted); }
+.drp-day:hover:not(:disabled):not(.is-edge) { background: var(--hr-primary-soft); }
+.drp-day.is-today::after {
+  content: '';
+  position: absolute;
+  left: 50%;
+  bottom: 5px;
+  width: 4px;
+  height: 4px;
+  margin-left: -2px;
+  border-radius: 50%;
+  background: var(--hr-primary);
+}
+.drp-day:disabled { color: var(--hr-placeholder); cursor: not-allowed; }
+.drp-day.is-booked { text-decoration: line-through; background: repeating-linear-gradient(135deg, transparent 0 4px, var(--hr-neutral-soft) 4px 8px); }
+
+/* The range: a continuous band between the two ends, square where it joins them. */
+.drp-day.in-range { background: var(--hr-primary-soft-strong); color: var(--hr-primary); border-radius: 0; }
+.drp-day.is-edge { background: var(--hr-primary-fill); color: #fff; font-weight: 700; z-index: 1; }
+.drp-day.is-edge.is-today::after { background: #fff; }
+.drp-day.is-range-start { border-top-right-radius: 0; border-bottom-right-radius: 0; }
+.drp-day.is-range-end { border-top-left-radius: 0; border-bottom-left-radius: 0; }
+.drp-day.is-preview { background: var(--hr-primary-border-strong); color: var(--hr-text); }
+.drp-day:focus-visible { outline: 3px solid var(--hr-primary-ring); outline-offset: 1px; z-index: 2; }
+
+.drp-footer {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  margin-top: 12px;
+  padding-top: 12px;
+  border-top: 1px solid var(--hr-border);
+  font-size: 0.9rem;
+}
+.drp-key { display: inline-flex; align-items: center; gap: 6px; font-size: 0.78rem; color: var(--hr-text-muted); }
+.drp-key::before {
+  content: '';
+  width: 14px;
+  height: 14px;
+  border-radius: 4px;
+  border: 1px solid var(--hr-border-strong);
+  background: repeating-linear-gradient(135deg, transparent 0 3px, var(--hr-neutral-soft) 3px 6px);
+}
+.drp-clear { border: 0; background: none; padding: 4px 6px; border-radius: 6px; color: var(--hr-primary); font-weight: 600; cursor: pointer; }
+.drp-clear:hover { background: var(--hr-primary-soft); }
+.drp-notice { margin-top: 10px; font-size: 0.85rem; color: var(--hr-danger); }
+
+@media (max-width: 767.98px) {
+  .drp-months { grid-template-columns: 1fr; }
+  .drp-second { display: none; }
+}
+@media (max-width: 575.98px) {
+  .drp { padding: 12px 10px 10px; }
+  .drp-day { height: 36px; }
+}
+
 /* ---------- Stat cards ---------- */
 .stat-card { display: flex; align-items: center; gap: 16px; padding: 20px; height: 100%; }
 .stat-card .stat-icon { flex: none; width: 48px; height: 48px; border-radius: 14px; display: grid; place-items: center; font-size: 1.35rem; }
