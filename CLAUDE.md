@@ -43,7 +43,7 @@ dotnet run --project HrAppWebApplication --launch-profile http
 - HTTP profile serves at `http://localhost:5190`; HTTPS profile at `https://localhost:7033` (and `http://localhost:5137`). Swagger UI is at `/swagger` in Development.
 - The frontend (`config/api.js`) hard-defaults to `http://localhost:5190`, so use the **http** profile unless you also set `REACT_APP_API_URL`.
 - **Two test suites**, both run by CI:
-  - `dotnet test HrApp.Tests/HrApp.Tests.csproj` — 65 tests on the EF **in-memory**
+  - `dotnet test HrApp.Tests/HrApp.Tests.csproj` — 135 tests on the EF **in-memory**
     provider. Needs no SQL Server; covers *service behaviour*.
   - `dotnet test HrApp.SchemaTests/HrApp.SchemaTests.csproj` — 14 tests against a real
     SQL Server, on a throwaway database built by running the migrations. Covers the rules
@@ -103,10 +103,10 @@ registration step.
 ### Auth & Identity
 
 - `HrAppDbContext` extends `IdentityDbContext<ApplicationUser>`. `ApplicationUser : IdentityUser` has a 1:1 link to `Employee` (`Employee.ApplicationUserId`).
-- `AuthController.Register` creates the Identity user, assigns the `Employee` role, **and** creates the linked `Employee` record. The two writes are not in a transaction — a failed employee insert leaves an orphan login.
+- `AuthController.Register` is **Admin-only**. It creates the Identity user, assigns the `Employee` role, and creates the linked `Employee` record; if the employee insert fails it deletes the login again, so no orphan account is left (compensating delete, not a transaction).
 - `Login` returns a JWT via `GenerateJwtToken` (roles embedded as `ClaimTypes.Role`).
-- JWT settings (`Key`, `Issuer`, `Audience`, `DurationInMinutes`) live in `appsettings.json` under `Jwt`. The signing key is committed to the repo.
-- On startup, `Program.cs` seeds the `Admin` and `Employee` roles and a default admin: **`admin@example.com` / `AdminP@ss123!`**. This seeding is **not** gated on `IsDevelopment()`.
+- JWT settings live under `Jwt`: `Issuer`/`Audience`/`DurationInMinutes` in `appsettings.json`, and a **development-only** `Key` in `appsettings.Development.json`. Anything else must supply `Jwt__Key` (CI generates an ephemeral one); `JwtSettings.Create` refuses to start without a ≥32-byte key.
+- On startup, `Program.cs` seeds the `Admin` and `Employee` roles; in **Development only** it also seeds a default admin, **`admin@example.com` / `AdminP@ss123!`**, with a linked `Employee` record so their decisions are attributable.
 
 #### Authorization model
 
@@ -173,14 +173,34 @@ Decisions go through one private `DecideAsync`:
 - Only a **Pending** request can be decided. Re-approving, or flipping Approved to
   Rejected, returns **409 Conflict** rather than silently overwriting the audit trail.
 - Nobody can decide their **own** request (409), manager or not.
-- **Authority comes from the org chart.** An admin may decide anything; anyone else must
-  be the requester's manager, else 403. The rule lives in `DecideAsync` (which takes an
-  `approverIsAdmin` flag from the controller), *not* in an `[Authorize(Roles = ...)]`
-  attribute — an attribute can only express "admin or nothing".
-  `GET /api/LeaveRequest/GetMyTeamRequests` gives a manager their reports' requests.
-- Every decision records `ApprovedByEmployeeID`, `DecisionAt` and an optional
-  `DecisionReason`. The approver comes from the caller's token; `ILeaveRequestService`
-  takes it as an explicit parameter so a decision cannot be recorded anonymously.
+- **Authority comes from the org chart** (`ResolveAuthorityAsync`), else 403:
+  1. an admin may decide anything;
+  2. **skip-level** — anyone *above* the requester in the reporting line (manager,
+     manager's manager, …). The chain is walked over `EmployeeRepository.GetManagerMapAsync`
+     (one query, includes retired managers so a gap doesn't cut escalation, cycle-safe);
+  3. **delegation** — someone holding an active `ApprovalDelegation` from a manager in that
+     chain. Delegations **do not chain**: a delegate uses only the delegator's own authority.
+  The rule lives in `DecideAsync` (which takes an `approverIsAdmin` flag from the
+  controller), *not* in an `[Authorize(Roles = ...)]` attribute — an attribute can only
+  express "admin or nothing".
+- `GET /api/LeaveRequest/GetMyTeamRequests` returns every request the caller can decide —
+  direct reports, indirect reports and delegated teams — each with `ApprovalRoute`
+  ("Direct report", "Indirect report", "Delegated by …"). Never the caller's own.
+- Every decision records `ApprovedByEmployeeID`, `DecisionAt`, an optional
+  `DecisionReason`, and — when made under a delegation — `DecidedOnBehalfOfEmployeeID`.
+  The approver comes from the caller's token; `ILeaveRequestService` takes it as an
+  explicit parameter so a decision cannot be recorded anonymously.
+
+### Approval delegation
+
+`ApprovalDelegation` (`ApprovalDelegationController`): a manager hands their approval
+authority to a colleague for `[StartDate, EndDate]` (calendar dates, inclusive). Non-admins
+can only delegate **their own** authority (delegator from the token); admins may set one
+up for anyone. Refused: delegating to yourself, end before start, ending in the past, a
+retired delegate, and overlapping a non-revoked delegation from the same delegator (409).
+Revoke (delegator, delegate declining, or admin) sets `RevokedAt` — rows are never
+deleted, so who held authority when stays answerable. "Today" comes from an injected
+`Func<DateTime>` (registered in `Program.cs`, settable as `TestHarness.Today`).
 
 Approve/Reject accept an optional `LeaveDecisionRequestDto` body (`{ "reason": "..." }`)
 and still work with no body at all, which keeps older clients functioning.
@@ -206,12 +226,29 @@ deleted. Remaining = allocated + carried over − (approved + pending); pending 
 or an employee with 2 days left could file three more requests and have them all
 approvable.
 
-**A missing entitlement row means uncapped, not zero.** Sick leave is usually governed by
-policy rather than a day count, so `LeaveRequestService` skips the check when
-`IsTracked` is false.
+**A missing entitlement row means no allowance, and the request is refused.** Every
+leave type, Sick included, needs an entitlement row for each year a request touches
+(`IsTracked` false → `ArgumentException` → 400). A request longer than the days remaining
+is refused too. `LeaveRequestModal` runs the same check live via `services/leaveBalance.js`
+and disables Submit with a warning; the server remains the authority.
 
 A request spanning New Year is charged to **both** years and must fit in each — see
 `LeaveEntitlementService.DaysWithinYear`.
+
+**Accrual.** `LeaveEntitlement.AccrualMethod` is `Upfront` (default: all on 1 January) or
+`Monthly` (1/12 at the start of each month, `AccruedDays`). Carried-over days are always
+available in full. Balances are computed **as of** a date (`GetBalanceAsync(..., asOf)`,
+`?asOf=` on the balance endpoints); a request is checked against what will have accrued by
+its **last day in each year** it touches, so booking October leave in April is fine if
+October's accrual covers it. `DaysAvailable` = accrued + carried; `TotalAvailable` is the
+full year.
+
+**Carry-over** is an admin action, `POST /api/LeaveEntitlement/CarryOver`
+(`{ fromYear, maxDays, leaveTypes = [Vacation], preview }`): unused = full-year entitlement
+− (approved + pending), capped at `maxDays`, written to next year's `DaysCarriedOver`. A
+missing next-year allowance is created with the same allocation and accrual. It **sets**
+rather than adds, so re-running is idempotent; it skips an allowance where lowering the
+carry-over would strand days already booked next year. `preview: true` saves nothing.
 
 ### Database
 
@@ -240,6 +277,13 @@ A request spanning New Year is charged to **both** years and must fit in each �
   leave decisions and asset custody — those record what the company did, not who the
   person was. It requires the employee to be retired first, and an erased employee cannot
   be restored. Don't conflate the two in UI or in code.
+- **Every erasure is audited.** The body must say who requested it and why
+  (`EraseEmployeeRequestDto`: `RequestedBy`, `Reason`, optional `RequestReceivedAt`); the
+  performer is the caller from the token and must have an employee record (400 otherwise),
+  and nobody erases themselves. `EmployeeRepository.EraseAsync` writes the `ErasureRecord`
+  in the **same `SaveChanges`** as the erasure, so one can't exist without the other. The
+  log (`GET /api/Employee/GetErasureLog`, Admin) is append-only — there is no endpoint to
+  change or remove an entry.
 
 ## Frontend architecture (`hr-app-frontend-new`)
 
@@ -267,9 +311,9 @@ A request spanning New Year is charged to **both** years and must fit in each �
   return an empty list for it rather than erroring, and leave decisions are *refused* for
   it (an approval nobody can be attributed to is not an approval). Startup seeds an
   `Employee` for the dev admin so approvals are attributable.
-- **`UserController` is broken at runtime.** It depends on `IUserService`, but `IUserService`/`IUserRepository` registrations are **commented out** in `Program.cs` ("not properly implemented"). Any `/api/User/*` call throws a DI resolution error. Note `authService.fetchUserDetails` calls `USER.GET_BY_ID` — so that path is dead too.
+- **Instants vs calendar dates.** SQL Server's `datetime2` has no zone, so EF reads values back as `Unspecified` and they would serialise without an offset (browsers then read them as *local* time). `HrAppDbContext.ConfigureUtcInstants` marks the **instant** columns UTC — `LeaveRequest.CreatedAt`/`DecisionAt`, `GeneratedDocument.GeneratedDate`, `ApprovalDelegation.CreatedAt`/`RevokedAt`, `ErasureRecord.PerformedAt`, `Employee.DeletedAt`/`ErasedAt` — so they go out as `…Z`, and their defaults are `GETUTCDATE()`. **Calendar dates** (leave start/end, hire/birth dates, asset handover days, `RequestReceivedAt`) stay offset-free on purpose, so a browser west of UTC doesn't show the previous day. A new instant column must be added to `ConfigureUtcInstants`; a new calendar-date column must not.
 - **`HrAppDbContext` lives in the `HrApp.Repository` project but is declared under `namespace HrAppWebApplication`.** Repositories therefore `using HrAppWebApplication;` to reach the context — don't be misled by the namespace.
-- **Several request DTOs have no validation attributes at all**: `DepartmentRequestDto`, `EmployeeRequestDto`, `UpdateEmployeeRequestDto`, `PreviewTemplateRequest`, `UserRequestDto`. `ModelState.IsValid` is therefore meaningless for those endpoints.
+- **Several request DTOs have no validation attributes at all**: `DepartmentRequestDto`, `EmployeeRequestDto`, `UpdateEmployeeRequestDto`, `PreviewTemplateRequest`. `ModelState.IsValid` is therefore meaningless for those endpoints.
 - **A field that is optional in the request DTO must be nullable on the model too.** If it
   is not, EF rejects the save with a `DbUpdateException` — an HTTP 500 where a saved record
   was expected. This bit three times: `Asset.Description`/`SerialNumber`,

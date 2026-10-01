@@ -1,7 +1,6 @@
 import React from 'react';
 import { BrowserRouter as Router, Routes, Route } from 'react-router-dom';
 import LoginPage from './pages/LoginPage';
-import RegisterPage from './pages/RegisterPage';
 import ProtectedRoute from './components/ProtectedRoute';
 import RoleBasedRoute from './components/RoleBasedRoute';
 import LandingPage from './pages/LandingPage';
@@ -16,13 +15,14 @@ import LeaveEntitlementsPage from './pages/LeaveEntitlementsPage';
 import EmployeeDosiersPage from './pages/EmployeeDosiersPage';
 import DashboardPage from './pages/DashboardPage';
 import SidebarLayout from './components/SidebarLayout';
+import SystemAnalysisPage from './pages/SystemAnalysisPage';
+import ApprovalCoverPage from './pages/ApprovalCoverPage';
 
 const AppRouter = () => (
   <Router>
     <Routes>
       <Route path="/" element={<LandingPage />} />
       <Route path="/login" element={<LoginPage />} />
-      <Route path="/register" element={<RegisterPage />} />
       <Route element={
         <ProtectedRoute>
           <SidebarLayout />
@@ -49,6 +49,12 @@ const AppRouter = () => (
               <LeaveEntitlementsPage />
             </RoleBasedRoute>
           } />
+          <Route path="/system-analysis" element={
+            <RoleBasedRoute allowedRoles={['Admin']}>
+              <SystemAnalysisPage />
+            </RoleBasedRoute>
+          } />
+          <Route path="/approval-cover" element={<ApprovalCoverPage />} />
           <Route path="/employee-dossiers" element={<EmployeeDosiersPage />} />
         </Route>
     </Routes>

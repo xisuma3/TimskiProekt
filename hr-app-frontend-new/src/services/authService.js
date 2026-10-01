@@ -16,8 +16,12 @@ export const register = async (registrationData, password = null) => {
     // New format: register({ email, password, firstName, ... })
     payload = registrationData;
   }
-  
-  const response = await axios.post(API_URLS.REGISTER(), payload);
+
+  // Registration is Admin-only server-side, so the caller's own token must be sent.
+  const token = getToken();
+  const response = await axios.post(API_URLS.REGISTER(), payload, {
+    headers: token ? { Authorization: `Bearer ${token}` } : {}
+  });
   return response.data;
 };
 
@@ -57,21 +61,6 @@ export const isAdmin = () => {
 // Check if user is employee
 export const isEmployee = () => {
   return hasRole('Employee');
-};
-
-// Fetch and store user details
-export const fetchUserDetails = async (userId) => {
-  try {
-    const response = await authenticatedFetch(API_URLS.USER.GET_BY_ID(userId));
-    if (response.ok) {
-      const userData = await response.json();
-      localStorage.setItem('userInfo', JSON.stringify(userData));
-      return userData;
-    }
-  } catch (error) {
-    console.error('Failed to fetch user details:', error);
-  }
-  return null;
 };
 
 // Fetch employee details by ApplicationUserId and merge with existing userInfo

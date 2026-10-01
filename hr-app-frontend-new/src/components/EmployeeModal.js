@@ -13,6 +13,8 @@ const EmployeeModal = ({ show, onHide, employee = null, onSave, departments = []
     hireDate: '',
     managerName: '',
     mentorName: '',
+    managerID: null,
+    mentorID: null,
     password: '',
     confirmPassword: '',
     applicationUserId: ''
@@ -39,7 +41,7 @@ const EmployeeModal = ({ show, onHide, employee = null, onSave, departments = []
     if (employee) {
       // Find department ID by matching department name
       const matchingDept = departments.find(dept => dept.name === employee.departmentName);
-      const departmentID = matchingDept ? matchingDept.departmentID : '';
+      const departmentID = employee.departmentID || (matchingDept ? matchingDept.departmentID : '');
       
       setFormData({
         firstName: employee.firstName || '',
@@ -50,6 +52,8 @@ const EmployeeModal = ({ show, onHide, employee = null, onSave, departments = []
         hireDate: employee.hireDate ? new Date(employee.hireDate).toISOString().split('T')[0] : '',
         managerName: employee.managerName || '',
         mentorName: employee.mentorName || '',
+        managerID: employee.managerID || null,
+        mentorID: employee.mentorID || null,
         password: '',
         confirmPassword: '',
         applicationUserId: employee.applicationUserId || ''
@@ -65,6 +69,8 @@ const EmployeeModal = ({ show, onHide, employee = null, onSave, departments = []
         hireDate: '',
         managerName: '',
         mentorName: '',
+        managerID: null,
+        mentorID: null,
         password: '',
         confirmPassword: '',
         applicationUserId: generateUUID()
@@ -88,8 +94,8 @@ const EmployeeModal = ({ show, onHide, employee = null, onSave, departments = []
           Position: formData.position,
           DepartmentID: formData.departmentID || null,
           HireDate: formData.hireDate,
-          ManagerID: null,
-          MentorID: null
+          ManagerID: formData.managerID,
+          MentorID: formData.mentorID
         };
         
         const response = await authenticatedFetch(
@@ -163,10 +169,10 @@ const EmployeeModal = ({ show, onHide, employee = null, onSave, departments = []
 
   return (
     <Modal show={show} onHide={onHide} size="lg" centered>
-      <Modal.Header closeButton style={{ backgroundColor: '#1E293B', color: 'white', borderColor: '#6366F1' }}>
+      <Modal.Header closeButton>
         <Modal.Title>{isEditing ? 'Edit Employee' : 'Add New Employee'}</Modal.Title>
       </Modal.Header>
-      <Modal.Body style={{ backgroundColor: '#0F172A', color: 'white' }}>
+      <Modal.Body>
         {error && <Alert variant="danger">{error}</Alert>}
         
         <Form onSubmit={handleSubmit}>
@@ -180,7 +186,6 @@ const EmployeeModal = ({ show, onHide, employee = null, onSave, departments = []
                   value={formData.firstName}
                   onChange={handleChange}
                   required
-                  style={{ backgroundColor: '#1E293B', color: 'white', borderColor: '#6366F1' }}
                 />
               </Form.Group>
             </Col>
@@ -193,7 +198,6 @@ const EmployeeModal = ({ show, onHide, employee = null, onSave, departments = []
                   value={formData.lastName}
                   onChange={handleChange}
                   required
-                  style={{ backgroundColor: '#1E293B', color: 'white', borderColor: '#6366F1' }}
                 />
               </Form.Group>
             </Col>
@@ -209,7 +213,6 @@ const EmployeeModal = ({ show, onHide, employee = null, onSave, departments = []
                   value={formData.email}
                   onChange={handleChange}
                   required
-                  style={{ backgroundColor: '#1E293B', color: 'white', borderColor: '#6366F1' }}
                 />
               </Form.Group>
             </Col>
@@ -222,7 +225,6 @@ const EmployeeModal = ({ show, onHide, employee = null, onSave, departments = []
                   value={formData.position}
                   onChange={handleChange}
                   required
-                  style={{ backgroundColor: '#1E293B', color: 'white', borderColor: '#6366F1' }}
                 />
               </Form.Group>
             </Col>
@@ -237,7 +239,6 @@ const EmployeeModal = ({ show, onHide, employee = null, onSave, departments = []
                   value={formData.departmentID}
                   onChange={handleChange}
                   required
-                  style={{ backgroundColor: '#1E293B', color: 'white', borderColor: '#6366F1' }}
                 >
                   <option value="">Select Department</option>
                   {departments.map(dept => (
@@ -257,7 +258,6 @@ const EmployeeModal = ({ show, onHide, employee = null, onSave, departments = []
                   value={formData.hireDate}
                   onChange={handleChange}
                   required
-                  style={{ backgroundColor: '#1E293B', color: 'white', borderColor: '#6366F1' }}
                 />
               </Form.Group>
             </Col>
@@ -271,8 +271,7 @@ const EmployeeModal = ({ show, onHide, employee = null, onSave, departments = []
                   type="text"
                   name="managerName"
                   value={formData.managerName}
-                  onChange={handleChange}
-                  style={{ backgroundColor: '#1E293B', color: 'white', borderColor: '#6366F1' }}
+                  readOnly
                 />
               </Form.Group>
             </Col>
@@ -283,8 +282,7 @@ const EmployeeModal = ({ show, onHide, employee = null, onSave, departments = []
                   type="text"
                   name="mentorName"
                   value={formData.mentorName}
-                  onChange={handleChange}
-                  style={{ backgroundColor: '#1E293B', color: 'white', borderColor: '#6366F1' }}
+                  readOnly
                 />
               </Form.Group>
             </Col>
@@ -303,9 +301,8 @@ const EmployeeModal = ({ show, onHide, employee = null, onSave, departments = []
                     onChange={handleChange}
                     required
                     placeholder="Enter initial password"
-                    style={{ backgroundColor: '#1E293B', color: 'white', borderColor: '#6366F1' }}
                   />
-                  <Form.Text className="text-muted">
+                  <Form.Text>
                     Minimum 6 characters
                   </Form.Text>
                 </Form.Group>
@@ -320,7 +317,6 @@ const EmployeeModal = ({ show, onHide, employee = null, onSave, departments = []
                     onChange={handleChange}
                     required
                     placeholder="Confirm password"
-                    style={{ backgroundColor: '#1E293B', color: 'white', borderColor: '#6366F1' }}
                   />
                 </Form.Group>
               </Col>
@@ -328,14 +324,14 @@ const EmployeeModal = ({ show, onHide, employee = null, onSave, departments = []
           )}
         </Form>
       </Modal.Body>
-      <Modal.Footer style={{ backgroundColor: '#1E293B', borderColor: '#6366F1' }}>
+      <Modal.Footer>
         <Button variant="secondary" onClick={onHide}>
           Cancel
         </Button>
         <Button
           onClick={handleSubmit}
           disabled={loading}
-          style={{ backgroundColor: '#6366F1', borderColor: '#6366F1' }}
+          variant="primary"
         >
           {loading ? 'Saving...' : (isEditing ? 'Update' : 'Create')}
         </Button>
@@ -344,4 +340,4 @@ const EmployeeModal = ({ show, onHide, employee = null, onSave, departments = []
   );
 };
 
-export default EmployeeModal; 
+export default EmployeeModal;

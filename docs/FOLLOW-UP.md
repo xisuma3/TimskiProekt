@@ -169,6 +169,9 @@ checking the DTO and the model agree whenever either changes.
 
 ## Still open
 
+*(All five of these were subsequently built — see
+[`APPROVALS-AUDIT-ACCRUAL.md`](APPROVALS-AUDIT-ACCRUAL.md).)*
+
 - **Approval delegation.** A manager on leave cannot hand approval to someone else; the
   request simply waits.
 - **Skip-level approval.** Only a direct manager can decide; there is no escalation to a

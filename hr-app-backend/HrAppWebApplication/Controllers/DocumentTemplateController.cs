@@ -12,18 +12,15 @@ namespace HrAppWebApplication.Controllers
     {
         private readonly IDocumentTemplateService _service;
         private readonly ITemplateProcessingService _templateProcessingService;
-        private readonly IEmployeeService _employeeService;
         private readonly IAssetService _assetService;
 
         public DocumentTemplateController(
             IDocumentTemplateService service,
             ITemplateProcessingService templateProcessingService,
-            IEmployeeService employeeService,
             IAssetService assetService)
         {
             _service = service;
             _templateProcessingService = templateProcessingService;
-            _employeeService = employeeService;
             _assetService = assetService;
         }
 
@@ -126,10 +123,6 @@ namespace HrAppWebApplication.Controllers
         {
             try
             {
-                var employeeDto = await _employeeService.GetByIdAsync(request.EmployeeId);
-                if (employeeDto == null)
-                    return BadRequest(new { message = "Employee not found" });
-
                 var assets = new List<Asset>();
                 if (request.AssetIds?.Any() == true)
                 {
@@ -162,19 +155,8 @@ namespace HrAppWebApplication.Controllers
                     }
                 }
 
-                // Convert Employee DTO to Model (simplified)
-                var employee = new Employee
-                {
-                    EmployeeID = employeeDto.EmployeeID,
-                    FirstName = employeeDto.FirstName,
-                    LastName = employeeDto.LastName,
-                    Email = employeeDto.Email,
-                    Position = employeeDto.Position,
-                    HireDate = employeeDto.HireDate,
-                    Department = employeeDto.DepartmentName != null ? new Department { Name = employeeDto.DepartmentName } : null
-                };
-
-                var previewContent = await _templateProcessingService.ProcessTemplateContentAsync(request.TemplateContent, employee, assets);
+                var previewContent = await _templateProcessingService.ProcessTemplateContentForEmployeeAsync(
+                    request.TemplateContent, request.EmployeeId, assets);
                 return Ok(previewContent);
             }
             catch (ArgumentException ex)

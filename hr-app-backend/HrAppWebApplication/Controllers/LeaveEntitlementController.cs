@@ -1,4 +1,4 @@
-﻿using HrApp.DomainEntities.DTO.Request;
+using HrApp.DomainEntities.DTO.Request;
 using HrApp.DomainEntities.DTO.Response;
 using HrApp.Service.Interface;
 using Microsoft.AspNetCore.Authorization;
@@ -36,29 +36,47 @@ namespace HrAppWebApplication.Controllers
         [HttpGet("employee/{employeeId}")]
         [Authorize(Roles = "Admin")]
         public async Task<ActionResult<IEnumerable<LeaveEntitlementResponseDto>>> GetByEmployeeId(
-            Guid employeeId, [FromQuery] int? year = null)
+            Guid employeeId, [FromQuery] int? year = null, [FromQuery] DateTime? asOf = null)
         {
             return Ok(await _service.GetByEmployeeIdAsync(employeeId, year));
         }
 
         /// <summary>The caller's own leave balances for a year, resolved from the token.</summary>
         [HttpGet]
-        public async Task<ActionResult<IEnumerable<LeaveBalanceResponseDto>>> GetMyBalance([FromQuery] int? year = null)
+        public async Task<ActionResult<IEnumerable<LeaveBalanceResponseDto>>> GetMyBalance([FromQuery] int? year = null, [FromQuery] DateTime? asOf = null)
         {
             var me = await _employeeService.GetByApplicationUserIdAsync(CurrentApplicationUserId);
             if (me == null) return Ok(Array.Empty<LeaveBalanceResponseDto>());
 
-            return Ok(await _service.GetBalancesAsync(me.EmployeeID, year ?? DateTime.UtcNow.Year));
+            return Ok(await _service.GetBalancesAsync(me.EmployeeID, year ?? DateTime.UtcNow.Year, asOf));
         }
 
         [HttpGet("{employeeId}")]
         [Authorize(Roles = "Admin")]
         public async Task<ActionResult<IEnumerable<LeaveBalanceResponseDto>>> GetBalance(
-            Guid employeeId, [FromQuery] int? year = null)
+            Guid employeeId, [FromQuery] int? year = null, [FromQuery] DateTime? asOf = null)
         {
-            return Ok(await _service.GetBalancesAsync(employeeId, year ?? DateTime.UtcNow.Year));
+            return Ok(await _service.GetBalancesAsync(employeeId, year ?? DateTime.UtcNow.Year, asOf));
         }
 
+        /// <summary>
+        /// Year-end carry-over: unused days from FromYear move into next year's allowance,
+        /// capped at MaxDays. Send Preview=true to see the result without saving.
+        /// </summary>
+        [HttpPost]
+        [Authorize(Roles = "Admin")]
+        public async Task<ActionResult<IEnumerable<CarryOverResultDto>>> CarryOver([FromBody] CarryOverRequestDto request)
+        {
+            if (!ModelState.IsValid) return BadRequest(ModelState);
+            try
+            {
+                return Ok(await _service.CarryOverAsync(request));
+            }
+            catch (ArgumentException ex)
+            {
+                return BadRequest(new { message = ex.Message });
+            }
+        }
         [HttpPost]
         [Authorize(Roles = "Admin")]
         public async Task<ActionResult<LeaveEntitlementResponseDto>> Create([FromBody] LeaveEntitlementRequestDto dto)

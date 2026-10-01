@@ -22,5 +22,8 @@ namespace HrApp.DomainEntities.DTO.Request
         [Required]
         [RegularExpression("Asset|Employment|Salary", ErrorMessage = "Invalid template type")]
         public string TemplateType { get; set; }
+
+        /// <summary>Lets employees generate this document for themselves. Defaults to off.</summary>
+        public bool AllowSelfService { get; set; }
     }
 }

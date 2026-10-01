@@ -1,116 +1,26 @@
-import React, { useState, useEffect } from 'react';
-import { Button, Container } from 'react-bootstrap';
-import { logout, getUserInfo } from '../services/authService';
+import React from 'react';
+import { Button } from 'react-bootstrap';
+import ThemeToggle from './ThemeToggle';
+import NotificationBell from './NotificationBell';
 
-const TopBar = () => {
-  const [userInfo, setUserInfo] = useState({
-    name: 'User',
-    email: '',
-    role: 'Employee'
-  });
+// The account menu lives at the bottom of the sidebar (UserMenu); the top bar keeps
+// the page title and the always-visible controls.
+const TopBar = ({ title, onMenuClick }) => (
+  <header className="app-topbar">
+    <Button
+      variant="light"
+      className="app-menu-btn btn-icon"
+      onClick={onMenuClick}
+      aria-label="Open menu"
+    >
+      <i className="bi bi-list fs-5" aria-hidden="true" />
+    </Button>
 
-  useEffect(() => {
-    // Get user info from localStorage
-    const storedUserInfo = getUserInfo();
-    if (storedUserInfo) {
-      setUserInfo({
-        name: storedUserInfo.firstName && storedUserInfo.lastName 
-          ? `${storedUserInfo.firstName} ${storedUserInfo.lastName}`
-          : storedUserInfo.email || 'User',
-        email: storedUserInfo.email || '',
-        role: storedUserInfo.roles && storedUserInfo.roles.length > 0 
-          ? storedUserInfo.roles[0] 
-          : storedUserInfo.position || 'Employee'
-      });
-    }
-  }, []);
+    <h2 className="app-topbar-title flex-grow-1">{title}</h2>
 
-  return (
-    <div style={{ 
-      backgroundColor: '#1E293B', 
-      borderBottom: '1px solid #334155',
-      padding: '1rem 0'
-    }}>
-      <Container fluid>
-        <div style={{ 
-          display: 'flex', 
-          justifyContent: 'space-between', 
-          alignItems: 'center' 
-        }}>
-          {/* Left side - Page title */}
-          <div>
-            <h4 style={{ 
-              color: '#6366F1', 
-              margin: 0, 
-              fontWeight: '600',
-              fontSize: '1.5rem'
-            }}>
-              HR Management System
-            </h4>
-          </div>
+    <NotificationBell />
+    <ThemeToggle />
+  </header>
+);
 
-          {/* Right side - User info and logout */}
-          <div style={{ 
-            display: 'flex', 
-            alignItems: 'center', 
-            gap: '1rem' 
-          }}>
-            {/* User info */}
-            <div style={{ 
-              textAlign: 'right',
-              marginRight: '1rem'
-            }}>
-              <div style={{ 
-                color: 'white', 
-                fontWeight: '500',
-                fontSize: '0.95rem'
-              }}>
-                {userInfo.name}
-              </div>
-              <div style={{ 
-                color: '#94A3B8', 
-                fontSize: '0.8rem'
-              }}>
-                {userInfo.role}
-              </div>
-            </div>
-
-            {/* User avatar */}
-            <div style={{
-              width: '40px',
-              height: '40px',
-              borderRadius: '50%',
-              backgroundColor: '#6366F1',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              color: 'white',
-              fontWeight: 'bold',
-              fontSize: '1.1rem'
-            }}>
-              {userInfo.name.charAt(0)}
-            </div>
-
-            {/* Logout button */}
-            <Button
-              variant="outline-light"
-              onClick={logout}
-              size="sm"
-              style={{ 
-                borderColor: '#6366F1', 
-                color: '#6366F1',
-                padding: '0.375rem 1rem',
-                fontSize: '0.875rem',
-                borderRadius: '6px'
-              }}
-            >
-              Logout
-            </Button>
-          </div>
-        </div>
-      </Container>
-    </div>
-  );
-};
-
-export default TopBar; 
+export default TopBar;

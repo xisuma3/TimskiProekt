@@ -1,4 +1,4 @@
-﻿using HrApp.DomainEntities.DTO.Request;
+using HrApp.DomainEntities.DTO.Request;
 using HrApp.DomainEntities.DTO.Response;
 using HrApp.Service.Interface;
 using Microsoft.AspNetCore.Authorization;
@@ -23,6 +23,15 @@ namespace HrAppWebApplication.Controllers
             return Ok(await _service.GetAllAsync());
         }
 
+        /// <summary>
+        /// A minimal directory of current colleagues (id, name, position, department) for
+        /// pickers such as choosing approval cover. Any signed-in user; no personal data.
+        /// </summary>
+        [HttpGet]
+        public async Task<ActionResult<IEnumerable<EmployeeDirectoryEntryDto>>> GetDirectory()
+        {
+            return Ok(await _service.GetDirectoryAsync());
+        }
         /// <summary>The caller's own employee record, resolved from the token.</summary>
         [HttpGet]
         public async Task<ActionResult<EmployeeResponseDto>> GetMyProfile()
@@ -111,22 +120,47 @@ namespace HrAppWebApplication.Controllers
         /// </summary>
         [HttpPost("{id}")]
         [Authorize(Roles = "Admin")]
-        public async Task<IActionResult> Erase(Guid id)
+        public async Task<IActionResult> Erase(Guid id, [FromBody] EraseEmployeeRequestDto request)
         {
+            if (!ModelState.IsValid) return BadRequest(ModelState);
+
+            // The audit record names the person who performed the erasure, so it must be
+            // attributable — the same rule leave decisions follow.
+            var me = await _service.GetByApplicationUserIdAsync(CurrentApplicationUserId);
+            if (me == null)
+            {
+                return BadRequest(new { message = "No employee record is linked to this account, so the erasure can't be attributed." });
+            }
+
             try
             {
-                await _service.EraseAsync(id);
+                await _service.EraseAsync(id, me.EmployeeID, request);
                 return NoContent();
             }
-            catch (ArgumentException ex)
+            catch (ArgumentException ex) when (ex.Message == "Employee not found")
             {
                 return NotFound(new { message = ex.Message });
             }
+            catch (ArgumentException ex)
+            {
+                return BadRequest(new { message = ex.Message });
+            }
             catch (InvalidOperationException ex)
             {
-                // Not retired yet, or already erased.
+                // Not retired yet, already erased, or erasing yourself.
                 return Conflict(new { message = ex.Message });
             }
+        }
+
+        /// <summary>
+        /// Every erasure ever performed: who did it, on whose request, why and when.
+        /// Append-only — there is no endpoint to change or remove an entry.
+        /// </summary>
+        [HttpGet]
+        [Authorize(Roles = "Admin")]
+        public async Task<ActionResult<IEnumerable<ErasureRecordResponseDto>>> GetErasureLog()
+        {
+            return Ok(await _service.GetErasureLogAsync());
         }
     }
 }

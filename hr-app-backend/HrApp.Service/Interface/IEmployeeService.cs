@@ -1,4 +1,4 @@
-﻿using HrApp.DomainEntities.DTO.Request;
+using HrApp.DomainEntities.DTO.Request;
 using HrApp.DomainEntities.DTO.Response;
 using System;
 using System.Collections.Generic;
@@ -17,6 +17,10 @@ namespace HrApp.Service.Interface
         Task UpdateAsync(Guid id, UpdateEmployeeRequestDto dto);
         Task DeleteAsync(Guid id);
         Task RestoreAsync(Guid id);
-        Task EraseAsync(Guid id);
+        /// <summary>Erases personal data and writes the audit record. The performer comes from the caller's token.</summary>
+        Task EraseAsync(Guid id, Guid performedByEmployeeId, EraseEmployeeRequestDto request);
+        Task<IEnumerable<ErasureRecordResponseDto>> GetErasureLogAsync();
+        /// <summary>Current employees' id, name, position and department only — for pickers any user may see.</summary>
+        Task<IEnumerable<EmployeeDirectoryEntryDto>> GetDirectoryAsync();
     }
 }

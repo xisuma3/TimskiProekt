@@ -1,4 +1,4 @@
-﻿using HrApp.DomainEntities.Models;
+using HrApp.DomainEntities.Models;
 using Microsoft.EntityFrameworkCore;
 using System;
 using System.Collections.Generic;
@@ -26,6 +26,8 @@ namespace HrAppWebApplication
         public DbSet<AssetAssignment> AssetAssignments { get; set; }
         public DbSet<DocumentTemplate> DocumentTemplates { get; set; }
         public DbSet<GeneratedDocument> GeneratedDocuments { get; set; }
+        public DbSet<ApprovalDelegation> ApprovalDelegations { get; set; }
+        public DbSet<ErasureRecord> ErasureRecords { get; set; }
 
         // --- REMOVE THE OLD DbSet<User>! ---
         // public DbSet<User> Users { get; set; } // <--- DELETE THIS LINE
@@ -140,7 +142,7 @@ namespace HrAppWebApplication
                     .HasConversion<string>();
 
                 entity.Property(l => l.CreatedAt)
-                    .HasDefaultValueSql("GETDATE()");
+                    .HasDefaultValueSql("GETUTCDATE()");
 
                 entity.Property(l => l.DecisionReason).HasMaxLength(500);
 
@@ -152,6 +154,61 @@ namespace HrAppWebApplication
                     .WithMany()
                     .HasForeignKey(l => l.ApprovedByEmployeeID)
                     .OnDelete(DeleteBehavior.Restrict);
+
+                // The manager whose authority a delegate exercised. Restrict for the same
+                // reason as ApprovedBy: it is part of the decision's audit trail.
+                entity.HasOne(l => l.DecidedOnBehalfOf)
+                    .WithMany()
+                    .HasForeignKey(l => l.DecidedOnBehalfOfEmployeeID)
+                    .OnDelete(DeleteBehavior.Restrict);
+            });
+
+            // ApprovalDelegation — who may approve for whom, and when
+            modelBuilder.Entity<ApprovalDelegation>(entity =>
+            {
+                entity.HasKey(d => d.DelegationID);
+
+                entity.HasOne(d => d.Delegator)
+                    .WithMany()
+                    .HasForeignKey(d => d.DelegatorEmployeeID)
+                    .OnDelete(DeleteBehavior.Restrict);
+
+                entity.HasOne(d => d.Delegate)
+                    .WithMany()
+                    .HasForeignKey(d => d.DelegateEmployeeID)
+                    .OnDelete(DeleteBehavior.Restrict);
+
+                entity.Property(d => d.StartDate).HasColumnType("date");
+                entity.Property(d => d.EndDate).HasColumnType("date");
+                entity.Property(d => d.Note).HasMaxLength(500);
+                entity.Property(d => d.CreatedAt).HasDefaultValueSql("GETUTCDATE()");
+
+                // "Who can act for me today?" and "whom am I covering?" are the two lookups.
+                entity.HasIndex(d => new { d.DelegatorEmployeeID, d.StartDate, d.EndDate });
+                entity.HasIndex(d => new { d.DelegateEmployeeID, d.StartDate, d.EndDate });
+            });
+
+            // ErasureRecord — append-only audit of GDPR erasures
+            modelBuilder.Entity<ErasureRecord>(entity =>
+            {
+                entity.HasKey(r => r.ErasureRecordID);
+
+                entity.HasOne(r => r.Employee)
+                    .WithMany()
+                    .HasForeignKey(r => r.EmployeeID)
+                    .OnDelete(DeleteBehavior.Restrict);
+
+                entity.HasOne(r => r.PerformedBy)
+                    .WithMany()
+                    .HasForeignKey(r => r.PerformedByEmployeeID)
+                    .OnDelete(DeleteBehavior.Restrict);
+
+                entity.Property(r => r.RequestedBy).IsRequired().HasMaxLength(200);
+                entity.Property(r => r.Reason).IsRequired().HasMaxLength(1000);
+                entity.Property(r => r.PerformedAt).HasDefaultValueSql("GETUTCDATE()");
+
+                // An employee is erased at most once.
+                entity.HasIndex(r => r.EmployeeID).IsUnique();
             });
 
             // LeaveEntitlement configuration
@@ -170,6 +227,11 @@ namespace HrAppWebApplication
                 entity.Property(l => l.DaysCarriedOver).HasColumnType("decimal(5,2)");
 
                 entity.Ignore(l => l.TotalAvailable);
+
+                entity.Property(l => l.AccrualMethod)
+                    .IsRequired()
+                    .HasMaxLength(20)
+                    .HasDefaultValue(LeaveEntitlement.AccrualUpfront);
 
                 // One allowance per employee per year per type.
                 entity.HasIndex(l => new { l.EmployeeID, l.Year, l.LeaveType }).IsUnique();
@@ -254,9 +316,49 @@ namespace HrAppWebApplication
                     .OnDelete(DeleteBehavior.Cascade);
 
                 entity.Property(g => g.Content).IsRequired();
-                entity.Property(g => g.GeneratedDate).HasDefaultValueSql("GETDATE()");
+                entity.Property(g => g.GeneratedDate).HasDefaultValueSql("GETUTCDATE()");
                 entity.Property(g => g.AssetIDs).HasColumnType("NVARCHAR(MAX)").IsRequired(false);
             });
+
+            ConfigureUtcInstants(modelBuilder);
         }
+
+        /// <summary>
+        /// SQL Server's datetime2 has no time zone, so EF reads every value back as
+        /// <see cref="DateTimeKind.Unspecified"/> and System.Text.Json then writes it without
+        /// an offset ("2026-10-01T10:00:00") — which browsers read as *local* time. These
+        /// columns hold moments in time recorded with DateTime.UtcNow, so they are marked UTC
+        /// on read (and serialise with "Z") and normalised to UTC on write.
+        ///
+        /// Calendar dates — leave start/end, hire date, birth date, asset handover days — are
+        /// deliberately NOT here: they mean a day, not an instant, and must stay offset-free
+        /// so a browser west of UTC doesn't render them as the previous day.
+        /// </summary>
+        private static void ConfigureUtcInstants(ModelBuilder modelBuilder)
+        {
+            var utc = new Microsoft.EntityFrameworkCore.Storage.ValueConversion.ValueConverter<DateTime, DateTime>(
+                v => ToUtc(v),
+                v => DateTime.SpecifyKind(v, DateTimeKind.Utc));
+            var utcNullable = new Microsoft.EntityFrameworkCore.Storage.ValueConversion.ValueConverter<DateTime?, DateTime?>(
+                v => v.HasValue ? ToUtc(v.Value) : v,
+                v => v.HasValue ? DateTime.SpecifyKind(v.Value, DateTimeKind.Utc) : v);
+
+            modelBuilder.Entity<LeaveRequest>().Property(l => l.CreatedAt).HasConversion(utc);
+            modelBuilder.Entity<LeaveRequest>().Property(l => l.DecisionAt).HasConversion(utcNullable);
+            modelBuilder.Entity<GeneratedDocument>().Property(g => g.GeneratedDate).HasConversion(utc);
+            modelBuilder.Entity<ApprovalDelegation>().Property(d => d.CreatedAt).HasConversion(utc);
+            modelBuilder.Entity<ApprovalDelegation>().Property(d => d.RevokedAt).HasConversion(utcNullable);
+            modelBuilder.Entity<ErasureRecord>().Property(r => r.PerformedAt).HasConversion(utc);
+            modelBuilder.Entity<Employee>().Property(e => e.DeletedAt).HasConversion(utcNullable);
+            modelBuilder.Entity<Employee>().Property(e => e.ErasedAt).HasConversion(utcNullable);
+        }
+
+        // Local times become UTC; Unspecified is taken to already be UTC (that's what the app writes).
+        private static DateTime ToUtc(DateTime value) => value.Kind switch
+        {
+            DateTimeKind.Local => value.ToUniversalTime(),
+            DateTimeKind.Unspecified => DateTime.SpecifyKind(value, DateTimeKind.Utc),
+            _ => value,
+        };
     }
 }

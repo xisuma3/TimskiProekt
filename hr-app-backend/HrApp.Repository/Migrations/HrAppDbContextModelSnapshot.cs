@@ -87,6 +87,48 @@ namespace HrApp.Repository.Migrations
                     b.ToTable("AspNetUsers", (string)null);
                 });
 
+            modelBuilder.Entity("HrApp.DomainEntities.Models.ApprovalDelegation", b =>
+                {
+                    b.Property<Guid>("DelegationID")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("datetime2")
+                        .HasDefaultValueSql("GETUTCDATE()");
+
+                    b.Property<Guid?>("CreatedByEmployeeID")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<Guid>("DelegateEmployeeID")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<Guid>("DelegatorEmployeeID")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<DateTime>("EndDate")
+                        .HasColumnType("date");
+
+                    b.Property<string>("Note")
+                        .HasMaxLength(500)
+                        .HasColumnType("nvarchar(500)");
+
+                    b.Property<DateTime?>("RevokedAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<DateTime>("StartDate")
+                        .HasColumnType("date");
+
+                    b.HasKey("DelegationID");
+
+                    b.HasIndex("DelegateEmployeeID", "StartDate", "EndDate");
+
+                    b.HasIndex("DelegatorEmployeeID", "StartDate", "EndDate");
+
+                    b.ToTable("ApprovalDelegations");
+                });
+
             modelBuilder.Entity("HrApp.DomainEntities.Models.Asset", b =>
                 {
                     b.Property<Guid>("AssetID")
@@ -191,6 +233,9 @@ namespace HrApp.Repository.Migrations
                     b.Property<Guid>("TemplateID")
                         .ValueGeneratedOnAdd()
                         .HasColumnType("uniqueidentifier");
+
+                    b.Property<bool>("AllowSelfService")
+                        .HasColumnType("bit");
 
                     b.Property<string>("Description")
                         .HasMaxLength(500)
@@ -320,6 +365,46 @@ namespace HrApp.Repository.Migrations
                     b.ToTable("EmployeeDossiers");
                 });
 
+            modelBuilder.Entity("HrApp.DomainEntities.Models.ErasureRecord", b =>
+                {
+                    b.Property<Guid>("ErasureRecordID")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<Guid>("EmployeeID")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<DateTime>("PerformedAt")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("datetime2")
+                        .HasDefaultValueSql("GETUTCDATE()");
+
+                    b.Property<Guid>("PerformedByEmployeeID")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<string>("Reason")
+                        .IsRequired()
+                        .HasMaxLength(1000)
+                        .HasColumnType("nvarchar(1000)");
+
+                    b.Property<DateTime?>("RequestReceivedAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<string>("RequestedBy")
+                        .IsRequired()
+                        .HasMaxLength(200)
+                        .HasColumnType("nvarchar(200)");
+
+                    b.HasKey("ErasureRecordID");
+
+                    b.HasIndex("EmployeeID")
+                        .IsUnique();
+
+                    b.HasIndex("PerformedByEmployeeID");
+
+                    b.ToTable("ErasureRecords");
+                });
+
             modelBuilder.Entity("HrApp.DomainEntities.Models.GeneratedDocument", b =>
                 {
                     b.Property<Guid>("DocumentID")
@@ -339,7 +424,7 @@ namespace HrApp.Repository.Migrations
                     b.Property<DateTime>("GeneratedDate")
                         .ValueGeneratedOnAdd()
                         .HasColumnType("datetime2")
-                        .HasDefaultValueSql("GETDATE()");
+                        .HasDefaultValueSql("GETUTCDATE()");
 
                     b.Property<Guid>("TemplateID")
                         .HasColumnType("uniqueidentifier");
@@ -358,6 +443,13 @@ namespace HrApp.Repository.Migrations
                     b.Property<Guid>("EntitlementID")
                         .ValueGeneratedOnAdd()
                         .HasColumnType("uniqueidentifier");
+
+                    b.Property<string>("AccrualMethod")
+                        .IsRequired()
+                        .ValueGeneratedOnAdd()
+                        .HasMaxLength(20)
+                        .HasColumnType("nvarchar(20)")
+                        .HasDefaultValue("Upfront");
 
                     b.Property<decimal>("DaysAllocated")
                         .HasColumnType("decimal(5,2)");
@@ -396,7 +488,10 @@ namespace HrApp.Repository.Migrations
                     b.Property<DateTime>("CreatedAt")
                         .ValueGeneratedOnAdd()
                         .HasColumnType("datetime2")
-                        .HasDefaultValueSql("GETDATE()");
+                        .HasDefaultValueSql("GETUTCDATE()");
+
+                    b.Property<Guid?>("DecidedOnBehalfOfEmployeeID")
+                        .HasColumnType("uniqueidentifier");
 
                     b.Property<DateTime?>("DecisionAt")
                         .HasColumnType("datetime2");
@@ -429,6 +524,8 @@ namespace HrApp.Repository.Migrations
                     b.HasKey("RequestID");
 
                     b.HasIndex("ApprovedByEmployeeID");
+
+                    b.HasIndex("DecidedOnBehalfOfEmployeeID");
 
                     b.HasIndex("EmployeeID");
 
@@ -568,6 +665,25 @@ namespace HrApp.Repository.Migrations
                     b.ToTable("AspNetUserTokens", (string)null);
                 });
 
+            modelBuilder.Entity("HrApp.DomainEntities.Models.ApprovalDelegation", b =>
+                {
+                    b.HasOne("HrApp.DomainEntities.Models.Employee", "Delegate")
+                        .WithMany()
+                        .HasForeignKey("DelegateEmployeeID")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.HasOne("HrApp.DomainEntities.Models.Employee", "Delegator")
+                        .WithMany()
+                        .HasForeignKey("DelegatorEmployeeID")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.Navigation("Delegate");
+
+                    b.Navigation("Delegator");
+                });
+
             modelBuilder.Entity("HrApp.DomainEntities.Models.Asset", b =>
                 {
                     b.HasOne("HrApp.DomainEntities.Models.Employee", "Employee")
@@ -638,6 +754,25 @@ namespace HrApp.Repository.Migrations
                     b.Navigation("Employee");
                 });
 
+            modelBuilder.Entity("HrApp.DomainEntities.Models.ErasureRecord", b =>
+                {
+                    b.HasOne("HrApp.DomainEntities.Models.Employee", "Employee")
+                        .WithMany()
+                        .HasForeignKey("EmployeeID")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.HasOne("HrApp.DomainEntities.Models.Employee", "PerformedBy")
+                        .WithMany()
+                        .HasForeignKey("PerformedByEmployeeID")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.Navigation("Employee");
+
+                    b.Navigation("PerformedBy");
+                });
+
             modelBuilder.Entity("HrApp.DomainEntities.Models.GeneratedDocument", b =>
                 {
                     b.HasOne("HrApp.DomainEntities.Models.Employee", "Employee")
@@ -675,6 +810,11 @@ namespace HrApp.Repository.Migrations
                         .HasForeignKey("ApprovedByEmployeeID")
                         .OnDelete(DeleteBehavior.Restrict);
 
+                    b.HasOne("HrApp.DomainEntities.Models.Employee", "DecidedOnBehalfOf")
+                        .WithMany()
+                        .HasForeignKey("DecidedOnBehalfOfEmployeeID")
+                        .OnDelete(DeleteBehavior.Restrict);
+
                     b.HasOne("HrApp.DomainEntities.Models.Employee", "Employee")
                         .WithMany("LeaveRequests")
                         .HasForeignKey("EmployeeID")
@@ -682,6 +822,8 @@ namespace HrApp.Repository.Migrations
                         .IsRequired();
 
                     b.Navigation("ApprovedBy");
+
+                    b.Navigation("DecidedOnBehalfOf");
 
                     b.Navigation("Employee");
                 });

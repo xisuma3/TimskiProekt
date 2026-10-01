@@ -11,8 +11,9 @@ namespace HrApp.Repository.Interface
         Task<LeaveEntitlement> GetByIdAsync(Guid id);
         Task<IEnumerable<LeaveEntitlement>> GetByEmployeeIdAsync(Guid employeeId, int? year = null);
 
-        /// <summary>The allowance governing one employee/year/type, or null when uncapped.</summary>
+        /// <summary>The allowance governing one employee/year/type, or null when none is set (that leave type then can't be requested).</summary>
         Task<LeaveEntitlement> GetForAsync(Guid employeeId, int year, string leaveType);
+        Task<IEnumerable<LeaveEntitlement>> GetByYearAsync(int year);
 
         Task<LeaveEntitlement> AddAsync(LeaveEntitlement entitlement);
         Task UpdateAsync(LeaveEntitlement entitlement);

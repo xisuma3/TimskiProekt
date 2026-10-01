@@ -15,5 +15,6 @@ namespace HrApp.DomainEntities.DTO.Response
         public string TemplateType { get; set; }
         public DateTime? LastModifiedDate { get; set; }
         public int GeneratedDocumentsCount { get; set; }
+        public bool AllowSelfService { get; set; }
     }
 }

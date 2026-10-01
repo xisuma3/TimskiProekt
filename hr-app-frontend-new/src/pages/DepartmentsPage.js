@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Card, Button, ButtonGroup, Modal } from 'react-bootstrap';
+import { Card, Button, Modal } from 'react-bootstrap';
 import DataPage from '../components/DataPage';
 import DepartmentModal from '../components/DepartmentModal';
 import { authenticatedFetch } from '../services/authService';
@@ -48,50 +48,49 @@ const DepartmentsPage = () => {
   };
 
   const renderDepartmentCard = (dept) => (
-    <Card className="shadow" style={{ backgroundColor: '#1E293B', borderColor: '#6366F1', color: 'white' }}>
+    <Card className="item-card">
       <Card.Body>
-        <Card.Title style={{ color: '#6366F1' }}>
-          {dept.name}
-        </Card.Title>
-        <Card.Subtitle className="mb-2" style={{ color: '#94A3B8' }}>
-          Department ID: {dept.departmentID}
-        </Card.Subtitle>
-        <Card.Text>
-          <strong>Description:</strong> {dept.description || 'No description available'}
-          <br />
-          <strong>Location:</strong> {dept.location || 'Not specified'}
-          <br />
+        <div className="item-card-head">
+          <span className="item-card-icon tone-violet" aria-hidden="true"><i className="bi bi-building" /></span>
+          <div className="flex-grow-1 min-w-0">
+            <Card.Title>{dept.name}</Card.Title>
+            <Card.Subtitle>{dept.location || 'No location set'}</Card.Subtitle>
+          </div>
+          {dept.employeeCount ? (
+            <span className="status-chip is-primary">{dept.employeeCount} people</span>
+          ) : null}
+        </div>
+
+        <dl className="meta-list">
+          <dt>Description</dt>
+          <dd>{dept.description || 'No description available'}</dd>
           {dept.managerName && (
             <>
-              <strong>Manager:</strong> {dept.managerName}
-              <br />
+              <dt>Manager</dt>
+              <dd>{dept.managerName}</dd>
             </>
           )}
-          {dept.employeeCount && (
-            <>
-              <strong>Employee Count:</strong> {dept.employeeCount}
-              <br />
-            </>
-          )}
-        </Card.Text>
-        
-        <div className="d-flex justify-content-end mt-3">
-          <ButtonGroup size="sm">
-            <Button
-              variant="outline-primary"
-              onClick={() => handleEditClick(dept)}
-              style={{ borderColor: '#6366F1', color: '#6366F1' }}
-            >
-              <i className="bi bi-pencil"></i>
-            </Button>
-            <Button
-              variant="outline-danger"
-              onClick={() => handleDeleteClick(dept)}
-              style={{ borderColor: '#dc3545', color: '#dc3545' }}
-            >
-              <i className="bi bi-trash"></i>
-            </Button>
-          </ButtonGroup>
+        </dl>
+
+        <div className="item-card-actions">
+          <Button
+            size="sm"
+            variant="outline-primary"
+            className="btn-icon"
+            onClick={() => handleEditClick(dept)}
+            aria-label={`Edit ${dept.name}`}
+          >
+            <i className="bi bi-pencil" aria-hidden="true"></i>
+          </Button>
+          <Button
+            size="sm"
+            variant="outline-danger"
+            className="btn-icon"
+            onClick={() => handleDeleteClick(dept)}
+            aria-label={`Delete ${dept.name}`}
+          >
+            <i className="bi bi-trash" aria-hidden="true"></i>
+          </Button>
         </div>
       </Card.Body>
     </Card>
@@ -102,8 +101,10 @@ const DepartmentsPage = () => {
       <DataPage
         title="Department Directory"
         apiEndpoint={API_URLS.DEPARTMENTS.GET_ALL()}
-        searchFields={['departmentName', 'description', 'location']}
+        searchFields={['name', 'description', 'location']}
         renderCard={renderDepartmentCard}
+        subtitle="Teams across the organisation and who leads them."
+        emptyIcon="bi-building"
         searchPlaceholder="Search departments..."
         showAddButton={true}
         onAddClick={handleAddClick}
@@ -117,15 +118,15 @@ const DepartmentsPage = () => {
       />
 
       <Modal show={showDeleteModal} onHide={() => setShowDeleteModal(false)} centered>
-        <Modal.Header closeButton style={{ backgroundColor: '#1E293B', color: 'white', borderColor: '#dc3545' }}>
+        <Modal.Header closeButton>
           <Modal.Title>Confirm Delete</Modal.Title>
         </Modal.Header>
-        <Modal.Body style={{ backgroundColor: '#0F172A', color: 'white' }}>
-          Are you sure you want to delete department "{departmentToDelete?.departmentName}"?
+        <Modal.Body>
+          Are you sure you want to delete department "{departmentToDelete?.name}"?
           <br />
           <small className="text-muted">This action cannot be undone.</small>
         </Modal.Body>
-        <Modal.Footer style={{ backgroundColor: '#1E293B', borderColor: '#dc3545' }}>
+        <Modal.Footer>
           <Button variant="secondary" onClick={() => setShowDeleteModal(false)}>
             Cancel
           </Button>
@@ -138,4 +139,4 @@ const DepartmentsPage = () => {
   );
 };
 
-export default DepartmentsPage; 
+export default DepartmentsPage;

@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
-import { Row, Col, Card, Spinner } from 'react-bootstrap';
+import { Row, Col, Card, Button, ProgressBar } from 'react-bootstrap';
+import { Link } from 'react-router-dom';
 import EmployeeDashboard from '../components/EmployeeDashboard';
 import { authenticatedFetch, isAdmin } from '../services/authService';
 import { API_URLS } from '../config/api';
@@ -8,6 +9,7 @@ const DashboardPage = () => {
   const [stats, setStats] = useState({
     totalEmployees: 0,
     pendingLeaveRequests: 0,
+    totalLeaveRequests: 0,
     totalAssets: 0,
     totalDepartments: 0,
     activeAssets: 0,
@@ -40,6 +42,7 @@ const DashboardPage = () => {
         setStats({
           totalEmployees: employees.length,
           pendingLeaveRequests: pendingRequests.length,
+          totalLeaveRequests: leaveRequests.length,
           totalAssets: assets.length,
           totalDepartments: departments.length,
           activeAssets: activeAssets.length,
@@ -55,23 +58,33 @@ const DashboardPage = () => {
     fetchStats();
   }, []);
 
-  const StatCard = ({ title, value, icon, color = '#6366F1' }) => (
-    <Card className="shadow h-100" style={{ backgroundColor: '#1E293B', borderColor: color, color: 'white' }}>
-      <Card.Body className="d-flex align-items-center">
-        <div className="flex-grow-1">
-          <h3 className="mb-0" style={{ color, fontWeight: 'bold' }}>{value}</h3>
-          <p className="mb-0" style={{ color: '#94A3B8' }}>{title}</p>
+  const statusClass = (status) =>
+    status === 'Approved' ? 'is-approved' : status === 'Rejected' ? 'is-rejected' : 'is-pending';
+
+  const pct = (part, whole) => (whole > 0 ? Math.round((part / whole) * 100) : 0);
+
+  const StatCard = ({ title, value, icon, tone, to }) => (
+    <Card as={Link} to={to} className="item-card text-decoration-none h-100">
+      <div className="stat-card">
+        <span className={`stat-icon tone-${tone}`} aria-hidden="true"><i className={`bi bi-${icon}`} /></span>
+        <div>
+          <div className="stat-value">{value}</div>
+          <div className="stat-label">{title}</div>
         </div>
-        <i className={`bi bi-${icon} fs-1`} style={{ color, opacity: 0.3 }}></i>
-      </Card.Body>
+      </div>
     </Card>
   );
 
   if (loading) {
     return (
-      <div className="text-center">
-        <Spinner animation="border" variant="primary" />
-        <p className="mt-3">Loading dashboard...</p>
+      <div aria-busy="true" aria-label="Loading dashboard">
+        <div className="skeleton mb-4" style={{ height: 56, maxWidth: 320 }} />
+        <Row className="g-4 mb-4">
+          {[0, 1, 2, 3].map((i) => (
+            <Col lg={3} sm={6} key={i}><div className="skeleton" style={{ height: 96 }} /></Col>
+          ))}
+        </Row>
+        <div className="skeleton" style={{ height: 320 }} />
       </div>
     );
   }
@@ -81,122 +94,104 @@ const DashboardPage = () => {
     return <EmployeeDashboard />;
   }
 
+  const assetUse = pct(stats.activeAssets, stats.totalAssets);
+  const pendingShare = pct(stats.pendingLeaveRequests, stats.totalLeaveRequests);
+
   // Show admin dashboard for admins
   return (
     <div>
-      <h1 className="mb-4" style={{ color: '#6366F1' }}>HR Dashboard</h1>
-        
-        <Row className="mb-4">
-          <Col lg={3} md={6} className="mb-3">
-            <StatCard 
-              title="Total Employees" 
-              value={stats.totalEmployees} 
-              icon="people" 
-              color="#6366F1" 
-            />
-          </Col>
-          <Col lg={3} md={6} className="mb-3">
-            <StatCard 
-              title="Pending Leave Requests" 
-              value={stats.pendingLeaveRequests} 
-              icon="calendar-check" 
-              color="#f59e0b" 
-            />
-          </Col>
-          <Col lg={3} md={6} className="mb-3">
-            <StatCard 
-              title="Active Assets" 
-              value={stats.activeAssets} 
-              icon="laptop" 
-              color="#10b981" 
-            />
-          </Col>
-          <Col lg={3} md={6} className="mb-3">
-            <StatCard 
-              title="Departments" 
-              value={stats.totalDepartments} 
-              icon="building" 
-              color="#8b5cf6" 
-            />
-          </Col>
-        </Row>
+      <div className="page-header">
+        <div>
+          <h1>HR Dashboard</h1>
+          <p>What needs your attention across the organisation today.</p>
+        </div>
+        <div className="page-header-actions">
+          <Button as={Link} to="/leave-requests" variant="primary">
+            <i className="bi bi-calendar2-check me-2" aria-hidden="true" />
+            Review leave requests
+          </Button>
+        </div>
+      </div>
 
-        <Row>
-          <Col lg={8}>
-            <Card className="shadow" style={{ backgroundColor: '#1E293B', borderColor: '#6366F1', color: 'white' }}>
-              <Card.Header style={{ backgroundColor: '#1E293B', borderColor: '#6366F1' }}>
-                <h5 className="mb-0" style={{ color: '#6366F1' }}>Recent Leave Requests</h5>
-              </Card.Header>
-              <Card.Body>
-                {stats.recentLeaveRequests.length === 0 ? (
-                  <p className="text-muted">No recent leave requests</p>
-                ) : (
-                  <div className="list-group list-group-flush">
-                    {stats.recentLeaveRequests.map((request) => (
-                      <div key={request.requestID} className="list-group-item" style={{ backgroundColor: 'transparent', borderColor: '#374151' }}>
-                        <div className="d-flex justify-content-between align-items-center">
-                          <div>
-                            <h6 className="mb-1" style={{ color: 'white' }}>{request.employeeName}</h6>
-                            <small className="text-muted">
-                              {request.leaveType} • {new Date(request.startDate).toLocaleDateString()} - {new Date(request.endDate).toLocaleDateString()}
-                            </small>
-                          </div>
-                          <span className={`badge ${
-                            request.status === 'Approved' ? 'bg-success' : 
-                            request.status === 'Rejected' ? 'bg-danger' : 'bg-warning'
-                          }`}>
-                            {request.status}
-                          </span>
-                        </div>
+      <Row className="g-4 mb-4">
+        <Col lg={3} sm={6}>
+          <StatCard title="Total Employees" value={stats.totalEmployees} icon="people" tone="indigo" to="/employees" />
+        </Col>
+        <Col lg={3} sm={6}>
+          <StatCard title="Pending Leave Requests" value={stats.pendingLeaveRequests} icon="hourglass-split" tone="amber" to="/leave-requests" />
+        </Col>
+        <Col lg={3} sm={6}>
+          <StatCard title="Active Assets" value={stats.activeAssets} icon="laptop" tone="green" to="/assets" />
+        </Col>
+        <Col lg={3} sm={6}>
+          <StatCard title="Departments" value={stats.totalDepartments} icon="building" tone="violet" to="/departments" />
+        </Col>
+      </Row>
+
+      <Row className="g-4">
+        <Col lg={8}>
+          <Card className="h-100">
+            <Card.Header className="d-flex justify-content-between align-items-center py-3">
+              <span>Recent Leave Requests</span>
+              <Link to="/leave-requests" className="small fw-semibold text-decoration-none">View all</Link>
+            </Card.Header>
+            <Card.Body className="p-0">
+              {stats.recentLeaveRequests.length === 0 ? (
+                <div className="text-center text-muted py-5">
+                  <i className="bi bi-calendar2 d-block fs-3 mb-2" aria-hidden="true" />
+                  No recent leave requests
+                </div>
+              ) : (
+                <ul className="list-group list-group-flush">
+                  {stats.recentLeaveRequests.map((request) => (
+                    <li key={request.requestID} className="list-group-item d-flex align-items-center gap-3 px-4 py-3">
+                      <span className="app-avatar" aria-hidden="true">
+                        {(request.employeeName || '?').charAt(0).toUpperCase()}
+                      </span>
+                      <div className="flex-grow-1 min-w-0">
+                        <div className="fw-semibold">{request.employeeName}</div>
+                        <small className="text-muted">
+                          {request.leaveType} · {new Date(request.startDate).toLocaleDateString()} – {new Date(request.endDate).toLocaleDateString()}
+                        </small>
                       </div>
-                    ))}
-                  </div>
-                )}
-              </Card.Body>
-            </Card>
-          </Col>
-          
-          <Col lg={4}>
-            <Card className="shadow" style={{ backgroundColor: '#1E293B', borderColor: '#6366F1', color: 'white' }}>
-              <Card.Header style={{ backgroundColor: '#1E293B', borderColor: '#6366F1' }}>
-                <h5 className="mb-0" style={{ color: '#6366F1' }}>Quick Stats</h5>
-              </Card.Header>
-              <Card.Body>
-                <div className="mb-3">
-                  <small style={{ color: '#94A3B8' }}>Asset Utilization</small>
-                  <div className="progress mt-1" style={{ backgroundColor: '#374151' }}>
-                    <div 
-                      className="progress-bar" 
-                      style={{ 
-                        backgroundColor: '#10b981',
-                        width: `${stats.totalAssets > 0 ? (stats.activeAssets / stats.totalAssets) * 100 : 0}%`
-                      }}
-                    ></div>
-                  </div>
-                  <small style={{ color: '#94A3B8' }}>
-                    {stats.activeAssets} of {stats.totalAssets} assets active
-                  </small>
+                      <span className={`status-chip ${statusClass(request.status)}`}>{request.status}</span>
+                    </li>
+                  ))}
+                </ul>
+              )}
+            </Card.Body>
+          </Card>
+        </Col>
+
+        <Col lg={4}>
+          <Card className="h-100">
+            <Card.Header className="py-3">At a glance</Card.Header>
+            <Card.Body>
+              <div className="mb-4">
+                <div className="d-flex justify-content-between small mb-2">
+                  <span className="fw-semibold">Asset utilisation</span>
+                  <span className="text-muted">{assetUse}%</span>
                 </div>
-                
-                <div className="mb-3">
-                  <small style={{ color: '#94A3B8' }}>Pending Requests Rate</small>
-                  <div className="progress mt-1" style={{ backgroundColor: '#374151' }}>
-                    <div 
-                      className="progress-bar" 
-                      style={{ 
-                        backgroundColor: '#f59e0b',
-                        width: `${stats.recentLeaveRequests.length > 0 ? (stats.pendingLeaveRequests / stats.recentLeaveRequests.length) * 100 : 0}%`
-                      }}
-                    ></div>
-                  </div>
-                  <small style={{ color: '#94A3B8' }}>
-                    {stats.pendingLeaveRequests} pending requests
-                  </small>
+                <ProgressBar now={assetUse} variant="success" aria-label="Asset utilisation" />
+                <small className="text-muted d-block mt-2">
+                  {stats.activeAssets} of {stats.totalAssets} assets active
+                </small>
+              </div>
+
+              <div>
+                <div className="d-flex justify-content-between small mb-2">
+                  <span className="fw-semibold">Requests awaiting a decision</span>
+                  <span className="text-muted">{pendingShare}%</span>
                 </div>
-              </Card.Body>
-            </Card>
-          </Col>
-        </Row>
+                <ProgressBar now={pendingShare} variant="warning" aria-label="Share of leave requests pending" />
+                <small className="text-muted d-block mt-2">
+                  {stats.pendingLeaveRequests} of {stats.totalLeaveRequests} requests pending
+                </small>
+              </div>
+            </Card.Body>
+          </Card>
+        </Col>
+      </Row>
     </div>
   );
 };

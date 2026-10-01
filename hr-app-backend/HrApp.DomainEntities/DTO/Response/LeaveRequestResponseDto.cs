@@ -22,5 +22,15 @@ namespace HrApp.DomainEntities.DTO.Response
         public string ApprovedByName { get; set; }
         public DateTime? DecisionAt { get; set; }
         public string DecisionReason { get; set; }
+
+        /// <summary>Set when the approver acted under a delegation: whose authority they used.</summary>
+        public Guid? DecidedOnBehalfOfEmployeeID { get; set; }
+        public string DecidedOnBehalfOfName { get; set; }
+
+        /// <summary>
+        /// Only on the "requests I can decide" view: why the caller may decide this one —
+        /// "Direct report", "Indirect report", or "Delegated by &lt;name&gt;".
+        /// </summary>
+        public string ApprovalRoute { get; set; }
     }
 }

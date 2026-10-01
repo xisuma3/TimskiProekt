@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Card, Button, ButtonGroup, Modal, Badge } from 'react-bootstrap';
+import { Card, Button, Modal, Badge } from 'react-bootstrap';
 import DataPage from '../components/DataPage';
 import AssetModal from '../components/AssetModal';
 import AssetCustodyModal from '../components/AssetCustodyModal';
@@ -62,56 +62,62 @@ const AssetsPage = () => {
   };
 
   const renderAssetCard = (asset) => (
-    <Card className="shadow" style={{ backgroundColor: '#1E293B', borderColor: '#6366F1', color: 'white' }}>
+    <Card className="item-card">
       <Card.Body>
-        <Card.Title style={{ color: '#6366F1' }}>
-          {asset.name}
-        </Card.Title>
-        <Card.Subtitle className="mb-2" style={{ color: '#94A3B8' }}>
-          {asset.serialNumber}
-        </Card.Subtitle>
-        <Card.Text>
-          <strong>Description:</strong> {asset.description || 'Not specified'}
-          <br />
-          {asset.isAssigned ? (
+        <div className="item-card-head">
+          <span className="item-card-icon" aria-hidden="true"><i className="bi bi-laptop" /></span>
+          <div className="flex-grow-1 min-w-0">
+            <Card.Title>{asset.name}</Card.Title>
+            <Card.Subtitle>{asset.serialNumber || 'No serial number'}</Card.Subtitle>
+          </div>
+          <span className={`status-chip ${asset.isActive ? 'is-success' : ''}`}>
+            {asset.isActive ? 'Active' : 'Inactive'}
+          </span>
+        </div>
+
+        <dl className="meta-list">
+          <dt>Description</dt>
+          <dd>{asset.description || 'Not specified'}</dd>
+          <dt>Held by</dt>
+          <dd>
+            {asset.isAssigned ? asset.employeeName : <Badge bg="secondary">In stock</Badge>}
+          </dd>
+          {asset.isAssigned && (
             <>
-              <strong>Held by:</strong> {asset.employeeName}
-              <br />
-              <strong>Since:</strong> {asset.assignmentDate ? new Date(asset.assignmentDate).toLocaleDateString() : '—'}
-              <br />
+              <dt>Since</dt>
+              <dd>{asset.assignmentDate ? new Date(asset.assignmentDate).toLocaleDateString() : '—'}</dd>
             </>
-          ) : (
-            <><Badge bg="secondary">In stock</Badge><br /></>
           )}
-          <strong>Status:</strong> {asset.isActive ? 'Active' : 'Inactive'}
-        </Card.Text>
-        
+        </dl>
+
         <RoleBasedContent allowedRoles={['Admin']}>
-          <div className="d-flex justify-content-end mt-3">
-            <ButtonGroup size="sm">
-              <Button
-                variant="outline-info"
-                onClick={() => setCustodyAsset(asset)}
-                title="Assign, return, and custody history"
-                style={{ borderColor: '#38bdf8', color: '#38bdf8' }}
-              >
-                <i className="bi bi-arrow-left-right"></i> Custody
-              </Button>
-              <Button
-                variant="outline-primary"
-                onClick={() => handleEditClick(asset)}
-                style={{ borderColor: '#6366F1', color: '#6366F1' }}
-              >
-                <i className="bi bi-pencil"></i>
-              </Button>
-              <Button
-                variant="outline-danger"
-                onClick={() => handleDeleteClick(asset)}
-                style={{ borderColor: '#dc3545', color: '#dc3545' }}
-              >
-                <i className="bi bi-trash"></i>
-              </Button>
-            </ButtonGroup>
+          <div className="item-card-actions">
+            <Button
+              size="sm"
+              variant="outline-info"
+              onClick={() => setCustodyAsset(asset)}
+              title="Assign, return, and custody history"
+            >
+              <i className="bi bi-arrow-left-right me-1" aria-hidden="true"></i> Custody
+            </Button>
+            <Button
+              size="sm"
+              variant="outline-primary"
+              className="btn-icon"
+              onClick={() => handleEditClick(asset)}
+              aria-label={`Edit ${asset.name}`}
+            >
+              <i className="bi bi-pencil" aria-hidden="true"></i>
+            </Button>
+            <Button
+              size="sm"
+              variant="outline-danger"
+              className="btn-icon"
+              onClick={() => handleDeleteClick(asset)}
+              aria-label={`Delete ${asset.name}`}
+            >
+              <i className="bi bi-trash" aria-hidden="true"></i>
+            </Button>
           </div>
         </RoleBasedContent>
       </Card.Body>
@@ -124,7 +130,11 @@ const AssetsPage = () => {
         title={isAdmin() ? "Asset Inventory" : "My Assets"}
         apiEndpoint={isAdmin() ? API_URLS.ASSETS.GET_ALL() : API_URLS.ASSETS.GET_MY_ASSETS()}
         searchFields={['name', 'description', 'serialNumber', 'employeeName']}
+        dateFilter={{ label: 'Assigned', field: 'assignmentDate' }}
+        personFilter={{ label: 'Held by', field: 'employeeName', emptyLabel: 'In stock' }}
         renderCard={renderAssetCard}
+        subtitle={isAdmin() ? 'Company equipment and who currently holds it.' : 'Equipment currently assigned to you.'}
+        emptyIcon="bi-laptop"
         searchPlaceholder="Search assets..."
         showAddButton={isAdmin()}
         onAddClick={handleAddClick}
@@ -151,15 +161,18 @@ const AssetsPage = () => {
       </RoleBasedContent>
 
       <Modal show={showDeleteModal} onHide={() => setShowDeleteModal(false)} centered>
-        <Modal.Header closeButton style={{ backgroundColor: '#1E293B', color: 'white', borderColor: '#dc3545' }}>
+        <Modal.Header closeButton>
+
           <Modal.Title>Confirm Delete</Modal.Title>
         </Modal.Header>
-        <Modal.Body style={{ backgroundColor: '#0F172A', color: 'white' }}>
+        <Modal.Body>
+
           Are you sure you want to delete asset "{assetToDelete?.name}"?
           <br />
           <small className="text-muted">This action cannot be undone.</small>
         </Modal.Body>
-        <Modal.Footer style={{ backgroundColor: '#1E293B', borderColor: '#dc3545' }}>
+        <Modal.Footer>
+
           <Button variant="secondary" onClick={() => setShowDeleteModal(false)}>
             Cancel
           </Button>

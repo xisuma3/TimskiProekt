@@ -14,8 +14,17 @@ const API_CONFIG = {
     LEAVE_REQUEST: '/api/LeaveRequest',
     EMPLOYEE_DOSSIER: '/api/EmployeeDossier',
     LEAVE_ENTITLEMENT: '/api/LeaveEntitlement',
-    USER: '/api/User'
+    APPROVAL_DELEGATION: '/api/ApprovalDelegation'
   }
+};
+
+// ?a=1&b=2 from the defined values only.
+const query = (params) => {
+  const qs = Object.entries(params)
+    .filter(([, v]) => v !== undefined && v !== null && v !== '')
+    .map(([k, v]) => `${encodeURIComponent(k)}=${encodeURIComponent(v)}`)
+    .join('&');
+  return qs ? `?${qs}` : '';
 };
 
 // Helper function to build full API URLs
@@ -34,12 +43,16 @@ export const API_URLS = {
     GET_ALL: () => buildApiUrl(API_CONFIG.ENDPOINTS.EMPLOYEE, '/GetAll'),
     GET_BY_ID: (id) => buildApiUrl(API_CONFIG.ENDPOINTS.EMPLOYEE, `/GetById/${id}`),
     GET_MY_PROFILE: () => buildApiUrl(API_CONFIG.ENDPOINTS.EMPLOYEE, '/GetMyProfile'),
+    // Minimal colleague list (id, name, position, department) any signed-in user can read.
+    GET_DIRECTORY: () => buildApiUrl(API_CONFIG.ENDPOINTS.EMPLOYEE, '/GetDirectory'),
     CREATE: () => buildApiUrl(API_CONFIG.ENDPOINTS.EMPLOYEE, '/Create'),
     UPDATE: (id) => buildApiUrl(API_CONFIG.ENDPOINTS.EMPLOYEE, `/Edit/${id}`),
     DELETE: (id) => buildApiUrl(API_CONFIG.ENDPOINTS.EMPLOYEE, `/Delete/${id}`),
     RESTORE: (id) => buildApiUrl(API_CONFIG.ENDPOINTS.EMPLOYEE, `/Restore/${id}`),
     // Irreversible: destroys personal data, keeps the employment records.
-    ERASE: (id) => buildApiUrl(API_CONFIG.ENDPOINTS.EMPLOYEE, `/Erase/${id}`)
+    ERASE: (id) => buildApiUrl(API_CONFIG.ENDPOINTS.EMPLOYEE, `/Erase/${id}`),
+    // Append-only audit of erasures: who performed, who requested, why, when (Admin).
+    ERASURE_LOG: () => buildApiUrl(API_CONFIG.ENDPOINTS.EMPLOYEE, '/GetErasureLog')
   },
   
   // Department endpoints
@@ -81,6 +94,9 @@ export const API_URLS = {
     GET_MY_DOCUMENTS: () => buildApiUrl(API_CONFIG.ENDPOINTS.GENERATED_DOCUMENT, '/GetMyDocuments'),
     GET_CONTENT: (id) => buildApiUrl(API_CONFIG.ENDPOINTS.GENERATED_DOCUMENT, `/GetContent/${id}`),
     GENERATE: () => buildApiUrl(API_CONFIG.ENDPOINTS.GENERATED_DOCUMENT, '/Generate'),
+    // Employee self-service: the subject is the caller (from the token); only templates
+    // with allowSelfService qualify.
+    GENERATE_MINE: () => buildApiUrl(API_CONFIG.ENDPOINTS.GENERATED_DOCUMENT, '/GenerateMine'),
     DELETE: (id) => buildApiUrl(API_CONFIG.ENDPOINTS.GENERATED_DOCUMENT, `/Delete/${id}`)
   },
   
@@ -89,7 +105,6 @@ export const API_URLS = {
     GET_ALL: () => buildApiUrl(API_CONFIG.ENDPOINTS.LEAVE_REQUEST, '/GetAll'),
     GET_MY_REQUESTS: () => buildApiUrl(API_CONFIG.ENDPOINTS.LEAVE_REQUEST, '/GetMyLeaveRequests'),
     CREATE: () => buildApiUrl(API_CONFIG.ENDPOINTS.LEAVE_REQUEST, '/Create'),
-    UPDATE: (id) => buildApiUrl(API_CONFIG.ENDPOINTS.LEAVE_REQUEST, `/Update/${id}`),
     DELETE: (id) => buildApiUrl(API_CONFIG.ENDPOINTS.LEAVE_REQUEST, `/Delete/${id}`),
     APPROVE: (id) => buildApiUrl(API_CONFIG.ENDPOINTS.LEAVE_REQUEST, `/Approve/${id}/approve`),
     REJECT: (id) => buildApiUrl(API_CONFIG.ENDPOINTS.LEAVE_REQUEST, `/Reject/${id}/reject`),
@@ -104,14 +119,24 @@ export const API_URLS = {
     GET_BY_EMPLOYEE: (employeeId, year) =>
       buildApiUrl(API_CONFIG.ENDPOINTS.LEAVE_ENTITLEMENT,
         `/GetByEmployeeId/employee/${employeeId}${year ? `?year=${year}` : ''}`),
-    GET_MY_BALANCE: (year) =>
-      buildApiUrl(API_CONFIG.ENDPOINTS.LEAVE_ENTITLEMENT, `/GetMyBalance${year ? `?year=${year}` : ''}`),
-    GET_BALANCE: (employeeId, year) =>
-      buildApiUrl(API_CONFIG.ENDPOINTS.LEAVE_ENTITLEMENT,
-        `/GetBalance/${employeeId}${year ? `?year=${year}` : ''}`),
+    // asOf (YYYY-MM-DD): work monthly accrual out for that date instead of today.
+    GET_MY_BALANCE: (year, asOf) =>
+      buildApiUrl(API_CONFIG.ENDPOINTS.LEAVE_ENTITLEMENT, `/GetMyBalance${query({ year, asOf })}`),
+    GET_BALANCE: (employeeId, year, asOf) =>
+      buildApiUrl(API_CONFIG.ENDPOINTS.LEAVE_ENTITLEMENT, `/GetBalance/${employeeId}${query({ year, asOf })}`),
+    // Year-end carry-over (Admin). Body: { fromYear, maxDays, leaveTypes?, preview }.
+    CARRY_OVER: () => buildApiUrl(API_CONFIG.ENDPOINTS.LEAVE_ENTITLEMENT, '/CarryOver'),
     CREATE: () => buildApiUrl(API_CONFIG.ENDPOINTS.LEAVE_ENTITLEMENT, '/Create'),
     UPDATE: (id) => buildApiUrl(API_CONFIG.ENDPOINTS.LEAVE_ENTITLEMENT, `/Update/${id}`),
     DELETE: (id) => buildApiUrl(API_CONFIG.ENDPOINTS.LEAVE_ENTITLEMENT, `/Delete/${id}`)
+  },
+
+  // Approval delegation: a manager's leave-approval authority handed to a colleague for a period.
+  APPROVAL_DELEGATIONS: {
+    GET_MINE: () => buildApiUrl(API_CONFIG.ENDPOINTS.APPROVAL_DELEGATION, '/GetMine'),
+    GET_ALL: () => buildApiUrl(API_CONFIG.ENDPOINTS.APPROVAL_DELEGATION, '/GetAll'),
+    CREATE: () => buildApiUrl(API_CONFIG.ENDPOINTS.APPROVAL_DELEGATION, '/Create'),
+    REVOKE: (id) => buildApiUrl(API_CONFIG.ENDPOINTS.APPROVAL_DELEGATION, `/Revoke/${id}`)
   },
 
   // Employee Dossier endpoints
@@ -121,15 +146,6 @@ export const API_URLS = {
     CREATE: () => buildApiUrl(API_CONFIG.ENDPOINTS.EMPLOYEE_DOSSIER, '/Create'),
     UPDATE: (id) => buildApiUrl(API_CONFIG.ENDPOINTS.EMPLOYEE_DOSSIER, `/Update/${id}`),
     DELETE: (id) => buildApiUrl(API_CONFIG.ENDPOINTS.EMPLOYEE_DOSSIER, `/Delete/${id}`)
-  },
-
-  // User endpoints
-  USER: {
-    GET_ALL: () => buildApiUrl(API_CONFIG.ENDPOINTS.USER, '/GetAll'),
-    GET_BY_ID: (id) => buildApiUrl(API_CONFIG.ENDPOINTS.USER, `/GetById/${id}`),
-    CREATE: () => buildApiUrl(API_CONFIG.ENDPOINTS.USER, '/Create'),
-    UPDATE: (id) => buildApiUrl(API_CONFIG.ENDPOINTS.USER, `/Edit/${id}`),
-    DELETE: (id) => buildApiUrl(API_CONFIG.ENDPOINTS.USER, `/Delete/${id}`)
   }
 };
 

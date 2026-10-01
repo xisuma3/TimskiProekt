@@ -5,11 +5,6 @@ import { API_URLS } from '../config/api';
 
 const LEAVE_TYPES = ['Vacation', 'Sick', 'Parental', 'Unpaid'];
 
-const DARK_INPUT = {
-  backgroundColor: '#1E293B',
-  color: 'white',
-  borderColor: '#374151'
-};
 
 const LeaveEntitlementModal = ({ show, onHide, onSave, item, employees = [] }) => {
   const isEdit = Boolean(item);
@@ -19,7 +14,8 @@ const LeaveEntitlementModal = ({ show, onHide, onSave, item, employees = [] }) =
     year: new Date().getFullYear(),
     leaveType: 'Vacation',
     daysAllocated: 20,
-    daysCarriedOver: 0
+    daysCarriedOver: 0,
+    accrualMethod: 'Upfront'
   });
   const [error, setError] = useState(null);
   const [saving, setSaving] = useState(false);
@@ -31,7 +27,8 @@ const LeaveEntitlementModal = ({ show, onHide, onSave, item, employees = [] }) =
         year: item.year ?? new Date().getFullYear(),
         leaveType: item.leaveType ?? 'Vacation',
         daysAllocated: item.daysAllocated ?? 0,
-        daysCarriedOver: item.daysCarriedOver ?? 0
+        daysCarriedOver: item.daysCarriedOver ?? 0,
+        accrualMethod: item.accrualMethod === 'Monthly' ? 'Monthly' : 'Upfront'
       });
     } else {
       setForm({
@@ -39,7 +36,8 @@ const LeaveEntitlementModal = ({ show, onHide, onSave, item, employees = [] }) =
         year: new Date().getFullYear(),
         leaveType: 'Vacation',
         daysAllocated: 20,
-        daysCarriedOver: 0
+        daysCarriedOver: 0,
+        accrualMethod: 'Upfront'
       });
     }
     setError(null);
@@ -57,7 +55,8 @@ const LeaveEntitlementModal = ({ show, onHide, onSave, item, employees = [] }) =
       year: Number(form.year),
       leaveType: form.leaveType,
       daysAllocated: Number(form.daysAllocated),
-      daysCarriedOver: Number(form.daysCarriedOver)
+      daysCarriedOver: Number(form.daysCarriedOver),
+      accrualMethod: form.accrualMethod
     };
 
     try {
@@ -95,11 +94,11 @@ const LeaveEntitlementModal = ({ show, onHide, onSave, item, employees = [] }) =
   return (
     <Modal show={show} onHide={onHide} centered>
       <Form onSubmit={handleSubmit}>
-        <Modal.Header closeButton style={{ backgroundColor: '#1E293B', color: 'white', borderColor: '#6366F1' }}>
+        <Modal.Header closeButton>
           <Modal.Title>{isEdit ? 'Edit Leave Allowance' : 'New Leave Allowance'}</Modal.Title>
         </Modal.Header>
 
-        <Modal.Body style={{ backgroundColor: '#0F172A', color: 'white' }}>
+        <Modal.Body>
           {error && <Alert variant="danger">{error}</Alert>}
 
           <Form.Group className="mb-3">
@@ -109,7 +108,6 @@ const LeaveEntitlementModal = ({ show, onHide, onSave, item, employees = [] }) =
               onChange={update('employeeID')}
               required
               disabled={isEdit}
-              style={DARK_INPUT}
             >
               <option value="">Select an employee…</option>
               {employees.map((e) => (
@@ -131,14 +129,13 @@ const LeaveEntitlementModal = ({ show, onHide, onSave, item, employees = [] }) =
                   value={form.year}
                   onChange={update('year')}
                   required
-                  style={DARK_INPUT}
                 />
               </Form.Group>
             </Col>
             <Col md={6}>
               <Form.Group className="mb-3">
                 <Form.Label>Leave type</Form.Label>
-                <Form.Select value={form.leaveType} onChange={update('leaveType')} style={DARK_INPUT}>
+                <Form.Select value={form.leaveType} onChange={update('leaveType')}>
                   {LEAVE_TYPES.map((t) => <option key={t} value={t}>{t}</option>)}
                 </Form.Select>
               </Form.Group>
@@ -154,7 +151,6 @@ const LeaveEntitlementModal = ({ show, onHide, onSave, item, employees = [] }) =
                   value={form.daysAllocated}
                   onChange={update('daysAllocated')}
                   required
-                  style={DARK_INPUT}
                 />
               </Form.Group>
             </Col>
@@ -165,19 +161,31 @@ const LeaveEntitlementModal = ({ show, onHide, onSave, item, employees = [] }) =
                   type="number" min={0} max={366} step="0.5"
                   value={form.daysCarriedOver}
                   onChange={update('daysCarriedOver')}
-                  style={DARK_INPUT}
                 />
               </Form.Group>
             </Col>
           </Row>
 
-          <small style={{ color: '#94A3B8' }}>
-            A leave type with no allowance is <strong>uncapped</strong>, not zero — sick leave
-            is usually governed by policy rather than a day count.
-          </small>
+          <Form.Group className="mb-3" controlId="allowance-accrual">
+            <Form.Label>Accrual</Form.Label>
+            <Form.Select value={form.accrualMethod} onChange={update('accrualMethod')}>
+              <option value="Upfront">Up front — all days on 1 January</option>
+              <option value="Monthly">Monthly — 1/12 at the start of each month</option>
+            </Form.Select>
+            <Form.Text>
+              {form.accrualMethod === 'Monthly'
+                ? 'The allocation builds up month by month; employees can book what will have accrued by the last day of their leave. Carried-over days are available in full from the start.'
+                : 'The whole allocation is available from the first day of the year.'}
+            </Form.Text>
+          </Form.Group>
+
+          <Form.Text as="p" className="mb-0">
+            Employees can only request leave of a type they have an allowance for, and only up to
+            the days remaining. Without an allowance for a year, that leave type can't be requested.
+          </Form.Text>
         </Modal.Body>
 
-        <Modal.Footer style={{ backgroundColor: '#1E293B', borderColor: '#6366F1' }}>
+        <Modal.Footer>
           <Button variant="secondary" onClick={onHide} disabled={saving}>Cancel</Button>
           <Button variant="primary" type="submit" disabled={saving}>
             {saving ? 'Saving…' : isEdit ? 'Save' : 'Create'}

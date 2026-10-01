@@ -15,10 +15,13 @@ namespace HrApp.Service.Interface
         Task UpdateAsync(Guid id, LeaveEntitlementRequestDto dto);
         Task DeleteAsync(Guid id);
 
-        /// <summary>Standing for one employee/year/type. Untracked types are uncapped.</summary>
-        Task<LeaveBalanceResponseDto> GetBalanceAsync(Guid employeeId, int year, string leaveType);
+        /// <summary>Standing for one employee/year/type. Untracked (no allowance) types cannot be requested.</summary>
+        /// <summary>Standing as of <paramref name="asOf"/> (default today); monthly accrual is worked out for that date.</summary>
+        Task<LeaveBalanceResponseDto> GetBalanceAsync(Guid employeeId, int year, string leaveType, DateTime? asOf = null);
 
         /// <summary>Standing across every leave type for one employee/year.</summary>
-        Task<IEnumerable<LeaveBalanceResponseDto>> GetBalancesAsync(Guid employeeId, int year);
+        Task<IEnumerable<LeaveBalanceResponseDto>> GetBalancesAsync(Guid employeeId, int year, DateTime? asOf = null);
+        /// <summary>Year-end carry-over into the next year, capped; Preview saves nothing.</summary>
+        Task<IEnumerable<CarryOverResultDto>> CarryOverAsync(CarryOverRequestDto request);
     }
 }

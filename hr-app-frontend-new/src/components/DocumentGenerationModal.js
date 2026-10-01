@@ -173,10 +173,10 @@ const DocumentGenerationModal = ({ show, onHide, onGenerate }) => {
 
   return (
     <Modal show={show} onHide={onHide} size="xl">
-      <Modal.Header closeButton style={{ backgroundColor: '#1E293B', borderColor: '#374151' }}>
-        <Modal.Title style={{ color: 'white' }}>Generate Document</Modal.Title>
+      <Modal.Header closeButton>
+        <Modal.Title>Generate Document</Modal.Title>
       </Modal.Header>
-      <Modal.Body style={{ backgroundColor: '#1E293B', color: 'white' }}>
+      <Modal.Body>
         {error && <Alert variant="danger">{error}</Alert>}
         
         <div className="row">
@@ -186,7 +186,6 @@ const DocumentGenerationModal = ({ show, onHide, onGenerate }) => {
               <Form.Select
                 value={selectedTemplate}
                 onChange={(e) => setSelectedTemplate(e.target.value)}
-                style={{ backgroundColor: '#374151', borderColor: '#6B7280', color: 'white' }}
                 required
               >
                 <option value="">Choose a template...</option>
@@ -199,13 +198,13 @@ const DocumentGenerationModal = ({ show, onHide, onGenerate }) => {
             </Form.Group>
 
             {getSelectedTemplate() && (
-              <Card className="mb-3" style={{ backgroundColor: '#374151', borderColor: '#6B7280' }}>
+              <Card className="mb-3 bg-body-tertiary shadow-none">
                 <Card.Body>
-                  <Card.Title style={{ color: '#6366F1', fontSize: '1rem' }}>
+                  <Card.Title style={{ fontSize: '1rem' }}>
                     {getSelectedTemplate().templateName}
                     <Badge bg="primary" className="ms-2">{getSelectedTemplate().templateType}</Badge>
                   </Card.Title>
-                  <Card.Text style={{ color: '#9CA3AF', fontSize: '0.9rem' }}>
+                  <Card.Text className="text-muted small">
                     {getSelectedTemplate().description || 'No description available'}
                   </Card.Text>
                 </Card.Body>
@@ -217,7 +216,6 @@ const DocumentGenerationModal = ({ show, onHide, onGenerate }) => {
               <Form.Select
                 value={selectedEmployee}
                 onChange={(e) => setSelectedEmployee(e.target.value)}
-                style={{ backgroundColor: '#374151', borderColor: '#6B7280', color: 'white' }}
                 required
               >
                 <option value="">Choose an employee...</option>
@@ -230,12 +228,12 @@ const DocumentGenerationModal = ({ show, onHide, onGenerate }) => {
             </Form.Group>
 
             {getSelectedEmployee() && (
-              <Card className="mb-3" style={{ backgroundColor: '#374151', borderColor: '#6B7280' }}>
+              <Card className="mb-3 bg-body-tertiary shadow-none">
                 <Card.Body>
-                  <Card.Title style={{ color: '#10B981', fontSize: '1rem' }}>
+                  <Card.Title style={{ fontSize: '1rem' }}>
                     {getSelectedEmployee().firstName} {getSelectedEmployee().lastName}
                   </Card.Title>
-                  <Card.Text style={{ color: '#9CA3AF', fontSize: '0.9rem' }}>
+                  <Card.Text className="text-muted small">
                     <strong>Position:</strong> {getSelectedEmployee().position}<br />
                     <strong>Email:</strong> {getSelectedEmployee().email}<br />
                     <strong>Hire Date:</strong> {new Date(getSelectedEmployee().hireDate).toLocaleDateString()}
@@ -250,7 +248,6 @@ const DocumentGenerationModal = ({ show, onHide, onGenerate }) => {
                 multiple
                 value={selectedAssets}
                 onChange={(e) => setSelectedAssets(Array.from(e.target.selectedOptions, option => option.value))}
-                style={{ backgroundColor: '#374151', borderColor: '#6B7280', color: 'white' }}
                 size={4}
               >
                 {assets.map(asset => (
@@ -259,7 +256,7 @@ const DocumentGenerationModal = ({ show, onHide, onGenerate }) => {
                   </option>
                 ))}
               </Form.Select>
-              <Form.Text style={{ color: '#9CA3AF' }}>
+              <Form.Text>
                 Hold Ctrl/Cmd to select multiple assets. These will be available for asset placeholders in the template.
               </Form.Text>
             </Form.Group>
@@ -280,7 +277,7 @@ const DocumentGenerationModal = ({ show, onHide, onGenerate }) => {
             <div className="d-flex justify-content-between align-items-center mb-3">
               <h6>Document Preview</h6>
               <Button 
-                variant="info" 
+                variant="outline-primary"
                 size="sm" 
                 onClick={handlePreview}
                 disabled={!selectedTemplate || !selectedEmployee}
@@ -289,21 +286,11 @@ const DocumentGenerationModal = ({ show, onHide, onGenerate }) => {
               </Button>
             </div>
             
-            <div 
-              style={{ 
-                border: '1px solid #6B7280', 
-                borderRadius: '4px', 
-                padding: '15px',
-                backgroundColor: 'white',
-                color: 'black',
-                height: '400px',
-                overflow: 'auto'
-              }}
-            >
+            <div className="doc-preview" style={{ height: '400px' }}>
               {previewContent ? (
                 <div dangerouslySetInnerHTML={{ __html: previewContent }} />
               ) : (
-                <div className="text-center" style={{ color: '#6B7280', marginTop: '150px' }}>
+                <div className="text-center text-muted" style={{ marginTop: '150px' }}>
                   Select template and employee, then click "Generate Preview" to see the document
                 </div>
               )}
@@ -311,12 +298,12 @@ const DocumentGenerationModal = ({ show, onHide, onGenerate }) => {
           </div>
         </div>
       </Modal.Body>
-      <Modal.Footer style={{ backgroundColor: '#1E293B', borderColor: '#374151' }}>
+      <Modal.Footer>
         <Button variant="secondary" onClick={onHide}>
           Cancel
         </Button>
         <Button 
-          variant="success" 
+          variant="primary"
           onClick={handleGenerate}
           disabled={!selectedTemplate || !selectedEmployee || isGenerating}
         >

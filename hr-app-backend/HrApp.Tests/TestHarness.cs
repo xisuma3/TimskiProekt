@@ -1,9 +1,11 @@
+using HrApp.DomainEntities.DTO.Request;
 using HrApp.DomainEntities.Models;
 using HrApp.Repository.Implementation;
 using HrApp.Service.Implementation;
 using HrAppWebApplication;
 using Microsoft.EntityFrameworkCore;
 using System;
+using System.Threading.Tasks;
 
 namespace HrApp.Tests
 {
@@ -29,12 +31,22 @@ namespace HrApp.Tests
         public AssetAssignmentRepository AssetAssignments { get; }
         public LeaveEntitlementRepository Entitlements { get; }
         public DocumentTemplateRepository Templates { get; }
+        public GeneratedDocumentRepository GeneratedDocuments { get; }
+        public ApprovalDelegationRepository Delegations { get; }
+
+        /// <summary>"Today" for date-based rules (active delegations, accrual). Settable so tests can pin it.</summary>
+        public DateTime Today { get; set; } = DateTime.UtcNow.Date;
+        public ApprovalDelegationService DelegationService { get; }
 
         public LeaveEntitlementService EntitlementService { get; }
         public LeaveRequestService LeaveRequestService { get; }
         public AssetService AssetService { get; }
         public TemplateProcessingService TemplateService { get; }
+        public TemplateHtmlSanitizer TemplateHtmlSanitizer { get; }
+        public GeneratedDocumentService GeneratedDocumentService { get; }
+        public DocumentTemplateService DocumentTemplateService { get; }
         public EmployeeService EmployeeService { get; }
+        public EmployeeAccountStatusValidator AccountStatusValidator { get; }
 
         public TestHarness()
         {
@@ -51,17 +63,33 @@ namespace HrApp.Tests
             AssetAssignments = new AssetAssignmentRepository(Context);
             Entitlements = new LeaveEntitlementRepository(Context);
             Templates = new DocumentTemplateRepository(Context);
+            GeneratedDocuments = new GeneratedDocumentRepository(Context);
+            Delegations = new ApprovalDelegationRepository(Context);
 
-            EntitlementService = new LeaveEntitlementService(Entitlements, LeaveRequests, Employees);
-            LeaveRequestService = new LeaveRequestService(LeaveRequests, Employees, EntitlementService);
+            EntitlementService = new LeaveEntitlementService(Entitlements, LeaveRequests, Employees, () => Today);
+            LeaveRequestService = new LeaveRequestService(LeaveRequests, Employees, EntitlementService, Delegations, () => Today);
+            DelegationService = new ApprovalDelegationService(Delegations, Employees, () => Today);
             AssetService = new AssetService(Assets, AssetAssignments, Employees);
-            TemplateService = new TemplateProcessingService(Templates, Employees, Assets);
+            TemplateHtmlSanitizer = new TemplateHtmlSanitizer();
+            DocumentTemplateService = new DocumentTemplateService(Templates, TemplateHtmlSanitizer);
+            TemplateService = new TemplateProcessingService(Templates, Employees, Assets, TemplateHtmlSanitizer);
+            GeneratedDocumentService = new GeneratedDocumentService(GeneratedDocuments, Employees, Templates, TemplateService, TemplateHtmlSanitizer);
             EmployeeService = new EmployeeService(Employees);
+            AccountStatusValidator = new EmployeeAccountStatusValidator(Employees);
         }
 
+        // --- Erasure helper -----------------------------------------------------------
+        // Erasure now needs an accountable performer and a request; most tests only care
+        // about the erasure itself, so this supplies a standing HR performer.
+        private Employee _hrPerformer;
+        public Employee HrPerformer => _hrPerformer ??= AddEmployee("Hr", "Performer", "hr.performer@example.com");
+
+        public Task EraseAsync(Guid employeeId, string requestedBy = "The employee, by email", string reason = "Right-to-erasure request") =>
+            EmployeeService.EraseAsync(employeeId, HrPerformer.EmployeeID,
+                new EraseEmployeeRequestDto { RequestedBy = requestedBy, Reason = reason });
         // --- Fixture builders -------------------------------------------------------
 
-        public Employee AddEmployee(string firstName = "Ada", string lastName = "Lovelace", string email = null)
+        public Employee AddEmployee(string firstName = "Ada", string lastName = "Lovelace", string email = null, Guid? managerId = null)
         {
             var employee = new Employee
             {
@@ -70,7 +98,8 @@ namespace HrApp.Tests
                 LastName = lastName,
                 Email = email ?? $"{firstName}.{lastName}@example.com".ToLowerInvariant(),
                 Position = "Engineer",
-                HireDate = new DateTime(2020, 1, 1)
+                HireDate = new DateTime(2020, 1, 1),
+                ManagerID = managerId
             };
             Context.Employees.Add(employee);
             Context.SaveChanges();
@@ -94,7 +123,7 @@ namespace HrApp.Tests
             return asset;
         }
 
-        public LeaveEntitlement AddEntitlement(Guid employeeId, int year, string leaveType, decimal days, decimal carriedOver = 0)
+        public LeaveEntitlement AddEntitlement(Guid employeeId, int year, string leaveType, decimal days, decimal carriedOver = 0, string accrual = LeaveEntitlement.AccrualUpfront)
         {
             var entitlement = new LeaveEntitlement
             {
@@ -103,7 +132,8 @@ namespace HrApp.Tests
                 Year = year,
                 LeaveType = leaveType,
                 DaysAllocated = days,
-                DaysCarriedOver = carriedOver
+                DaysCarriedOver = carriedOver,
+                AccrualMethod = accrual
             };
             Context.LeaveEntitlements.Add(entitlement);
             Context.SaveChanges();
@@ -127,7 +157,7 @@ namespace HrApp.Tests
             return request;
         }
 
-        public DocumentTemplate AddTemplate(string content, string name = "Handover")
+        public DocumentTemplate AddTemplate(string content, string name = "Handover", bool allowSelfService = false)
         {
             var template = new DocumentTemplate
             {
@@ -135,7 +165,8 @@ namespace HrApp.Tests
                 TemplateName = name,
                 Description = "Test template",
                 TemplateContent = content,
-                TemplateType = "Asset"
+                TemplateType = "Asset",
+                AllowSelfService = allowSelfService
             };
             Context.DocumentTemplates.Add(template);
             Context.SaveChanges();

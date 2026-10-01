@@ -58,7 +58,7 @@ namespace HrApp.Tests
             var employee = h.AddEmployee();
 
             var ex = await Assert.ThrowsAsync<InvalidOperationException>(() =>
-                h.EmployeeService.EraseAsync(employee.EmployeeID));
+                h.EraseAsync(employee.EmployeeID));
 
             Assert.Contains("Retire the employee before erasing", ex.Message);
         }
@@ -69,7 +69,7 @@ namespace HrApp.Tests
             using var h = new TestHarness();
             var employee = await RetiredEmployeeWithHistory(h);
 
-            await h.EmployeeService.EraseAsync(employee.EmployeeID);
+            await h.EraseAsync(employee.EmployeeID);
 
             var erased = await h.Employees.GetByIdIncludingDeletedAsync(employee.EmployeeID);
             Assert.True(erased.IsErased);
@@ -93,7 +93,7 @@ namespace HrApp.Tests
             using var h = new TestHarness();
             var employee = await RetiredEmployeeWithHistory(h);
 
-            await h.EmployeeService.EraseAsync(employee.EmployeeID);
+            await h.EraseAsync(employee.EmployeeID);
 
             // What the company did, and what happened to company property, survive.
             Assert.Single(await h.LeaveRequests.GetByEmployeeIdAsync(employee.EmployeeID));
@@ -108,7 +108,7 @@ namespace HrApp.Tests
         {
             using var h = new TestHarness();
             var employee = await RetiredEmployeeWithHistory(h);
-            await h.EmployeeService.EraseAsync(employee.EmployeeID);
+            await h.EraseAsync(employee.EmployeeID);
 
             var ex = await Assert.ThrowsAsync<InvalidOperationException>(() =>
                 h.EmployeeService.RestoreAsync(employee.EmployeeID));
@@ -121,10 +121,10 @@ namespace HrApp.Tests
         {
             using var h = new TestHarness();
             var employee = await RetiredEmployeeWithHistory(h);
-            await h.EmployeeService.EraseAsync(employee.EmployeeID);
+            await h.EraseAsync(employee.EmployeeID);
 
             await Assert.ThrowsAsync<InvalidOperationException>(() =>
-                h.EmployeeService.EraseAsync(employee.EmployeeID));
+                h.EraseAsync(employee.EmployeeID));
         }
     }
 

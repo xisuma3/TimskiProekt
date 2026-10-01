@@ -1,4 +1,4 @@
-﻿using HrApp.DomainEntities.Models;
+using HrApp.DomainEntities.Models;
 using System;
 using System.Collections.Generic;
 using System.Linq;
@@ -11,12 +11,16 @@ namespace HrApp.Repository.Interface
     {
         Task<IEnumerable<Employee>> GetAllAsync();
         Task<Employee> GetByIdAsync(Guid id);
+        Task<Employee> GetForDocumentProcessingAsync(Guid id);
         Task<Employee> GetByApplicationUserIdAsync(string applicationUserId);
+        Task<Employee> GetByApplicationUserIdIncludingDeletedAsync(string applicationUserId);
         Task<Employee> AddAsync(Employee employee);
         Task UpdateAsync(Employee employee);
         Task DeleteAsync(Guid id);
         Task<Employee> GetByIdIncludingDeletedAsync(Guid id);
         Task RestoreAsync(Guid id);
-        Task EraseAsync(Guid id);
+        Task EraseAsync(Guid id, ErasureRecord audit);
+        Task<IEnumerable<ErasureRecord>> GetErasureRecordsAsync();
+        Task<Dictionary<Guid, Guid?>> GetManagerMapAsync();
     }
 }

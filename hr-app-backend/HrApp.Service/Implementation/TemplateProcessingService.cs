@@ -22,15 +22,18 @@ namespace HrApp.Service.Implementation
         private readonly IDocumentTemplateRepository _templateRepository;
         private readonly IEmployeeRepository _employeeRepository;
         private readonly IAssetRepository _assetRepository;
+        private readonly ITemplateHtmlSanitizer _htmlSanitizer;
 
         public TemplateProcessingService(
             IDocumentTemplateRepository templateRepository,
             IEmployeeRepository employeeRepository,
-            IAssetRepository assetRepository)
+            IAssetRepository assetRepository,
+            ITemplateHtmlSanitizer htmlSanitizer)
         {
             _templateRepository = templateRepository;
             _employeeRepository = employeeRepository;
             _assetRepository = assetRepository;
+            _htmlSanitizer = htmlSanitizer;
         }
 
         public async Task<string> ProcessTemplateAsync(Guid templateId, Guid employeeId, List<Guid> assetIds = null)
@@ -39,7 +42,7 @@ namespace HrApp.Service.Implementation
             if (template == null)
                 throw new ArgumentException("Template not found");
 
-            var employee = await _employeeRepository.GetByIdAsync(employeeId);
+            var employee = await _employeeRepository.GetForDocumentProcessingAsync(employeeId);
             if (employee == null)
                 throw new ArgumentException("Employee not found");
 
@@ -67,6 +70,16 @@ namespace HrApp.Service.Implementation
             return await ProcessTemplateContentAsync(template.TemplateContent, employee, assets);
         }
 
+        public async Task<string> ProcessTemplateContentForEmployeeAsync(
+            string templateContent, Guid employeeId, List<Asset> assets = null)
+        {
+            var employee = await _employeeRepository.GetForDocumentProcessingAsync(employeeId);
+            if (employee == null)
+                throw new ArgumentException("Employee not found");
+
+            return await ProcessTemplateContentAsync(templateContent, employee, assets);
+        }
+
         public async Task<string> ProcessTemplateContentAsync(string templateContent, Employee employee, List<Asset> assets = null)
         {
             if (string.IsNullOrEmpty(templateContent))
@@ -74,7 +87,7 @@ namespace HrApp.Service.Implementation
 
             // Asset blocks are expanded first so that placeholders inside them are resolved
             // per asset rather than against the employee.
-            var result = ExpandAssetBlocks(templateContent, assets);
+            var result = ExpandAssetBlocks(_htmlSanitizer.Sanitize(templateContent), assets);
 
             var values = BuildEmployeeValues(employee);
             result = SubstitutePlaceholders(result, values);
@@ -83,7 +96,7 @@ namespace HrApp.Service.Implementation
             // finished document.
             result = LeftoverPlaceholderRegex.Replace(result, string.Empty);
 
-            return await Task.FromResult(result);
+            return await Task.FromResult(_htmlSanitizer.Sanitize(result));
         }
 
         private static Dictionary<string, string> BuildEmployeeValues(Employee employee)
