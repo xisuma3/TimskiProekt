@@ -137,7 +137,7 @@ namespace HrApp.Tests
             return request;
         }
 
-        public DocumentTemplate AddTemplate(string content, string name = "Handover")
+        public DocumentTemplate AddTemplate(string content, string name = "Handover", bool allowSelfService = false)
         {
             var template = new DocumentTemplate
             {
@@ -145,7 +145,8 @@ namespace HrApp.Tests
                 TemplateName = name,
                 Description = "Test template",
                 TemplateContent = content,
-                TemplateType = "Asset"
+                TemplateType = "Asset",
+                AllowSelfService = allowSelfService
             };
             Context.DocumentTemplates.Add(template);
             Context.SaveChanges();

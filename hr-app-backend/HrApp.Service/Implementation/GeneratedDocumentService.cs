@@ -89,6 +89,31 @@ namespace HrApp.Service.Implementation
             return MapToDto(created);
         }
 
+        /// <summary>
+        /// An employee generating a document for themselves. <paramref name="employeeId"/>
+        /// must come from the caller's token, never the request body. Only templates an
+        /// admin has opted in (<see cref="DocumentTemplate.AllowSelfService"/>) qualify, and
+        /// asset ownership is still enforced by the template engine, so the document can only
+        /// ever describe the caller and the equipment they hold.
+        /// </summary>
+        public async Task<GeneratedDocumentResponseDto> GenerateSelfServiceAsync(
+            Guid employeeId, Guid templateId, List<Guid> assetIds)
+        {
+            var template = await _templateRepository.GetByIdAsync(templateId);
+            if (template == null)
+                throw new ArgumentException("Template not found");
+            if (!template.AllowSelfService)
+                throw new UnauthorizedAccessException(
+                    "This document can only be issued by HR. Ask HR to generate it for you.");
+
+            return await GenerateDocumentAsync(new GeneratedDocumentRequestDto
+            {
+                EmployeeID = employeeId,
+                TemplateID = templateId,
+                AssetIDs = assetIds ?? new List<Guid>()
+            });
+        }
+
         public async Task DeleteAsync(Guid id)
         {
             await _documentRepository.DeleteAsync(id);

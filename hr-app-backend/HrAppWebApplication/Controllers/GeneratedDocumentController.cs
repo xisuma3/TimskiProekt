@@ -85,6 +85,34 @@ namespace HrAppWebApplication.Controllers
             }
         }
 
+        // POST /api/GeneratedDocument/GenerateMine — an employee issues a self-service
+        // document about themselves. The subject comes from the token, never the body.
+        [HttpPost]
+        public async Task<ActionResult<GeneratedDocumentResponseDto>> GenerateMine([FromBody] SelfServiceDocumentRequestDto dto)
+        {
+            if (!ModelState.IsValid) return BadRequest(ModelState);
+
+            var me = await _employeeService.GetByApplicationUserIdAsync(CurrentApplicationUserId);
+            if (me == null)
+            {
+                return BadRequest(new { message = "No employee record is linked to this account." });
+            }
+
+            try
+            {
+                var created = await _service.GenerateSelfServiceAsync(me.EmployeeID, dto.TemplateID, dto.AssetIDs);
+                return CreatedAtAction(nameof(GetById), new { id = created.DocumentID }, created);
+            }
+            catch (UnauthorizedAccessException ex)
+            {
+                return StatusCode(StatusCodes.Status403Forbidden, new { message = ex.Message });
+            }
+            catch (ArgumentException ex)
+            {
+                return BadRequest(new { message = ex.Message });
+            }
+        }
+
         [HttpDelete("{id}")]
         [Authorize(Roles = "Admin")]
         public async Task<IActionResult> Delete(Guid id)

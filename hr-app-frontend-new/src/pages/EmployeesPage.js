@@ -173,6 +173,8 @@ const EmployeesPage = () => {
         title="Employee Directory"
         apiEndpoint={API_URLS.EMPLOYEES.GET_ALL()}
         searchFields={['firstName', 'lastName', 'email', 'departmentName']}
+        dateFilter={{ label: 'Hired', field: 'hireDate' }}
+        personFilter={{ label: 'Manager', field: 'managerName', emptyLabel: 'No manager' }}
         renderCard={renderEmployeeCard}
         subtitle="Everyone currently employed, with their team and reporting line."
         emptyIcon="bi-people"

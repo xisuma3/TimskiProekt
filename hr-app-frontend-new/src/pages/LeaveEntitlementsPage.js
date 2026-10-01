@@ -77,6 +77,8 @@ const LeaveEntitlementsPage = () => {
       title="Leave Allowances"
       apiEndpoint={API_URLS.LEAVE_ENTITLEMENTS.GET_ALL()}
       searchFields={['employeeName', 'leaveType']}
+      dateFilter={{ label: 'Year', yearField: 'year' }}
+      personFilter={{ label: 'Employee', field: 'employeeName' }}
       renderCard={renderCard}
       subtitle="Yearly leave allowances per employee and leave type."
       emptyIcon="bi-calendar3"

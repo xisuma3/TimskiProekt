@@ -15,6 +15,9 @@ namespace HrApp.Service.Interface
         Task<IEnumerable<GeneratedDocumentResponseDto>> GetByEmployeeIdAsync(Guid employeeId);
         Task<IEnumerable<GeneratedDocumentResponseDto>> GetByTemplateIdAsync(Guid templateId);
         Task<GeneratedDocumentResponseDto> GenerateDocumentAsync(GeneratedDocumentRequestDto dto);
+        /// <summary>Caller generates for themselves; only self-service templates. Throws
+        /// UnauthorizedAccessException for an HR-only template.</summary>
+        Task<GeneratedDocumentResponseDto> GenerateSelfServiceAsync(Guid employeeId, Guid templateId, List<Guid> assetIds);
         Task DeleteAsync(Guid id);
         Task<string> GetDocumentContentAsync(Guid id);
     }

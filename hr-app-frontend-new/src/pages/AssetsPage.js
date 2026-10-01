@@ -130,6 +130,8 @@ const AssetsPage = () => {
         title={isAdmin() ? "Asset Inventory" : "My Assets"}
         apiEndpoint={isAdmin() ? API_URLS.ASSETS.GET_ALL() : API_URLS.ASSETS.GET_MY_ASSETS()}
         searchFields={['name', 'description', 'serialNumber', 'employeeName']}
+        dateFilter={{ label: 'Assigned', field: 'assignmentDate' }}
+        personFilter={{ label: 'Held by', field: 'employeeName', emptyLabel: 'In stock' }}
         renderCard={renderAssetCard}
         subtitle={isAdmin() ? 'Company equipment and who currently holds it.' : 'Equipment currently assigned to you.'}
         emptyIcon="bi-laptop"

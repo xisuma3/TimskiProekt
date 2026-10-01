@@ -80,6 +80,9 @@ export const API_URLS = {
     GET_MY_DOCUMENTS: () => buildApiUrl(API_CONFIG.ENDPOINTS.GENERATED_DOCUMENT, '/GetMyDocuments'),
     GET_CONTENT: (id) => buildApiUrl(API_CONFIG.ENDPOINTS.GENERATED_DOCUMENT, `/GetContent/${id}`),
     GENERATE: () => buildApiUrl(API_CONFIG.ENDPOINTS.GENERATED_DOCUMENT, '/Generate'),
+    // Employee self-service: the subject is the caller (from the token); only templates
+    // with allowSelfService qualify.
+    GENERATE_MINE: () => buildApiUrl(API_CONFIG.ENDPOINTS.GENERATED_DOCUMENT, '/GenerateMine'),
     DELETE: (id) => buildApiUrl(API_CONFIG.ENDPOINTS.GENERATED_DOCUMENT, `/Delete/${id}`)
   },
   

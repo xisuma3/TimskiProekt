@@ -884,6 +884,127 @@ textarea.form-control { min-height: 96px; }
   .drp-day { height: 36px; }
 }
 
+/* ---------- Self-service document picker ---------- */
+.ss-options { display: flex; flex-direction: column; gap: 8px; }
+.ss-option {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  padding: 12px 14px;
+  border: 1px solid var(--hr-border-strong);
+  border-radius: 12px;
+  cursor: pointer;
+  transition: border-color 150ms ease, background-color 150ms ease;
+}
+.ss-option:hover { border-color: var(--hr-primary-border-strong); }
+.ss-option.is-selected { border-color: var(--hr-primary); background: var(--hr-primary-soft); }
+.ss-option .form-check-input { flex: none; margin: 0; }
+.ss-option:focus-within { outline: 3px solid var(--hr-primary-ring); outline-offset: 1px; }
+
+/* ---------- Ribbon toolbar (DataPage) ----------
+   One bar for find / narrow / view / create. Groups are separated by hairlines and
+   carry a small caption underneath (their visible label). Wraps, never clips. */
+.ribbon {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: stretch;
+  margin: -8px 0 12px;
+  padding: 10px 6px 6px;
+  background: var(--hr-surface);
+  border: 1px solid var(--hr-border);
+  border-radius: 14px;
+  box-shadow: var(--hr-shadow-sm);
+}
+.ribbon-group {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 4px;
+  padding: 0 12px;
+  border-right: 1px solid var(--hr-border);
+  min-width: 0;
+}
+.ribbon-group:last-child { border-right: 0; }
+.ribbon-group-grow { flex: 1 1 170px; min-width: 170px; }
+.ribbon-group-create { margin-left: auto; border-right: 0; align-items: flex-end; }
+.ribbon-controls { display: flex; align-items: center; gap: 8px; min-height: 42px; width: 100%; }
+.ribbon-group-create .ribbon-controls { justify-content: flex-end; }
+.ribbon .page-search { min-width: 0; width: 100%; }
+.ribbon .page-search .form-control { width: 100%; }
+.ribbon-date { width: 142px; }
+.ribbon-person { width: 176px; }
+.ribbon-range-sep { color: var(--hr-text-subtle); }
+.ribbon-caption {
+  margin: 0;
+  font-size: 0.68rem;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--hr-text-subtle);
+  white-space: nowrap;
+}
+.ribbon-group-create .ribbon-caption { align-self: flex-end; }
+.ribbon .view-toggle { width: auto; }
+
+.ribbon-chips {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+  margin: 0 0 20px;
+}
+.ribbon-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 3px 4px 3px 10px;
+  border-radius: 999px;
+  background: var(--hr-primary-soft);
+  color: var(--hr-primary);
+  font-size: 0.8rem;
+  font-weight: 600;
+}
+.ribbon-chip button {
+  display: grid;
+  place-items: center;
+  width: 22px;
+  height: 22px;
+  border: 0;
+  border-radius: 50%;
+  background: transparent;
+  color: inherit;
+  cursor: pointer;
+}
+.ribbon-chip button:hover { background: var(--hr-primary-soft-strong); }
+.ribbon-clear { border: 0; background: none; padding: 2px 6px; border-radius: 6px; color: var(--hr-primary); font-size: 0.85rem; font-weight: 600; cursor: pointer; }
+.ribbon-clear:hover { background: var(--hr-primary-soft); }
+.ribbon + .ribbon-chips { margin-top: -2px; }
+.ribbon:not(:has(+ .ribbon-chips)) { margin-bottom: 24px; }
+
+/* When the bar can't fit on one line, keep the primary action beside search on the
+   first row and let the filters wrap underneath, instead of stranding Create alone. */
+@media (max-width: 1399.98px) {
+  .ribbon { row-gap: 12px; }
+  .ribbon-has-filters .ribbon-group-grow { order: -2; flex: 1 1 55%; }
+  .ribbon-has-filters .ribbon-group-create { order: -1; }
+  .ribbon-has-filters .ribbon-group-view { border-right: 0; }
+}
+@media (max-width: 991.98px) {
+  .ribbon { row-gap: 12px; }
+  .ribbon-group-grow { flex-basis: 100%; border-right: 0; }
+}
+@media (max-width: 575.98px) {
+  .ribbon { padding: 10px 4px 6px; }
+  .ribbon-group { padding: 0 10px; border-right: 0; }
+  .ribbon-group:not(.ribbon-group-grow):not(.ribbon-group-create) { flex: 1 1 auto; }
+  .ribbon-date { width: auto; flex: 1 1 0; min-width: 0; }
+  .ribbon-person { width: 100%; }
+  .ribbon-group-create { flex-basis: 100%; margin-left: 0; align-items: stretch; }
+  .ribbon-group-create .ribbon-controls > .btn { width: 100%; }
+  .ribbon-group-create .ribbon-caption { display: none; }
+}
+
 /* ---------- Stat cards ---------- */
 .stat-card { display: flex; align-items: center; gap: 16px; padding: 20px; height: 100%; }
 .stat-card .stat-icon { flex: none; width: 48px; height: 48px; border-radius: 14px; display: grid; place-items: center; font-size: 1.35rem; }

@@ -220,6 +220,8 @@ Reason (optional):`
             subtitle="Pending requests from people who report to you."
             apiEndpoint={API_URLS.LEAVE_REQUESTS.GET_MY_TEAM(false)}
             searchFields={['employeeName', 'leaveType', 'status']}
+            dateFilter={{ label: 'Leave', startField: 'startDate', endField: 'endDate' }}
+            personFilter={{ label: 'Employee', field: 'employeeName' }}
             renderCard={renderTeamRequestCard}
             searchPlaceholder="Search team requests..."
             showAddButton={false}
@@ -238,6 +240,8 @@ Reason (optional):`
           : 'Your time-off requests and their status.'}
         apiEndpoint={isAdmin() ? API_URLS.LEAVE_REQUESTS.GET_ALL() : API_URLS.LEAVE_REQUESTS.GET_MY_REQUESTS()}
         searchFields={isAdmin() ? ['employeeName', 'leaveType', 'status'] : ['leaveType', 'status']}
+        dateFilter={{ label: 'Leave', startField: 'startDate', endField: 'endDate' }}
+        personFilter={{ label: 'Employee', field: 'employeeName' }}
         renderCard={renderLeaveRequestCard}
         searchPlaceholder={isAdmin() ? "Search leave requests..." : "Search my requests..."}
         showAddButton={true}

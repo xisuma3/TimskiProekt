@@ -7,7 +7,8 @@ const DocumentTemplateModal = ({ show, onHide, onSave, editingTemplate }) => {
     templateName: '',
     description: '',
     templateContent: '',
-    templateType: 'Asset'
+    templateType: 'Asset',
+    allowSelfService: false
   });
   const [error, setError] = useState('');
   const [previewContent, setPreviewContent] = useState('');
@@ -22,14 +23,16 @@ const DocumentTemplateModal = ({ show, onHide, onSave, editingTemplate }) => {
         templateName: editingTemplate.templateName || '',
         description: editingTemplate.description || '',
         templateContent: editingTemplate.templateContent || '',
-        templateType: editingTemplate.templateType || 'Asset'
+        templateType: editingTemplate.templateType || 'Asset',
+        allowSelfService: Boolean(editingTemplate.allowSelfService)
       });
     } else {
       setTemplateData({
         templateName: '',
         description: '',
         templateContent: '',
-        templateType: 'Asset'
+        templateType: 'Asset',
+        allowSelfService: false
       });
     }
     setError('');
@@ -222,6 +225,20 @@ const DocumentTemplateModal = ({ show, onHide, onSave, editingTemplate }) => {
                   <option value="Employment">Employment</option>
                   <option value="Salary">Salary</option>
                 </Form.Select>
+              </Form.Group>
+
+              <Form.Group className="mb-3" controlId="template-self-service">
+                <Form.Check
+                  type="switch"
+                  label="Employees can generate this themselves"
+                  checked={templateData.allowSelfService}
+                  onChange={(e) => setTemplateData((prev) => ({ ...prev, allowSelfService: e.target.checked }))}
+                />
+                <Form.Text>
+                  For documents about the employee only, like an employment confirmation. They can only
+                  ever generate it for themselves, listing equipment they hold. Leave off for anything HR
+                  must issue, such as salary letters.
+                </Form.Text>
               </Form.Group>
 
               <Form.Group className="mb-3">

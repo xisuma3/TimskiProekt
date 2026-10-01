@@ -17,8 +17,13 @@ const DocumentTemplatesPage = () => {
           <span className="item-card-icon" aria-hidden="true"><i className="bi bi-file-earmark-text" /></span>
           <div className="flex-grow-1 min-w-0">
             <Card.Title>{template.templateName}</Card.Title>
-            <Card.Subtitle className="text-truncate">Template ID: {template.templateID}</Card.Subtitle>
+            <Card.Subtitle className="text-truncate">
+              {template.allowSelfService ? 'Employees can generate this themselves' : 'Issued by HR only'}
+            </Card.Subtitle>
           </div>
+          {template.allowSelfService && (
+            <span className="status-chip is-info" title="Employees can generate this themselves">Self-service</span>
+          )}
           <span className={`status-chip ${typeChip(template.templateType)}`}>{template.templateType}</span>
         </div>
 

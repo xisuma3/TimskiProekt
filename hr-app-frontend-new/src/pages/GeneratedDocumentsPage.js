@@ -3,6 +3,7 @@ import { Card, Button, Modal } from 'react-bootstrap';
 import { useState } from 'react';
 import DataPage from '../components/DataPage';
 import DocumentGenerationModal from '../components/DocumentGenerationModal';
+import SelfServiceDocumentModal from '../components/SelfServiceDocumentModal';
 import { API_URLS } from '../config/api';
 import { isAdmin } from '../services/authService';
 
@@ -12,6 +13,9 @@ const typeChip = (type) =>
 const GeneratedDocumentsPage = () => {
   const [viewingDocument, setViewingDocument] = useState(null);
   const [showViewModal, setShowViewModal] = useState(false);
+  const [showSelfService, setShowSelfService] = useState(false);
+  // Bumped after a self-service document is created so the list reloads.
+  const [listVersion, setListVersion] = useState(0);
   const admin = isAdmin();
 
   const renderDocumentCard = (document, onEdit, onDelete) => (
@@ -95,18 +99,37 @@ const GeneratedDocumentsPage = () => {
   return (
     <>
       <DataPage
+        key={listVersion}
         title={admin ? "Generated Documents" : "My Generated Documents"}
-        subtitle={admin ? 'Documents produced from templates for your employees.' : 'Documents HR has generated for you.'}
+        subtitle={admin
+          ? 'Documents produced from templates for your employees.'
+          : 'Documents issued to you. Some you can generate yourself with Get a document.'}
         emptyIcon="bi-file-earmark-check"
         apiEndpoint={apiEndpoint}
         searchFields={admin ? ['templateName', 'employeeName', 'documentType'] : ['templateName', 'documentType']}
+        dateFilter={{ label: 'Generated', field: 'generatedDate' }}
+        personFilter={{ label: 'Employee', field: 'employeeName' }}
         renderCard={renderDocumentCard}
         searchPlaceholder={admin ? "Search documents..." : "Search my documents..."}
-        createButtonText="Generate Document"
+        createButtonText={admin ? "Generate Document" : "Get a document"}
+        showAddButton={!admin}
+        onAddClick={() => setShowSelfService(true)}
         modalComponent={admin ? DocumentGenerationModal : null}
         onDelete={admin ? handleDelete : null}
         deleteConfirmText="Are you sure you want to delete this generated document? This action cannot be undone."
       />
+
+      {!admin && (
+        <SelfServiceDocumentModal
+          show={showSelfService}
+          onHide={() => setShowSelfService(false)}
+          onGenerated={(doc) => {
+            setShowSelfService(false);
+            setListVersion((v) => v + 1);
+            handleViewDocument(doc);
+          }}
+        />
+      )}
 
       {/* Document View Modal */}
       <Modal

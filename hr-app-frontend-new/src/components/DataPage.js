@@ -1,6 +1,7 @@
-import React, { useCallback, useEffect, useState } from 'react';
+import React, { useCallback, useDeferredValue, useEffect, useState } from 'react';
 import { Row, Col, Alert, Form, Button, Modal } from 'react-bootstrap';
 import { authenticatedFetch } from '../services/authService';
+import { matchesDate, matchesPerson, personOptions } from './listFilters';
 
 const SKELETON_COUNT = 6;
 
@@ -34,6 +35,9 @@ const DataPage = ({
   headerContent = null,
   // Optional third view: (filteredItems) => node. Adds a Calendar button to the toggle.
   renderCalendar = null,
+  // Optional filters (see listFilters.js for the config shapes).
+  dateFilter = null,
+  personFilter = null,
 }) => {
   const [data, setData] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -45,6 +49,9 @@ const DataPage = ({
   const [itemToDelete, setItemToDelete] = useState(null);
   const [deleteLoading, setDeleteLoading] = useState(false);
   const [view, setView] = useState(() => readView(title, Boolean(renderCalendar)));
+  const [dateFrom, setDateFrom] = useState('');
+  const [dateTo, setDateTo] = useState('');
+  const [person, setPerson] = useState('');
 
   const changeView = (next) => {
     setView(next);
@@ -127,18 +134,48 @@ const DataPage = ({
     fetchData(); // Refresh data
   };
 
-  // Filter data by search
+  // A person filter is only useful when the list holds more than one person (an
+  // employee's own lists hold just them).
+  const people = personOptions(data, personFilter);
+  const showPersonFilter = Boolean(personFilter) && people.length > 1;
+  const filtersActive = Boolean(dateFrom || dateTo || (showPersonFilter && person));
+  const narrowed = Boolean(search) || filtersActive;
+  const clearFilters = () => { setDateFrom(''); setDateTo(''); setPerson(''); };
+  const idBase = title.toLowerCase().replace(/[^a-z0-9]+/g, '-');
+
+  // Search, then date range, then person. Filtering reads a deferred copy of the search so
+  // typing stays responsive on long lists.
+  const deferredSearch = useDeferredValue(search);
   const filteredData = data.filter(item => {
-    if (!search) return true;
-    const searchLower = search.toLowerCase();
-    return searchFields.some(field => {
-      const value = item[field];
-      return value && value.toString().toLowerCase().includes(searchLower);
-    });
+    if (deferredSearch) {
+      const searchLower = deferredSearch.toLowerCase();
+      const hit = searchFields.some(field => {
+        const value = item[field];
+        return value && value.toString().toLowerCase().includes(searchLower);
+      });
+      if (!hit) return false;
+    }
+    if (!matchesDate(item, dateFilter, dateFrom, dateTo)) return false;
+    return !showPersonFilter || matchesPerson(item, personFilter, person);
   });
 
   const usesManagedModal = ModalComponent && onDelete;
   const showCreate = showAddButton || ModalComponent;
+  const hasSearch = searchFields.length > 0;
+  const fmtDay = (s) => new Date(`${s}T00:00:00`).toLocaleDateString(undefined, { day: 'numeric', month: 'short', year: 'numeric' });
+
+  // Active filters as removable chips under the ribbon.
+  const chips = [];
+  if (search) chips.push({ key: 'search', label: `“${search}”`, clear: () => setSearch('') });
+  if (dateFilter && (dateFrom || dateTo)) {
+    const range = dateFrom && dateTo ? `${fmtDay(dateFrom)} – ${fmtDay(dateTo)}`
+      : dateFrom ? `from ${fmtDay(dateFrom)}` : `until ${fmtDay(dateTo)}`;
+    chips.push({ key: 'date', label: `${dateFilter.label}: ${range}`, clear: () => { setDateFrom(''); setDateTo(''); } });
+  }
+  if (showPersonFilter && person) {
+    chips.push({ key: 'person', label: `${personFilter.label}: ${person}`, clear: () => setPerson('') });
+  }
+  const clearAll = () => { setSearch(''); clearFilters(); };
 
   return (
     <section aria-labelledby="data-page-title">
@@ -147,18 +184,20 @@ const DataPage = ({
           <h1 id="data-page-title">{title}</h1>
           {subtitle && <p>{subtitle}</p>}
           {!subtitle && !loading && !error && (
-            <p>
-              {search
-                ? `${filteredData.length} of ${data.length} shown`
-                : `${data.length} ${data.length === 1 ? 'item' : 'items'}`}
-            </p>
+            <p>{`${data.length} ${data.length === 1 ? 'item' : 'items'}`}</p>
           )}
         </div>
-        <div className="page-header-actions">
-          {searchFields.length > 0 && (
-            <div className="page-search" role="search">
+      </div>
+
+      {/* Ribbon: every way to find, narrow, view and add records, in one bar. Each group
+          carries a visible caption, so no control relies on a placeholder as its label. */}
+      <div className={`ribbon${(dateFilter || showPersonFilter) && !error ? ' ribbon-has-filters' : ''}`} role="toolbar" aria-label={`${title} tools`}>
+        {hasSearch && (
+          <div className="ribbon-group ribbon-group-grow">
+            <div className="ribbon-controls page-search" role="search">
               <i className="bi bi-search" aria-hidden="true" />
               <Form.Control
+                id={`${idBase}-search`}
                 type="search"
                 placeholder={searchPlaceholder}
                 aria-label={searchPlaceholder}
@@ -166,8 +205,54 @@ const DataPage = ({
                 onChange={e => setSearch(e.target.value)}
               />
             </div>
-          )}
-          <div className="view-toggle" role="group" aria-label="Layout">
+            <label className="ribbon-caption" htmlFor={`${idBase}-search`}>Search</label>
+          </div>
+        )}
+
+        {dateFilter && !error && (
+          <div className="ribbon-group" role="group" aria-labelledby={`${idBase}-date-caption`}>
+            <div className="ribbon-controls">
+              <Form.Control
+                type="date"
+                className="ribbon-date"
+                aria-label={`${dateFilter.label} from`}
+                value={dateFrom}
+                max={dateTo || undefined}
+                onChange={(e) => setDateFrom(e.target.value)}
+              />
+              <span className="ribbon-range-sep" aria-hidden="true">→</span>
+              <Form.Control
+                type="date"
+                className="ribbon-date"
+                aria-label={`${dateFilter.label} to`}
+                value={dateTo}
+                min={dateFrom || undefined}
+                onChange={(e) => setDateTo(e.target.value)}
+              />
+            </div>
+            <span className="ribbon-caption" id={`${idBase}-date-caption`}>{dateFilter.label} dates</span>
+          </div>
+        )}
+
+        {showPersonFilter && !error && (
+          <div className="ribbon-group">
+            <div className="ribbon-controls">
+              <Form.Select
+                id={`${idBase}-person`}
+                className="ribbon-person"
+                value={person}
+                onChange={(e) => setPerson(e.target.value)}
+              >
+                <option value="">Everyone</option>
+                {people.map((p) => <option key={p} value={p}>{p}</option>)}
+              </Form.Select>
+            </div>
+            <label className="ribbon-caption" htmlFor={`${idBase}-person`}>{personFilter.label}</label>
+          </div>
+        )}
+
+        <div className="ribbon-group ribbon-group-view">
+          <div className="ribbon-controls view-toggle" role="group" aria-label="Layout">
             <button
               type="button"
               className={`view-toggle-btn ${view === 'grid' ? 'active' : ''}`}
@@ -201,14 +286,36 @@ const DataPage = ({
               </button>
             )}
           </div>
-          {showCreate && (
-            <Button variant="primary" onClick={showAddButton ? onAddClick : handleCreate}>
-              <i className="bi bi-plus-lg me-2" aria-hidden="true"></i>
-              {createButtonText}
-            </Button>
-          )}
+          <span className="ribbon-caption" aria-hidden="true">View</span>
         </div>
+
+        {showCreate && (
+          <div className="ribbon-group ribbon-group-create">
+            <div className="ribbon-controls">
+              <Button variant="primary" onClick={showAddButton ? onAddClick : handleCreate}>
+                <i className="bi bi-plus-lg me-2" aria-hidden="true"></i>
+                {createButtonText}
+              </Button>
+            </div>
+            <span className="ribbon-caption" aria-hidden="true">Create</span>
+          </div>
+        )}
       </div>
+
+      {chips.length > 0 && !loading && !error && (
+        <div className="ribbon-chips" aria-live="polite">
+          {chips.map((c) => (
+            <span key={c.key} className="ribbon-chip">
+              {c.label}
+              <button type="button" onClick={c.clear} aria-label={`Remove filter ${c.label}`}>
+                <i className="bi bi-x" aria-hidden="true" />
+              </button>
+            </span>
+          ))}
+          <span className="text-muted small">{filteredData.length} of {data.length} shown</span>
+          <button type="button" className="ribbon-clear" onClick={clearAll}>Clear filters</button>
+        </div>
+      )}
 
       {headerContent}
 
@@ -233,13 +340,18 @@ const DataPage = ({
 
       {!loading && !error && view !== 'calendar' && filteredData.length === 0 && (
         <div className="empty-state">
-          <i className={`bi ${search ? 'bi-search' : emptyIcon}`} aria-hidden="true" />
-          <h3>{search ? 'No matches' : `No ${title.toLowerCase()} yet`}</h3>
+          <i className={`bi ${narrowed ? 'bi-search' : emptyIcon}`} aria-hidden="true" />
+          <h3>{narrowed ? 'No matches' : `No ${title.toLowerCase()} yet`}</h3>
           <p className="mb-0">
-            {search ? `Nothing matches “${search}”. Try a different search.` : `No ${title.toLowerCase()} found.`}
+            {search && !filtersActive && `Nothing matches “${search}”. Try a different search.`}
+            {filtersActive && 'Nothing matches the current filters.'}
+            {!narrowed && `No ${title.toLowerCase()} found.`}
           </p>
           {search && (
             <Button variant="light" className="mt-3" onClick={() => setSearch('')}>Clear search</Button>
+          )}
+          {filtersActive && (
+            <Button variant="light" className="mt-3 ms-2" onClick={clearFilters}>Clear filters</Button>
           )}
         </div>
       )}

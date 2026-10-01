@@ -117,6 +117,7 @@ const EmployeeDosiersPage = () => {
         title={isAdmin() ? "Employee Dossiers" : "My Dossier"}
         apiEndpoint={isAdmin() ? API_URLS.EMPLOYEE_DOSSIERS.GET_ALL() : API_URLS.EMPLOYEE_DOSSIERS.GET_MY_DOSSIER()}
         searchFields={isAdmin() ? ['employeeName', 'employmentType', 'address'] : ['employmentType', 'address']}
+        personFilter={{ label: 'Employee', field: 'employeeName' }}
         subtitle={isAdmin() ? 'Personal and employment details for every employee.' : 'Your personal and employment details on file.'}
         emptyIcon="bi-person-vcard"
         renderCard={renderDossierCard}

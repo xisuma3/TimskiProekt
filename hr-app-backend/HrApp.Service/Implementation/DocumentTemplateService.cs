@@ -62,7 +62,8 @@ namespace HrApp.Service.Implementation
                 TemplateName = dto.TemplateName,
                 Description = dto.Description,
                 TemplateContent = _htmlSanitizer.Sanitize(dto.TemplateContent),
-                TemplateType = dto.TemplateType
+                TemplateType = dto.TemplateType,
+                AllowSelfService = dto.AllowSelfService
             };
 
             var created = await _repository.AddAsync(template);
@@ -88,6 +89,7 @@ namespace HrApp.Service.Implementation
             existingTemplate.Description = dto.Description;
             existingTemplate.TemplateContent = _htmlSanitizer.Sanitize(dto.TemplateContent);
             existingTemplate.TemplateType = dto.TemplateType;
+            existingTemplate.AllowSelfService = dto.AllowSelfService;
 
             await _repository.UpdateAsync(existingTemplate);
         }
@@ -118,6 +120,7 @@ namespace HrApp.Service.Implementation
                 Description = template.Description,
                 TemplateContent = _htmlSanitizer.Sanitize(template.TemplateContent),
                 TemplateType = template.TemplateType,
+                AllowSelfService = template.AllowSelfService,
                 LastModifiedDate = GetLastModifiedDate(template),
                 GeneratedDocumentsCount = template.GeneratedDocuments?.Count ?? 0
             };
