@@ -26,5 +26,12 @@ namespace HrApp.DomainEntities.Models
         public Employee? ApprovedBy { get; set; }
         public DateTime? DecisionAt { get; set; }
         public string? DecisionReason { get; set; }
+
+        /// <summary>
+        /// Set when the decision was made under a delegation: the manager whose authority the
+        /// approver was exercising. Null when the approver acted on their own authority.
+        /// </summary>
+        public Guid? DecidedOnBehalfOfEmployeeID { get; set; }
+        public Employee? DecidedOnBehalfOf { get; set; }
     }
 }

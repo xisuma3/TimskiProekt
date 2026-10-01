@@ -1,4 +1,4 @@
-﻿using HrApp.DomainEntities.Models;
+using HrApp.DomainEntities.Models;
 using System;
 using System.Collections.Generic;
 using System.Linq;
@@ -16,6 +16,7 @@ namespace HrApp.Repository.Interface
 
         /// <summary>Requests filed by anyone reporting to this manager.</summary>
         Task<IEnumerable<LeaveRequest>> GetForManagerAsync(Guid managerEmployeeId, bool pendingOnly = false);
+        Task<IEnumerable<LeaveRequest>> GetForEmployeesAsync(IReadOnlyCollection<Guid> employeeIds, bool pendingOnly = false);
         Task<IEnumerable<LeaveRequest>> GetOverlappingAsync(
             Guid employeeId, DateTime startDate, DateTime endDate, Guid? excludeRequestId = null);
 

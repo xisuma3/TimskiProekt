@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { Modal, Button, Form, Row, Col, Alert } from 'react-bootstrap';
 import { authenticatedFetch, getUserInfo, isAdmin } from '../services/authService';
 import { API_URLS } from '../config/api';
-import { checkAllowance, yearsSpanned } from '../services/leaveBalance';
+import { asOfForYear, checkAllowance, yearsSpanned } from '../services/leaveBalance';
 import DateRangePicker from './DateRangePicker';
 
 const LeaveRequestModal = ({ show, onHide, employees = [], onSave }) => {
@@ -53,8 +53,8 @@ const LeaveRequestModal = ({ show, onHide, employees = [], onSave }) => {
     setChecking(true);
     Promise.all(yearsSpanned(startDate, endDate).map(async (year) => {
       const url = admin
-        ? API_URLS.LEAVE_ENTITLEMENTS.GET_BALANCE(employeeID, year)
-        : API_URLS.LEAVE_ENTITLEMENTS.GET_MY_BALANCE(year);
+        ? API_URLS.LEAVE_ENTITLEMENTS.GET_BALANCE(employeeID, year, asOfForYear(endDate, year))
+        : API_URLS.LEAVE_ENTITLEMENTS.GET_MY_BALANCE(year, asOfForYear(endDate, year));
       const res = await authenticatedFetch(url);
       if (!res.ok) throw new Error('balance unavailable');
       return [year, await res.json()];

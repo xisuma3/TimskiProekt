@@ -2,11 +2,15 @@ import React, { useState, useEffect } from 'react';
 import { Card, Button, ProgressBar } from 'react-bootstrap';
 import DataPage from '../components/DataPage';
 import LeaveEntitlementModal from '../components/LeaveEntitlementModal';
+import CarryOverModal from '../components/CarryOverModal';
 import { authenticatedFetch } from '../services/authService';
 import { API_URLS } from '../config/api';
 
 const LeaveEntitlementsPage = () => {
   const [employees, setEmployees] = useState([]);
+  const [showCarryOver, setShowCarryOver] = useState(false);
+  // Bumped after a carry-over is applied so the list reloads with next year's allowances.
+  const [listVersion, setListVersion] = useState(0);
 
   useEffect(() => {
     authenticatedFetch(API_URLS.EMPLOYEES.GET_ALL())
@@ -34,6 +38,13 @@ const LeaveEntitlementsPage = () => {
           </div>
           <span className="status-chip is-primary">{entitlement.year}</span>
         </div>
+        {entitlement.accrualMethod === 'Monthly' && (
+          <div className="mb-2">
+            <span className="status-chip is-info" title="1/12 of the allocation becomes available at the start of each month">
+              Monthly accrual
+            </span>
+          </div>
+        )}
 
         <dl className="meta-list">
           <dt>Allocated</dt>
@@ -73,7 +84,9 @@ const LeaveEntitlementsPage = () => {
   );
 
   return (
+    <>
     <DataPage
+      key={listVersion}
       title="Leave Allowances"
       apiEndpoint={API_URLS.LEAVE_ENTITLEMENTS.GET_ALL()}
       searchFields={['employeeName', 'leaveType']}
@@ -88,7 +101,25 @@ const LeaveEntitlementsPage = () => {
       modalItemProp="item"
       onDelete={handleDelete}
       deleteConfirmText="Delete this allowance? The employee won't be able to request this leave type for that year until a new allowance is set."
+      headerContent={
+        <div className="d-flex flex-wrap align-items-center justify-content-between gap-2 mb-4">
+          <small className="text-muted">
+            <i className="bi bi-arrow-repeat me-1" aria-hidden="true" />
+            At year end, move unused days into next year's allowances.
+          </small>
+          <Button variant="outline-secondary" size="sm" onClick={() => setShowCarryOver(true)}>
+            <i className="bi bi-box-arrow-in-right me-1" aria-hidden="true" />
+            Year-end carry-over
+          </Button>
+        </div>
+      }
     />
+    <CarryOverModal
+      show={showCarryOver}
+      onHide={() => setShowCarryOver(false)}
+      onApplied={() => setListVersion((v) => v + 1)}
+    />
+    </>
   );
 };
 
@@ -103,8 +134,11 @@ export const LeaveBalanceCards = ({ balances = [], compact = false }) => {
   return (
     <div className="row g-3">
       {balances.map((b) => {
-        const used = b.totalAvailable > 0
-          ? Math.min(100, (b.daysCommitted / b.totalAvailable) * 100)
+        // Monthly accrual: measure against what has accrued so far, not the full year.
+        const monthly = b.accrualMethod === 'Monthly';
+        const base = monthly ? (b.daysAvailable ?? b.totalAvailable) : b.totalAvailable;
+        const used = base > 0
+          ? Math.min(100, (b.daysCommitted / base) * 100)
           : 0;
         const tone = !b.isTracked ? 'red'
           : b.daysRemaining <= 0 ? 'red'
@@ -124,7 +158,7 @@ export const LeaveBalanceCards = ({ balances = [], compact = false }) => {
                     {b.isTracked ? (
                       <div className="stat-value" style={{ fontSize: '1.5rem' }}>
                         {b.daysRemaining}
-                        <small className="text-muted fw-normal" style={{ fontSize: '0.85rem' }}> / {b.totalAvailable} days</small>
+                        <small className="text-muted fw-normal" style={{ fontSize: '0.85rem' }}> / {base} days</small>
                       </div>
                     ) : (
                       <span className="status-chip">No allowance</span>
@@ -143,6 +177,13 @@ export const LeaveBalanceCards = ({ balances = [], compact = false }) => {
                       {b.daysApproved} approved
                       {b.daysPending > 0 && `, ${b.daysPending} pending`}
                     </small>
+                    {monthly && (
+                      <small className="text-muted d-block">
+                        <i className="bi bi-graph-up-arrow me-1" aria-hidden="true" />
+                        {b.daysAccrued} of {b.daysAllocated} accrued so far
+                        {b.daysCarriedOver > 0 && ` + ${b.daysCarriedOver} carried over`}
+                      </small>
+                    )}
                   </>
                 ) : (
                   <small className="text-muted d-block">

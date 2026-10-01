@@ -14,7 +14,8 @@ const LeaveEntitlementModal = ({ show, onHide, onSave, item, employees = [] }) =
     year: new Date().getFullYear(),
     leaveType: 'Vacation',
     daysAllocated: 20,
-    daysCarriedOver: 0
+    daysCarriedOver: 0,
+    accrualMethod: 'Upfront'
   });
   const [error, setError] = useState(null);
   const [saving, setSaving] = useState(false);
@@ -26,7 +27,8 @@ const LeaveEntitlementModal = ({ show, onHide, onSave, item, employees = [] }) =
         year: item.year ?? new Date().getFullYear(),
         leaveType: item.leaveType ?? 'Vacation',
         daysAllocated: item.daysAllocated ?? 0,
-        daysCarriedOver: item.daysCarriedOver ?? 0
+        daysCarriedOver: item.daysCarriedOver ?? 0,
+        accrualMethod: item.accrualMethod === 'Monthly' ? 'Monthly' : 'Upfront'
       });
     } else {
       setForm({
@@ -34,7 +36,8 @@ const LeaveEntitlementModal = ({ show, onHide, onSave, item, employees = [] }) =
         year: new Date().getFullYear(),
         leaveType: 'Vacation',
         daysAllocated: 20,
-        daysCarriedOver: 0
+        daysCarriedOver: 0,
+        accrualMethod: 'Upfront'
       });
     }
     setError(null);
@@ -52,7 +55,8 @@ const LeaveEntitlementModal = ({ show, onHide, onSave, item, employees = [] }) =
       year: Number(form.year),
       leaveType: form.leaveType,
       daysAllocated: Number(form.daysAllocated),
-      daysCarriedOver: Number(form.daysCarriedOver)
+      daysCarriedOver: Number(form.daysCarriedOver),
+      accrualMethod: form.accrualMethod
     };
 
     try {
@@ -161,6 +165,19 @@ const LeaveEntitlementModal = ({ show, onHide, onSave, item, employees = [] }) =
               </Form.Group>
             </Col>
           </Row>
+
+          <Form.Group className="mb-3" controlId="allowance-accrual">
+            <Form.Label>Accrual</Form.Label>
+            <Form.Select value={form.accrualMethod} onChange={update('accrualMethod')}>
+              <option value="Upfront">Up front — all days on 1 January</option>
+              <option value="Monthly">Monthly — 1/12 at the start of each month</option>
+            </Form.Select>
+            <Form.Text>
+              {form.accrualMethod === 'Monthly'
+                ? 'The allocation builds up month by month; employees can book what will have accrued by the last day of their leave. Carried-over days are available in full from the start.'
+                : 'The whole allocation is available from the first day of the year.'}
+            </Form.Text>
+          </Form.Group>
 
           <Form.Text as="p" className="mb-0">
             Employees can only request leave of a type they have an allowance for, and only up to

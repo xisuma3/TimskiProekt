@@ -1,4 +1,4 @@
-﻿using HrApp.DomainEntities.Models;
+using HrApp.DomainEntities.Models;
 using HrApp.Repository.Interface;
 using HrAppWebApplication;
 using Microsoft.EntityFrameworkCore;
@@ -24,6 +24,7 @@ namespace HrApp.Repository.Implementation
             return await _context.LeaveRequests
                 .Include(lr => lr.Employee)
                 .Include(lr => lr.ApprovedBy)
+                .Include(lr => lr.DecidedOnBehalfOf)
                 .OrderByDescending(lr => lr.CreatedAt)
                 .ToListAsync();
         }
@@ -33,6 +34,7 @@ namespace HrApp.Repository.Implementation
             return await _context.LeaveRequests
                 .Include(lr => lr.Employee)
                 .Include(lr => lr.ApprovedBy)
+                .Include(lr => lr.DecidedOnBehalfOf)
                 .FirstOrDefaultAsync(lr => lr.RequestID == id);
         }
 
@@ -42,6 +44,7 @@ namespace HrApp.Repository.Implementation
                 .Where(lr => lr.EmployeeID == employeeId)
                 .Include(lr => lr.Employee)
                 .Include(lr => lr.ApprovedBy)
+                .Include(lr => lr.DecidedOnBehalfOf)
                 .OrderByDescending(lr => lr.CreatedAt)
                 .ToListAsync();
         }
@@ -52,6 +55,7 @@ namespace HrApp.Repository.Implementation
                 .Where(lr => lr.Status == "Pending")
                 .Include(lr => lr.Employee)
                 .Include(lr => lr.ApprovedBy)
+                .Include(lr => lr.DecidedOnBehalfOf)
                 .OrderBy(lr => lr.CreatedAt)
                 .ToListAsync();
         }
@@ -79,6 +83,25 @@ namespace HrApp.Repository.Implementation
                 .Where(lr => lr.Employee.ManagerID == managerEmployeeId && !lr.Employee.IsDeleted)
                 .Include(lr => lr.Employee)
                 .Include(lr => lr.ApprovedBy)
+                .Include(lr => lr.DecidedOnBehalfOf)
+                .AsQueryable();
+
+            if (pendingOnly) query = query.Where(lr => lr.Status == "Pending");
+
+            return await query.OrderByDescending(lr => lr.CreatedAt).ToListAsync();
+        }
+
+        // Requests filed by any of the given employees (retired requesters excluded) —
+        // backs the "requests I can decide" view once authority is worked out in the service.
+        public async Task<IEnumerable<LeaveRequest>> GetForEmployeesAsync(IReadOnlyCollection<Guid> employeeIds, bool pendingOnly = false)
+        {
+            if (employeeIds.Count == 0) return new List<LeaveRequest>();
+
+            var query = _context.LeaveRequests
+                .Where(lr => employeeIds.Contains(lr.EmployeeID) && !lr.Employee.IsDeleted)
+                .Include(lr => lr.Employee)
+                .Include(lr => lr.ApprovedBy)
+                .Include(lr => lr.DecidedOnBehalfOf)
                 .AsQueryable();
 
             if (pendingOnly) query = query.Where(lr => lr.Status == "Pending");

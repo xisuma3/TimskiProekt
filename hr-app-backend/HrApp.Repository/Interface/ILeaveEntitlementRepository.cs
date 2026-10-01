@@ -13,6 +13,7 @@ namespace HrApp.Repository.Interface
 
         /// <summary>The allowance governing one employee/year/type, or null when none is set (that leave type then can't be requested).</summary>
         Task<LeaveEntitlement> GetForAsync(Guid employeeId, int year, string leaveType);
+        Task<IEnumerable<LeaveEntitlement>> GetByYearAsync(int year);
 
         Task<LeaveEntitlement> AddAsync(LeaveEntitlement entitlement);
         Task UpdateAsync(LeaveEntitlement entitlement);

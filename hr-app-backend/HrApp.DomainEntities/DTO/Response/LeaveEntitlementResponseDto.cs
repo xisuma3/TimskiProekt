@@ -12,5 +12,6 @@ namespace HrApp.DomainEntities.DTO.Response
         public decimal DaysAllocated { get; set; }
         public decimal DaysCarriedOver { get; set; }
         public decimal TotalAvailable => DaysAllocated + DaysCarriedOver;
+        public string AccrualMethod { get; set; }
     }
 }

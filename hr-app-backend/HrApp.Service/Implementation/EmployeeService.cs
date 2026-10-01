@@ -1,4 +1,4 @@
-﻿using HrApp.DomainEntities.DTO.Request;
+using HrApp.DomainEntities.DTO.Request;
 using HrApp.DomainEntities.DTO.Response;
 using HrApp.DomainEntities.Models;
 using HrApp.Repository.Interface;
@@ -200,8 +200,14 @@ namespace HrApp.Service.Implementation
         /// has already been retired — erasing someone still employed is almost certainly a
         /// mistake, and the two-step makes it deliberate.
         /// </summary>
-        public async Task EraseAsync(Guid id)
+        public async Task EraseAsync(Guid id, Guid performedByEmployeeId, EraseEmployeeRequestDto request)
         {
+            if (request == null || string.IsNullOrWhiteSpace(request.RequestedBy) || string.IsNullOrWhiteSpace(request.Reason))
+                throw new ArgumentException("An erasure needs who requested it and why.");
+
+            if (request.RequestReceivedAt.HasValue && request.RequestReceivedAt.Value.Date > DateTime.UtcNow.Date)
+                throw new ArgumentException("The request can't have been received in the future.");
+
             var employee = await _repository.GetByIdIncludingDeletedAsync(id);
             if (employee == null) throw new ArgumentException("Employee not found");
 
@@ -212,7 +218,51 @@ namespace HrApp.Service.Implementation
                 throw new InvalidOperationException(
                     "Retire the employee before erasing them. Erasure is irreversible.");
 
-            await _repository.EraseAsync(id);
+            // The performer must be a real, current employee so the record names someone
+            // accountable — and nobody erases their own record.
+            var performer = await _repository.GetByIdAsync(performedByEmployeeId);
+            if (performer == null)
+                throw new ArgumentException("The person performing the erasure has no employee record.");
+            if (performer.EmployeeID == id)
+                throw new InvalidOperationException("You cannot erase your own record.");
+
+            await _repository.EraseAsync(id, new ErasureRecord
+            {
+                PerformedByEmployeeID = performer.EmployeeID,
+                RequestedBy = request.RequestedBy.Trim(),
+                Reason = request.Reason.Trim(),
+                RequestReceivedAt = request.RequestReceivedAt?.Date,
+            });
+        }
+
+        public async Task<IEnumerable<EmployeeDirectoryEntryDto>> GetDirectoryAsync()
+        {
+            var employees = await _repository.GetAllAsync(); // excludes retired employees
+            return employees
+                .Select(e => new EmployeeDirectoryEntryDto
+                {
+                    EmployeeID = e.EmployeeID,
+                    Name = $"{e.FirstName} {e.LastName}".Trim(),
+                    Position = e.Position,
+                    DepartmentName = e.Department?.Name,
+                })
+                .OrderBy(e => e.Name)
+                .ToList();
+        }
+        public async Task<IEnumerable<ErasureRecordResponseDto>> GetErasureLogAsync()
+        {
+            var records = await _repository.GetErasureRecordsAsync();
+            return records.Select(r => new ErasureRecordResponseDto
+            {
+                ErasureRecordID = r.ErasureRecordID,
+                EmployeeID = r.EmployeeID,
+                PerformedByEmployeeID = r.PerformedByEmployeeID,
+                PerformedByName = r.PerformedBy == null ? null : $"{r.PerformedBy.FirstName} {r.PerformedBy.LastName}",
+                PerformedAt = r.PerformedAt,
+                RequestedBy = r.RequestedBy,
+                RequestReceivedAt = r.RequestReceivedAt,
+                Reason = r.Reason,
+            });
         }
 
       

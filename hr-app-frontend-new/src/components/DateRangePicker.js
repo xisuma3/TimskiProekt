@@ -29,7 +29,12 @@ export const firstBlockedBetween = (from, to, isBlocked) => {
   return null;
 };
 
-const DateRangePicker = ({ start, end, onChange, minDate, booked = [] }) => {
+const DateRangePicker = ({
+  start, end, onChange, minDate, booked = [],
+  // Wording for the summary line, so the picker reads right outside leave (e.g. cover).
+  startPrompt = 'Select the first day of your leave.',
+  endPrompt = 'select the last day',
+}) => {
   const min = minDate ? toDayNum(minDate) : todayNum();
   const startNum = start ? toDayNum(start) : null;
   const endNum = end ? toDayNum(end) : null;
@@ -180,11 +185,11 @@ const DateRangePicker = ({ start, end, onChange, minDate, booked = [] }) => {
 
       <div className="drp-footer">
         <div className="drp-summary" aria-live="polite">
-          {startNum === null && <span className="text-muted">Select the first day of your leave.</span>}
+          {startNum === null && <span className="text-muted">{startPrompt}</span>}
           {startNum !== null && endNum === null && (
             <span>
               <strong>{fmt(startNum, { weekday: 'short', day: 'numeric', month: 'short' })}</strong>
-              <span className="text-muted"> → select the last day</span>
+              <span className="text-muted"> → {endPrompt}</span>
             </span>
           )}
           {dayCount !== null && (

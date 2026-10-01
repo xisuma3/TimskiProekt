@@ -118,6 +118,13 @@ Reason (optional):`
           {getStatusChip(request.status)}
         </div>
 
+        {/* Team view only: why this manager may decide it (skip-level or delegated). */}
+        {request.approvalRoute && (
+          <div className="mb-2">
+            <span className="status-chip is-info" title="Why you can decide this request">{request.approvalRoute}</span>
+          </div>
+        )}
+
         <dl className="meta-list">
           <dt>Start Date</dt>
           <dd>{new Date(request.startDate).toLocaleDateString()}</dd>
@@ -132,6 +139,7 @@ Reason (optional):`
               <dt>{request.status} by</dt>
               <dd>
                 {request.approvedByName || 'Unknown'}
+                {request.decidedOnBehalfOfName && ` on behalf of ${request.decidedOnBehalfOfName}`}
                 {' '}on {new Date(request.decisionAt).toLocaleDateString()}
               </dd>
               {request.decisionReason && (
@@ -196,10 +204,12 @@ Reason (optional):`
             </span>
             <div className="flex-grow-1">
               <div className="fw-semibold">
-                <strong>{teamCount}</strong> request{teamCount === 1 ? '' : 's'} from your team
+                <strong>{teamCount}</strong> leave request{teamCount === 1 ? '' : 's'}
                 {teamCount === 1 ? ' is' : ' are'} waiting on you.
               </div>
-              <small className="text-muted">As their manager, you can approve or reject them.</small>
+              <small className="text-muted">
+                From people in your reporting line, including indirect reports, and anyone whose approvals you're covering.
+              </small>
             </div>
             <Button
               size="sm"
@@ -217,7 +227,7 @@ Reason (optional):`
         <div className="mb-5">
           <DataPage
             title="My Team's Requests"
-            subtitle="Pending requests from people who report to you."
+            subtitle="Requests you can decide: direct and indirect reports, and anyone whose approvals you're covering."
             apiEndpoint={API_URLS.LEAVE_REQUESTS.GET_MY_TEAM(false)}
             searchFields={['employeeName', 'leaveType', 'status']}
             dateFilter={{ label: 'Leave', startField: 'startDate', endField: 'endDate' }}

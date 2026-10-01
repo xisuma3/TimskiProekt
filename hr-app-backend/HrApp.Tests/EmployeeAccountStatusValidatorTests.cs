@@ -45,7 +45,7 @@ namespace HrApp.Tests
 
             Assert.True(await h.AccountStatusValidator.CanAuthenticateAsync("employee-id"));
             await h.EmployeeService.DeleteAsync(employee.EmployeeID);
-            await h.EmployeeService.EraseAsync(employee.EmployeeID);
+            await h.EraseAsync(employee.EmployeeID);
 
             Assert.False(await h.AccountStatusValidator.CanAuthenticateAsync("employee-id"));
             var erased = await h.Employees.GetByIdIncludingDeletedAsync(employee.EmployeeID);

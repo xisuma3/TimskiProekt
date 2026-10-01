@@ -114,6 +114,13 @@ builder.Services.AddScoped<ILeaveEntitlementService, LeaveEntitlementService>();
 builder.Services.AddScoped<ILeaveRequestRepository, LeaveRequestRepository>();
 builder.Services.AddScoped<ILeaveRequestService, LeaveRequestService>();
 
+// Approval delegation (a manager's authority handed to a colleague for a period).
+builder.Services.AddScoped<IApprovalDelegationRepository, ApprovalDelegationRepository>();
+builder.Services.AddScoped<IApprovalDelegationService, ApprovalDelegationService>();
+
+// "Today" for date-based rules (active delegations, accrual). Injected so tests can pin it.
+builder.Services.AddSingleton<Func<DateTime>>(() => DateTime.UtcNow.Date);
+
 builder.Services.AddScoped<IDocumentTemplateRepository, DocumentTemplateRepository>();
 builder.Services.AddSingleton<ITemplateHtmlSanitizer, TemplateHtmlSanitizer>();
 builder.Services.AddScoped<IDocumentTemplateService, DocumentTemplateService>();

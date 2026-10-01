@@ -13,6 +13,14 @@ const MAX_READ_IDS = 300;
 const days = (start, end) =>
   Math.round((new Date(end).setHours(0, 0, 0, 0) - new Date(start).setHours(0, 0, 0, 0)) / DAY) + 1;
 
+// Calendar date (YYYY-MM-DD…) shown as e.g. "12 Jun 2030", without timezone drift.
+const fmtDay = (value) =>
+  value
+    ? new Date(`${String(value).slice(0, 10)}T00:00:00Z`).toLocaleDateString(undefined, {
+      day: 'numeric', month: 'short', year: 'numeric', timeZone: 'UTC',
+    })
+    : '';
+
 const plural = (n, word) => `${n} ${word}${n === 1 ? '' : 's'}`;
 
 // The API records instants with DateTime.UtcNow but serialises them without an offset
@@ -35,12 +43,13 @@ const leaveLabel = (r) => `${(r.leaveType || 'Leave').toLowerCase()} leave`;
 // Pure: turns API lists into notifications, newest first. Every source is optional so a
 // failing endpoint only drops its own items.
 export const buildNotifications = (
-  { allRequests, teamPending, myRequests, myAssets, myDocuments, employees },
+  { allRequests, teamPending, myRequests, myAssets, myDocuments, employees, delegations, meId },
   { admin = false, now = Date.now() } = {}
 ) => {
   const items = [];
 
-  // Requests awaiting a decision: org-wide for admins, direct reports for managers.
+  // Requests awaiting a decision: org-wide for admins; for everyone else, the people in
+  // their reporting line plus anyone whose approvals they're covering.
   const pending = admin ? (allRequests || []).filter((r) => r.status === 'Pending') : teamPending || [];
   for (const r of pending) {
     const created = parseInstant(r.createdAt);
@@ -52,9 +61,30 @@ export const buildNotifications = (
       icon: 'bi-hourglass-split',
       tone: stale ? 'red' : 'amber',
       title: `${r.employeeName || 'An employee'} requested ${plural(days(r.startDate, r.endDate), 'day')} of ${leaveLabel(r)}`,
-      body: stale ? `Waiting for a decision for ${plural(waited, 'day')}` : 'Waiting for your decision',
+      body: [
+        stale ? `Waiting for a decision for ${plural(waited, 'day')}` : 'Waiting for your decision',
+        r.approvalRoute && r.approvalRoute !== 'Direct report' ? r.approvalRoute : null,
+      ].filter(Boolean).join(' · '),
       at: iso(created),
       to: '/leave-requests',
+    });
+  }
+
+  // Someone asked me to cover their approvals (active now or starting later).
+  for (const d of delegations || []) {
+    // Without my own id we can't tell given from received, so say nothing.
+    const toMe = Boolean(meId) && d.delegateEmployeeID === meId;
+    if (!toMe || (d.status !== 'Active' && d.status !== 'Scheduled')) continue;
+    const created = parseInstant(d.createdAt);
+    items.push({
+      id: `delegation:${d.delegationID}`,
+      kind: 'delegation',
+      icon: 'bi-person-check',
+      tone: 'sky',
+      title: `${d.delegatorName || 'A manager'} asked you to cover their approvals`,
+      body: `${fmtDay(d.startDate)} – ${fmtDay(d.endDate)}${d.status === 'Scheduled' ? ' · starts later' : ''}`,
+      at: iso(created) || new Date(now).toISOString(),
+      to: '/approval-cover',
     });
   }
 
@@ -160,13 +190,19 @@ const settle = (promise) => promise.then((v) => v, () => undefined);
 
 export const fetchNotifications = async () => {
   const admin = isAdmin();
-  const [allRequests, teamPending, myRequests, myAssets, myDocuments, employees] = await Promise.all([
+  const [allRequests, teamPending, myRequests, myAssets, myDocuments, employees, delegations, me] = await Promise.all([
     admin ? settle(getJson(API_URLS.LEAVE_REQUESTS.GET_ALL())) : undefined,
     admin ? undefined : settle(getJson(API_URLS.LEAVE_REQUESTS.GET_MY_TEAM(true))),
     settle(getJson(API_URLS.LEAVE_REQUESTS.GET_MY_REQUESTS())),
     settle(getJson(API_URLS.ASSETS.GET_MY_ASSETS())),
     settle(getJson(API_URLS.GENERATED_DOCUMENTS.GET_MY_DOCUMENTS())),
     admin ? settle(getJson(API_URLS.EMPLOYEES.GET_ALL())) : undefined,
+    // Cover arranged for or by me; filtered to the ones where I'm the delegate.
+    settle(getJson(API_URLS.APPROVAL_DELEGATIONS.GET_MINE())),
+    settle(getJson(API_URLS.EMPLOYEES.GET_MY_PROFILE())),
   ]);
-  return buildNotifications({ allRequests, teamPending, myRequests, myAssets, myDocuments, employees }, { admin });
+  return buildNotifications(
+    { allRequests, teamPending, myRequests, myAssets, myDocuments, employees, delegations, meId: me?.employeeID },
+    { admin }
+  );
 };

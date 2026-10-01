@@ -199,7 +199,9 @@ namespace HrApp.Tests
         {
             public Task<EmployeeResponseDto> AddAsync(EmployeeRequestDto dto) => throw new InvalidOperationException("Persistence failed");
             public Task DeleteAsync(Guid id) => throw new NotImplementedException();
-            public Task EraseAsync(Guid id) => throw new NotImplementedException();
+            public Task EraseAsync(Guid id, Guid performedByEmployeeId, EraseEmployeeRequestDto request) => throw new NotImplementedException();
+            public Task<IEnumerable<ErasureRecordResponseDto>> GetErasureLogAsync() => throw new NotImplementedException();
+            public Task<IEnumerable<EmployeeDirectoryEntryDto>> GetDirectoryAsync() => throw new NotImplementedException();
             public Task<IEnumerable<EmployeeResponseDto>> GetAllAsync() => throw new NotImplementedException();
             public Task<EmployeeResponseDto> GetByApplicationUserIdAsync(string applicationUserId) => throw new NotImplementedException();
             public Task<EmployeeResponseDto> GetByIdAsync(Guid id) => throw new NotImplementedException();

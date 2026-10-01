@@ -14,6 +14,11 @@ const EmployeesPage = () => {
   const [employeeToErase, setEmployeeToErase] = useState(null);
   const [eraseConfirmText, setEraseConfirmText] = useState('');
   const [eraseError, setEraseError] = useState(null);
+  // Audit details the API requires for every erasure.
+  const [eraseRequestedBy, setEraseRequestedBy] = useState('');
+  const [eraseReceivedAt, setEraseReceivedAt] = useState('');
+  const [eraseReason, setEraseReason] = useState('');
+  const [erasing, setErasing] = useState(false);
 
   // Fetch departments for the dropdown
   useEffect(() => {
@@ -69,11 +74,24 @@ const EmployeesPage = () => {
       return;
     }
 
+    if (!eraseRequestedBy.trim() || !eraseReason.trim()) {
+      setEraseError('Say who requested the erasure and why.');
+      return;
+    }
+
     setEraseError(null);
+    setErasing(true);
     try {
       const response = await authenticatedFetch(
         API_URLS.EMPLOYEES.ERASE(employeeToErase.employeeID),
-        { method: 'POST' }
+        {
+          method: 'POST',
+          body: JSON.stringify({
+            requestedBy: eraseRequestedBy.trim(),
+            reason: eraseReason.trim(),
+            requestReceivedAt: eraseReceivedAt || null,
+          }),
+        }
       );
 
       if (response.ok) {
@@ -88,12 +106,29 @@ const EmployeesPage = () => {
       } catch {
         // no JSON body
       }
-      // 409 when they have not been retired first, or are already erased.
+      // 400 for missing details / no linked employee record; 409 when not retired yet,
+      // already erased, or erasing yourself.
       setEraseError(message);
     } catch (error) {
       setEraseError(error.message);
+    } finally {
+      setErasing(false);
     }
   };
+
+  const openErase = (emp) => {
+    setEmployeeToErase(emp);
+    setEraseConfirmText('');
+    setEraseRequestedBy('');
+    setEraseReceivedAt('');
+    setEraseReason('');
+    setEraseError(null);
+  };
+
+  const today = new Date().toISOString().slice(0, 10);
+  const eraseNameMatches = Boolean(employeeToErase)
+    && eraseConfirmText.trim() === `${employeeToErase.firstName} ${employeeToErase.lastName}`;
+  const eraseReady = eraseNameMatches && eraseRequestedBy.trim() !== '' && eraseReason.trim() !== '';
 
   const handleSave = (savedEmployee) => {
     // Refresh the page data
@@ -156,7 +191,7 @@ const EmployeesPage = () => {
             size="sm"
             variant="outline-danger"
             className="btn-icon"
-            onClick={() => { setEmployeeToErase(emp); setEraseConfirmText(''); setEraseError(null); }}
+            onClick={() => openErase(emp)}
             title="Erase personal data — irreversible"
             aria-label={`Erase personal data of ${emp.firstName} ${emp.lastName}`}
           >
@@ -235,7 +270,38 @@ const EmployeesPage = () => {
           </p>
           <p className="text-danger"><strong>This cannot be undone.</strong></p>
 
-          <Form.Group>
+          <Form.Group className="mb-3" controlId="erase-requested-by">
+            <Form.Label>Requested by *</Form.Label>
+            <Form.Control
+              value={eraseRequestedBy}
+              maxLength={200}
+              onChange={(e) => setEraseRequestedBy(e.target.value)}
+            />
+            <Form.Text>Who asked — e.g. the employee by email, their solicitor.</Form.Text>
+          </Form.Group>
+
+          <Form.Group className="mb-3" controlId="erase-received-at">
+            <Form.Label>Request received</Form.Label>
+            <Form.Control
+              type="date"
+              max={today}
+              value={eraseReceivedAt}
+              onChange={(e) => setEraseReceivedAt(e.target.value)}
+            />
+          </Form.Group>
+
+          <Form.Group className="mb-3" controlId="erase-reason">
+            <Form.Label>Reason *</Form.Label>
+            <Form.Control
+              as="textarea"
+              rows={2}
+              maxLength={1000}
+              value={eraseReason}
+              onChange={(e) => setEraseReason(e.target.value)}
+            />
+          </Form.Group>
+
+          <Form.Group controlId="erase-confirm-name">
             <Form.Label>
               Type <code>{employeeToErase?.firstName} {employeeToErase?.lastName}</code> to confirm
             </Form.Label>
@@ -244,10 +310,16 @@ const EmployeesPage = () => {
               onChange={(e) => setEraseConfirmText(e.target.value)}
             />
           </Form.Group>
+
+          <p className="text-muted small mt-3 mb-0">
+            This creates a permanent audit record naming you as the person who performed the erasure.
+          </p>
         </Modal.Body>
         <Modal.Footer>
           <Button variant="secondary" onClick={() => setEmployeeToErase(null)}>Cancel</Button>
-          <Button variant="danger" onClick={handleEraseConfirm}>Erase permanently</Button>
+          <Button variant="danger" onClick={handleEraseConfirm} disabled={!eraseReady || erasing}>
+            {erasing ? 'Erasing…' : 'Erase permanently'}
+          </Button>
         </Modal.Footer>
       </Modal>
     </>

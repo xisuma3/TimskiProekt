@@ -11,9 +11,12 @@ namespace HrApp.DomainEntities.Models
     /// <see cref="DaysAllocated"/> minus the days committed by Pending and Approved
     /// requests in the same year and type.
     ///
-    /// Types with no entitlement row are unlimited — sick leave is usually governed by
-    /// policy and certificates rather than a day count, so an absent row means
-    /// "not capped here" rather than "zero days".
+    /// A type with no entitlement row has no allowance: requests of that type are refused
+    /// until HR sets one up.
+    ///
+    /// <see cref="AccrualMethod"/> decides how the allocation becomes available:
+    /// "Upfront" grants it all on 1 January; "Monthly" grants 1/12 at the start of each
+    /// month. Carried-over days are always available in full.
     /// </summary>
     public class LeaveEntitlement
     {
@@ -34,5 +37,11 @@ namespace HrApp.DomainEntities.Models
         public decimal DaysCarriedOver { get; set; }
 
         public decimal TotalAvailable => DaysAllocated + DaysCarriedOver;
+
+        public const string AccrualUpfront = "Upfront";
+        public const string AccrualMonthly = "Monthly";
+
+        /// <summary>"Upfront" (default) or "Monthly".</summary>
+        public string AccrualMethod { get; set; } = AccrualUpfront;
     }
 }

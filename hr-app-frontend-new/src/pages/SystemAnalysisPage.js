@@ -4,6 +4,7 @@ import { Link } from 'react-router-dom';
 import { authenticatedFetch } from '../services/authService';
 import { API_URLS } from '../config/api';
 import { BarList, ChartCard, ColumnChart, StackedBar } from '../components/charts/Charts';
+import ErasureLogCard from '../components/ErasureLogCard';
 import {
   PERIODS,
   approvalRate,
@@ -323,7 +324,7 @@ const SystemHealth = ({ results, data }) => {
         <Card.Header className="py-3">
           Recent activity
           <small className="d-block text-muted fw-normal">
-            Built from record timestamps. Edits and deletions are not tracked — that needs a backend audit log.
+            Built from record timestamps. Erasures have their own audit log below; other edits and deletions are not recorded.
           </small>
         </Card.Header>
         {!anyActivitySource && <Card.Body><div className="chart-muted">Data unavailable</div></Card.Body>}
@@ -433,6 +434,7 @@ const SystemAnalysisPage = () => {
           </Tab.Pane>
           <Tab.Pane eventKey="health">
             {!results ? <LoadingState /> : <SystemHealth results={results} data={data} />}
+            <ErasureLogCard refreshKey={updatedAt ? updatedAt.getTime() : 0} />
           </Tab.Pane>
         </Tab.Content>
       </Tab.Container>

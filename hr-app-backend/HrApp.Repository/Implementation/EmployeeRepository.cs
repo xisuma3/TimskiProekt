@@ -1,4 +1,4 @@
-﻿using HrApp.DomainEntities.Models;
+using HrApp.DomainEntities.Models;
 using HrApp.Repository.Interface;
 using HrAppWebApplication;
 using Microsoft.EntityFrameworkCore;
@@ -110,7 +110,11 @@ namespace HrApp.Repository.Implementation
         /// anonymous employee id rather than being deleted outright. The row itself
         /// survives so those foreign keys stay valid.
         /// </summary>
-        public async Task EraseAsync(Guid id)
+        /// <summary>
+        /// Erases the employee's personal data and writes <paramref name="audit"/> in the
+        /// same SaveChanges, so an erasure can never happen without its record.
+        /// </summary>
+        public async Task EraseAsync(Guid id, ErasureRecord audit)
         {
             var employee = await _context.Employees
                 .Include(e => e.EmployeeDossier)
@@ -152,7 +156,31 @@ namespace HrApp.Repository.Implementation
             employee.IsDeleted = true;
             employee.DeletedAt ??= DateTime.UtcNow;
 
+            audit.ErasureRecordID = audit.ErasureRecordID == Guid.Empty ? Guid.NewGuid() : audit.ErasureRecordID;
+            audit.EmployeeID = id;
+            audit.PerformedAt = employee.ErasedAt.Value;
+            _context.ErasureRecords.Add(audit);
+
             await _context.SaveChangesAsync();
+        }
+
+        /// <summary>
+        /// Every employee's manager, including retired employees, in one query. Approval
+        /// authority walks this chain; retired managers stay in it so a gap in the org chart
+        /// doesn't cut a requester off from the managers above.
+        /// </summary>
+        public async Task<Dictionary<Guid, Guid?>> GetManagerMapAsync()
+        {
+            return await _context.Employees
+                .Select(e => new { e.EmployeeID, e.ManagerID })
+                .ToDictionaryAsync(e => e.EmployeeID, e => e.ManagerID);
+        }
+        public async Task<IEnumerable<ErasureRecord>> GetErasureRecordsAsync()
+        {
+            return await _context.ErasureRecords
+                .Include(r => r.PerformedBy)
+                .OrderByDescending(r => r.PerformedAt)
+                .ToListAsync();
         }
 
         public async Task RestoreAsync(Guid id)

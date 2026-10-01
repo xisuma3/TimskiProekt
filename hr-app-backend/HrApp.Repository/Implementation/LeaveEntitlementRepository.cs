@@ -34,6 +34,14 @@ namespace HrApp.Repository.Implementation
                 .FirstOrDefaultAsync(l => l.EntitlementID == id);
         }
 
+        /// <summary>Every allowance for one year, for active (not retired) employees.</summary>
+        public async Task<IEnumerable<LeaveEntitlement>> GetByYearAsync(int year)
+        {
+            return await _context.LeaveEntitlements
+                .Where(l => l.Year == year && !l.Employee.IsDeleted)
+                .Include(l => l.Employee)
+                .ToListAsync();
+        }
         public async Task<IEnumerable<LeaveEntitlement>> GetByEmployeeIdAsync(Guid employeeId, int? year = null)
         {
             var query = _context.LeaveEntitlements

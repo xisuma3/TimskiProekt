@@ -86,3 +86,46 @@ test('offset-less API timestamps are read as UTC; calendar dates and offsets are
   expect(parseInstant('2026-10-01T10:00:00Z').toISOString()).toBe('2026-10-01T10:00:00.000Z');
   expect(parseInstant(null)).toBeNull();
 });
+
+test('delegations to me become notices; ones I gave, or that ended, do not', () => {
+  const base = { delegatorName: 'Mia Manager', startDate: '2026-10-05T00:00:00', endDate: '2026-10-09T00:00:00', createdAt: daysAgo(1) };
+  const items = buildNotifications(
+    {
+      meId: 'me',
+      delegations: [
+        { ...base, delegationID: 'a', delegateEmployeeID: 'me', status: 'Active' },
+        { ...base, delegationID: 'b', delegateEmployeeID: 'me', status: 'Scheduled' },
+        { ...base, delegationID: 'c', delegateEmployeeID: 'me', status: 'Revoked' },
+        { ...base, delegationID: 'd', delegateEmployeeID: 'someone-else', delegatorEmployeeID: 'me', status: 'Active' },
+      ],
+    },
+    { now }
+  );
+  expect(items.map((n) => n.id).sort()).toEqual(['delegation:a', 'delegation:b']);
+  const active = items.find((n) => n.id === 'delegation:a');
+  expect(active.title).toBe('Mia Manager asked you to cover their approvals');
+  expect(active.to).toBe('/approval-cover');
+  expect(items.find((n) => n.id === 'delegation:b').body).toMatch(/starts later/);
+});
+
+test('without my own id, delegations are not announced', () => {
+  const items = buildNotifications(
+    { delegations: [{ delegationID: 'a', delegateEmployeeID: 'x', status: 'Active', startDate: '2026-10-05', endDate: '2026-10-06' }] },
+    { now }
+  );
+  expect(items).toEqual([]);
+});
+
+test('indirect and delegated team requests say why they reached me', () => {
+  const items = buildNotifications(
+    {
+      teamPending: [
+        { ...pending('direct', 1), approvalRoute: 'Direct report' },
+        { ...pending('deleg', 1), approvalRoute: 'Delegated by Mia Manager' },
+      ],
+    },
+    { admin: false, now }
+  );
+  expect(items.find((n) => n.id === 'leave-pending:direct').body).toBe('Waiting for your decision');
+  expect(items.find((n) => n.id === 'leave-pending:deleg').body).toBe('Waiting for your decision · Delegated by Mia Manager');
+});

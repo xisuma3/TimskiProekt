@@ -23,7 +23,19 @@ export const yearsSpanned = (start, end) => {
   return years;
 };
 
+// The date to work a year's balance out for: the request's last day in that year. The
+// server books monthly accrual against what will have accrued by then, so the form asks
+// the API for the balance as of the same day.
+export const asOfForYear = (end, year) => {
+  const yearEnd = `${year}-12-31`;
+  return end < yearEnd ? end : yearEnd;
+};
+
+const fmtDate = (s) =>
+  new Date(`${s}T00:00:00Z`).toLocaleDateString(undefined, { day: 'numeric', month: 'short', year: 'numeric', timeZone: 'UTC' });
+
 /**
+ * Balances should be fetched with asOf = asOfForYear(end, year) so monthly accrual matches the server.
  * @param balancesByYear { [year]: LeaveBalanceResponseDto[] }
  * @returns { ok: boolean, reason: 'ok' | 'none' | 'short', message: string, years: [...] }
  */
@@ -35,7 +47,19 @@ export const checkAllowance = (balancesByYear, start, end, leaveType) => {
     const b = (balancesByYear[year] || []).find((x) => x.leaveType?.toLowerCase() === type);
     if (!b || !b.isTracked) return { year, need, tracked: false };
     const remaining = +b.daysRemaining;
-    return { year, need, tracked: true, remaining, total: +b.totalAvailable, fits: need <= remaining };
+    // Accrual still building up by the request's last day in this year.
+    const accruing = b.accrualMethod === 'Monthly' && +b.daysAccrued < +b.daysAllocated;
+    return {
+      year,
+      need,
+      tracked: true,
+      remaining,
+      total: +b.totalAvailable,
+      fits: need <= remaining,
+      accruing,
+      accrued: +b.daysAccrued,
+      asOf: asOfForYear(end, year),
+    };
   });
 
   const missing = years.find((y) => !y.tracked);
@@ -51,19 +75,23 @@ export const checkAllowance = (balancesByYear, start, end, leaveType) => {
   const short = years.find((y) => !y.fits);
   if (short) {
     const span = years.length > 1 ? ` in ${short.year}` : '';
+    const by = short.accruing ? ` by ${fmtDate(short.asOf)}` : '';
     const left = short.remaining <= 0
-      ? `you have no ${type} days left${span}`
-      : `you only have ${plural(short.remaining, 'day')} of ${type} leave left${span}`;
+      ? `you'll have no ${type} days left${span}${by}`
+      : `you'll only have ${plural(short.remaining, 'day')} of ${type} leave left${span}${by}`;
+    const accrualNote = short.accruing
+      ? ` (your allowance accrues monthly — ${plural(short.accrued, 'day')} will have accrued by then)`
+      : '';
     return {
       ok: false,
       reason: 'short',
       years,
-      message: `This request needs ${plural(short.need, 'day')}${span}, but ${left}. Shorten it or ask HR about your allowance.`,
+      message: `This request needs ${plural(short.need, 'day')}${span}, but ${left}${accrualNote}. Shorten it or ask HR about your allowance.`,
     };
   }
 
   const summary = years
-    .map((y) => `${plural(y.remaining - y.need, 'day')} left in ${y.year}`)
+    .map((y) => `${plural(y.remaining - y.need, 'day')} left in ${y.year}${y.accruing ? ` as of ${fmtDate(y.asOf)}` : ''}`)
     .join(', ');
   return {
     ok: true,

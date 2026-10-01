@@ -26,6 +26,8 @@ namespace HrAppWebApplication
         public DbSet<AssetAssignment> AssetAssignments { get; set; }
         public DbSet<DocumentTemplate> DocumentTemplates { get; set; }
         public DbSet<GeneratedDocument> GeneratedDocuments { get; set; }
+        public DbSet<ApprovalDelegation> ApprovalDelegations { get; set; }
+        public DbSet<ErasureRecord> ErasureRecords { get; set; }
 
         // --- REMOVE THE OLD DbSet<User>! ---
         // public DbSet<User> Users { get; set; } // <--- DELETE THIS LINE
@@ -152,6 +154,61 @@ namespace HrAppWebApplication
                     .WithMany()
                     .HasForeignKey(l => l.ApprovedByEmployeeID)
                     .OnDelete(DeleteBehavior.Restrict);
+
+                // The manager whose authority a delegate exercised. Restrict for the same
+                // reason as ApprovedBy: it is part of the decision's audit trail.
+                entity.HasOne(l => l.DecidedOnBehalfOf)
+                    .WithMany()
+                    .HasForeignKey(l => l.DecidedOnBehalfOfEmployeeID)
+                    .OnDelete(DeleteBehavior.Restrict);
+            });
+
+            // ApprovalDelegation — who may approve for whom, and when
+            modelBuilder.Entity<ApprovalDelegation>(entity =>
+            {
+                entity.HasKey(d => d.DelegationID);
+
+                entity.HasOne(d => d.Delegator)
+                    .WithMany()
+                    .HasForeignKey(d => d.DelegatorEmployeeID)
+                    .OnDelete(DeleteBehavior.Restrict);
+
+                entity.HasOne(d => d.Delegate)
+                    .WithMany()
+                    .HasForeignKey(d => d.DelegateEmployeeID)
+                    .OnDelete(DeleteBehavior.Restrict);
+
+                entity.Property(d => d.StartDate).HasColumnType("date");
+                entity.Property(d => d.EndDate).HasColumnType("date");
+                entity.Property(d => d.Note).HasMaxLength(500);
+                entity.Property(d => d.CreatedAt).HasDefaultValueSql("GETUTCDATE()");
+
+                // "Who can act for me today?" and "whom am I covering?" are the two lookups.
+                entity.HasIndex(d => new { d.DelegatorEmployeeID, d.StartDate, d.EndDate });
+                entity.HasIndex(d => new { d.DelegateEmployeeID, d.StartDate, d.EndDate });
+            });
+
+            // ErasureRecord — append-only audit of GDPR erasures
+            modelBuilder.Entity<ErasureRecord>(entity =>
+            {
+                entity.HasKey(r => r.ErasureRecordID);
+
+                entity.HasOne(r => r.Employee)
+                    .WithMany()
+                    .HasForeignKey(r => r.EmployeeID)
+                    .OnDelete(DeleteBehavior.Restrict);
+
+                entity.HasOne(r => r.PerformedBy)
+                    .WithMany()
+                    .HasForeignKey(r => r.PerformedByEmployeeID)
+                    .OnDelete(DeleteBehavior.Restrict);
+
+                entity.Property(r => r.RequestedBy).IsRequired().HasMaxLength(200);
+                entity.Property(r => r.Reason).IsRequired().HasMaxLength(1000);
+                entity.Property(r => r.PerformedAt).HasDefaultValueSql("GETUTCDATE()");
+
+                // An employee is erased at most once.
+                entity.HasIndex(r => r.EmployeeID).IsUnique();
             });
 
             // LeaveEntitlement configuration
@@ -170,6 +227,11 @@ namespace HrAppWebApplication
                 entity.Property(l => l.DaysCarriedOver).HasColumnType("decimal(5,2)");
 
                 entity.Ignore(l => l.TotalAvailable);
+
+                entity.Property(l => l.AccrualMethod)
+                    .IsRequired()
+                    .HasMaxLength(20)
+                    .HasDefaultValue(LeaveEntitlement.AccrualUpfront);
 
                 // One allowance per employee per year per type.
                 entity.HasIndex(l => new { l.EmployeeID, l.Year, l.LeaveType }).IsUnique();

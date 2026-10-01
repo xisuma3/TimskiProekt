@@ -16,6 +16,7 @@ import EmployeeDosiersPage from './pages/EmployeeDosiersPage';
 import DashboardPage from './pages/DashboardPage';
 import SidebarLayout from './components/SidebarLayout';
 import SystemAnalysisPage from './pages/SystemAnalysisPage';
+import ApprovalCoverPage from './pages/ApprovalCoverPage';
 
 const AppRouter = () => (
   <Router>
@@ -53,6 +54,7 @@ const AppRouter = () => (
               <SystemAnalysisPage />
             </RoleBasedRoute>
           } />
+          <Route path="/approval-cover" element={<ApprovalCoverPage />} />
           <Route path="/employee-dossiers" element={<EmployeeDosiersPage />} />
         </Route>
     </Routes>

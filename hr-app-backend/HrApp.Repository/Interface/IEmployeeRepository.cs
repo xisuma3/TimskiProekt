@@ -1,4 +1,4 @@
-﻿using HrApp.DomainEntities.Models;
+using HrApp.DomainEntities.Models;
 using System;
 using System.Collections.Generic;
 using System.Linq;
@@ -19,6 +19,8 @@ namespace HrApp.Repository.Interface
         Task DeleteAsync(Guid id);
         Task<Employee> GetByIdIncludingDeletedAsync(Guid id);
         Task RestoreAsync(Guid id);
-        Task EraseAsync(Guid id);
+        Task EraseAsync(Guid id, ErasureRecord audit);
+        Task<IEnumerable<ErasureRecord>> GetErasureRecordsAsync();
+        Task<Dictionary<Guid, Guid?>> GetManagerMapAsync();
     }
 }

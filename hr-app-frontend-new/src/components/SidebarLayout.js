@@ -26,6 +26,7 @@ const navSections = (admin) => [
     items: [
       { to: '/leave-requests', icon: 'bi-calendar2-check', label: admin ? 'Leave Requests' : 'My Leave Requests' },
       { to: '/leave-allowances', icon: 'bi-calendar3', label: 'Leave Allowances', adminOnly: true },
+      { to: '/approval-cover', icon: 'bi-person-check', label: 'Approval Cover' },
     ],
   },
   {
