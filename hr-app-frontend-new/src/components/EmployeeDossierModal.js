@@ -79,10 +79,10 @@ const EmployeeDossierModal = ({ show, onHide, dossier = null, onSave, employees 
 
   return (
     <Modal show={show} onHide={onHide} size="lg" centered>
-      <Modal.Header closeButton style={{ backgroundColor: '#1E293B', color: 'white', borderColor: '#6366F1' }}>
+      <Modal.Header closeButton>
         <Modal.Title>{isEditing ? 'Edit Employee Dossier' : 'Create Employee Dossier'}</Modal.Title>
       </Modal.Header>
-      <Modal.Body style={{ backgroundColor: '#0F172A', color: 'white' }}>
+      <Modal.Body>
         {error && <Alert variant="danger">{error}</Alert>}
         
         <Form onSubmit={handleSubmit}>
@@ -96,7 +96,6 @@ const EmployeeDossierModal = ({ show, onHide, dossier = null, onSave, employees 
                   onChange={handleChange}
                   required
                   disabled={isEditing}
-                  style={{ backgroundColor: '#1E293B', color: 'white', borderColor: '#6366F1' }}
                 >
                   <option value="">Select Employee</option>
                   {employees.map(emp => (
@@ -115,7 +114,6 @@ const EmployeeDossierModal = ({ show, onHide, dossier = null, onSave, employees 
                   value={formData.employmentType}
                   onChange={handleChange}
                   required
-                  style={{ backgroundColor: '#1E293B', color: 'white', borderColor: '#6366F1' }}
                 >
                   <option value="">Select Type</option>
                   {employmentTypes.map(type => (
@@ -135,7 +133,6 @@ const EmployeeDossierModal = ({ show, onHide, dossier = null, onSave, employees 
                   name="birthDate"
                   value={formData.birthDate}
                   onChange={handleChange}
-                  style={{ backgroundColor: '#1E293B', color: 'white', borderColor: '#6366F1' }}
                 />
               </Form.Group>
             </Col>
@@ -148,8 +145,8 @@ const EmployeeDossierModal = ({ show, onHide, dossier = null, onSave, employees 
                   value={formData.emergencyContact}
                   onChange={handleChange}
                   placeholder="Name and phone number"
-                  style={{ backgroundColor: '#1E293B', color: 'white', borderColor: '#6366F1' }}
                 />
+                <Form.Text>Who we should call in an emergency.</Form.Text>
               </Form.Group>
             </Col>
           </Row>
@@ -163,19 +160,18 @@ const EmployeeDossierModal = ({ show, onHide, dossier = null, onSave, employees 
               value={formData.address}
               onChange={handleChange}
               placeholder="Full address"
-              style={{ backgroundColor: '#1E293B', color: 'white', borderColor: '#6366F1' }}
             />
           </Form.Group>
         </Form>
       </Modal.Body>
-      <Modal.Footer style={{ backgroundColor: '#1E293B', borderColor: '#6366F1' }}>
+      <Modal.Footer>
         <Button variant="secondary" onClick={onHide}>
           Cancel
         </Button>
         <Button
+          variant="primary"
           onClick={handleSubmit}
           disabled={loading}
-          style={{ backgroundColor: '#6366F1', borderColor: '#6366F1' }}
         >
           {loading ? 'Saving...' : (isEditing ? 'Update' : 'Create')}
         </Button>

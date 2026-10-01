@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Row, Col, Card, Button, Badge, Spinner } from 'react-bootstrap';
+import { Row, Col, Card, Button } from 'react-bootstrap';
 import { Link } from 'react-router-dom';
 import { authenticatedFetch } from '../services/authService';
 import { API_URLS } from '../config/api';
@@ -64,171 +64,189 @@ const EmployeeDashboard = () => {
 
   if (loading) {
     return (
-      <div className="text-center">
-        <Spinner animation="border" variant="primary" />
-        <p className="mt-3">Loading your dashboard...</p>
+      <div aria-busy="true" aria-label="Loading your dashboard">
+        <div className="skeleton mb-4" style={{ height: 56, maxWidth: 360 }} />
+        <Row className="g-4 mb-4">
+          {[0, 1, 2].map((i) => (
+            <Col md={4} key={i}><div className="skeleton" style={{ height: 96 }} /></Col>
+          ))}
+        </Row>
+        <div className="skeleton" style={{ height: 280 }} />
       </div>
     );
   }
 
-  const getStatusBadge = (status) => {
-    const variant = status === 'Approved' ? 'success' : 
-                   status === 'Rejected' ? 'danger' : 'warning';
-    return <Badge bg={variant}>{status}</Badge>;
-  };
+  const statusClass = (status) =>
+    status === 'Approved' ? 'is-approved' : status === 'Rejected' ? 'is-rejected' : 'is-pending';
+
+  const pendingCount = leaveRequests.filter((r) => r.status === 'Pending').length;
+
+  const EmptyNote = ({ icon, children }) => (
+    <div className="text-center text-muted py-4">
+      <i className={`bi ${icon} d-block fs-3 mb-2`} aria-hidden="true" />
+      {children}
+    </div>
+  );
+
+  const SectionHeader = ({ title, to, linkText = 'View All' }) => (
+    <Card.Header className="d-flex justify-content-between align-items-center py-3">
+      <span>{title}</span>
+      {to && (
+        <Link to={to} className="small fw-semibold text-decoration-none">{linkText}</Link>
+      )}
+    </Card.Header>
+  );
+
+  const StatCard = ({ title, value, icon, tone, to }) => (
+    <Card as={Link} to={to} className="item-card text-decoration-none h-100">
+      <div className="stat-card">
+        <span className={`stat-icon tone-${tone}`} aria-hidden="true"><i className={`bi bi-${icon}`} /></span>
+        <div>
+          <div className="stat-value">{value}</div>
+          <div className="stat-label">{title}</div>
+        </div>
+      </div>
+    </Card>
+  );
 
   return (
     <div>
-      <h2 className="mb-4" style={{ color: '#6366F1' }}>
-        Welcome, {employeeData?.firstName} {employeeData?.lastName}!
-      </h2>
-      
+      <div className="page-header">
+        <div>
+          <h1>Welcome back{employeeData?.firstName ? `, ${employeeData.firstName}` : ''}</h1>
+          <p>Your leave, equipment and records at a glance.</p>
+        </div>
+        <div className="page-header-actions">
+          <Button as={Link} to="/leave-requests" variant="primary">
+            <i className="bi bi-calendar-plus me-2" aria-hidden="true" />
+            Request leave
+          </Button>
+        </div>
+      </div>
+
+      <Row className="g-4 mb-4">
+        <Col md={4}>
+          <StatCard title="Assets Assigned" value={assets.length} icon="laptop" tone="indigo" to="/assets" />
+        </Col>
+        <Col md={4}>
+          <StatCard title="Leave Requests" value={leaveRequests.length} icon="calendar2-check" tone="green" to="/leave-requests" />
+        </Col>
+        <Col md={4}>
+          <StatCard title="Awaiting decision" value={pendingCount} icon="hourglass-split" tone="amber" to="/leave-requests" />
+        </Col>
+      </Row>
+
       {balances.length > 0 && (
         <div className="mb-4">
-          <h5 style={{ color: '#6366F1' }}>My Leave Balance ({new Date().getFullYear()})</h5>
+          <h2 className="section-title">My Leave Balance ({new Date().getFullYear()})</h2>
           <LeaveBalanceCards balances={balances} />
         </div>
       )}
 
-      <Row>
+      <Row className="g-4">
         {/* Employee Profile Card */}
-        <Col md={6} className="mb-4">
-          <Card style={{ backgroundColor: '#1E293B', borderColor: '#6366F1', color: 'white' }}>
-            <Card.Header style={{ backgroundColor: '#374151', color: '#6366F1' }}>
-              <h5 className="mb-0">My Profile</h5>
-            </Card.Header>
+        <Col lg={6}>
+          <Card className="h-100">
+            <SectionHeader title="My Profile" />
             <Card.Body>
               {employeeData ? (
-                <>
-                  <p><strong>Name:</strong> {employeeData.firstName} {employeeData.lastName}</p>
-                  <p><strong>Email:</strong> {employeeData.email}</p>
-                  <p><strong>Position:</strong> {employeeData.position}</p>
-                  <p><strong>Department:</strong> {employeeData.departmentName}</p>
-                  <p><strong>Hire Date:</strong> {new Date(employeeData.hireDate).toLocaleDateString()}</p>
+                <dl className="meta-list">
+                  <dt>Name</dt>
+                  <dd>{employeeData.firstName} {employeeData.lastName}</dd>
+                  <dt>Email</dt>
+                  <dd>{employeeData.email}</dd>
+                  <dt>Position</dt>
+                  <dd>{employeeData.position}</dd>
+                  <dt>Department</dt>
+                  <dd>{employeeData.departmentName}</dd>
+                  <dt>Hire Date</dt>
+                  <dd>{new Date(employeeData.hireDate).toLocaleDateString()}</dd>
                   {employeeData.managerName && (
-                    <p><strong>Manager:</strong> {employeeData.managerName}</p>
+                    <>
+                      <dt>Manager</dt>
+                      <dd>{employeeData.managerName}</dd>
+                    </>
                   )}
-                </>
+                </dl>
               ) : (
-                <p>Profile information not available</p>
+                <EmptyNote icon="bi-person">Profile information not available</EmptyNote>
               )}
             </Card.Body>
           </Card>
         </Col>
 
-        {/* Quick Stats */}
-        <Col md={6} className="mb-4">
-          <Card style={{ backgroundColor: '#1E293B', borderColor: '#6366F1', color: 'white' }}>
-            <Card.Header style={{ backgroundColor: '#374151', color: '#6366F1' }}>
-              <h5 className="mb-0">Quick Stats</h5>
-            </Card.Header>
+        {/* Dossier Status */}
+        <Col lg={6}>
+          <Card className="h-100">
+            <SectionHeader title="Employee Dossier" to="/employee-dossiers" linkText="View Dossier" />
             <Card.Body>
-              <Row>
-                <Col xs={6}>
-                  <div className="text-center">
-                    <h4 style={{ color: '#6366F1' }}>{assets.length}</h4>
-                    <small>Assets Assigned</small>
-                  </div>
-                </Col>
-                <Col xs={6}>
-                  <div className="text-center">
-                    <h4 style={{ color: '#6366F1' }}>{leaveRequests.length}</h4>
-                    <small>Leave Requests</small>
-                  </div>
-                </Col>
-              </Row>
+              {dossier ? (
+                <dl className="meta-list">
+                  <dt>Employment Type</dt>
+                  <dd>{dossier.employmentType}</dd>
+                  <dt>Address</dt>
+                  <dd>{dossier.address || 'Not specified'}</dd>
+                  <dt>Emergency Contact</dt>
+                  <dd>{dossier.emergencyContact || 'Not specified'}</dd>
+                </dl>
+              ) : (
+                <EmptyNote icon="bi-person-vcard">
+                  Dossier not yet created. Contact HR to set up your employee dossier.
+                </EmptyNote>
+              )}
             </Card.Body>
           </Card>
         </Col>
-      </Row>
 
-      <Row>
         {/* Recent Assets */}
-        <Col md={6} className="mb-4">
-          <Card style={{ backgroundColor: '#1E293B', borderColor: '#6366F1', color: 'white' }}>
-            <Card.Header style={{ backgroundColor: '#374151', color: '#6366F1' }}>
-              <div className="d-flex justify-content-between align-items-center">
-                <h5 className="mb-0">My Assets</h5>
-                <Link to="/assets">
-                  <Button variant="outline-primary" size="sm">View All</Button>
-                </Link>
-              </div>
-            </Card.Header>
-            <Card.Body>
+        <Col lg={6}>
+          <Card className="h-100">
+            <SectionHeader title="My Assets" to="/assets" />
+            <Card.Body className="p-0">
               {assets.length > 0 ? (
-                assets.slice(0, 3).map(asset => (
-                  <div key={asset.assetID} className="mb-2 pb-2 border-bottom">
-                    <h6>{asset.name}</h6>
-                    <small className="text-muted">Serial: {asset.serialNumber}</small>
-                    <br />
-                    <Badge bg={asset.isActive ? 'success' : 'secondary'}>
-                      {asset.isActive ? 'Active' : 'Inactive'}
-                    </Badge>
-                  </div>
-                ))
+                <ul className="list-group list-group-flush">
+                  {assets.slice(0, 3).map(asset => (
+                    <li key={asset.assetID} className="list-group-item d-flex align-items-center gap-3 px-4 py-3">
+                      <span className="item-card-icon" aria-hidden="true"><i className="bi bi-laptop" /></span>
+                      <div className="flex-grow-1 min-w-0">
+                        <div className="fw-semibold">{asset.name}</div>
+                        <small className="text-muted">Serial: {asset.serialNumber || '—'}</small>
+                      </div>
+                      <span className={`status-chip ${asset.isActive ? 'is-success' : ''}`}>
+                        {asset.isActive ? 'Active' : 'Inactive'}
+                      </span>
+                    </li>
+                  ))}
+                </ul>
               ) : (
-                <p>No assets assigned</p>
+                <EmptyNote icon="bi-laptop">No assets assigned</EmptyNote>
               )}
             </Card.Body>
           </Card>
         </Col>
 
         {/* Recent Leave Requests */}
-        <Col md={6} className="mb-4">
-          <Card style={{ backgroundColor: '#1E293B', borderColor: '#6366F1', color: 'white' }}>
-            <Card.Header style={{ backgroundColor: '#374151', color: '#6366F1' }}>
-              <div className="d-flex justify-content-between align-items-center">
-                <h5 className="mb-0">Recent Leave Requests</h5>
-                <Link to="/leave-requests">
-                  <Button variant="outline-primary" size="sm">View All</Button>
-                </Link>
-              </div>
-            </Card.Header>
-            <Card.Body>
+        <Col lg={6}>
+          <Card className="h-100">
+            <SectionHeader title="Recent Leave Requests" to="/leave-requests" />
+            <Card.Body className="p-0">
               {leaveRequests.length > 0 ? (
-                leaveRequests.slice(0, 3).map(request => (
-                  <div key={request.requestID} className="mb-2 pb-2 border-bottom">
-                    <div className="d-flex justify-content-between align-items-start">
-                      <div>
-                        <h6>{request.leaveType}</h6>
+                <ul className="list-group list-group-flush">
+                  {leaveRequests.slice(0, 3).map(request => (
+                    <li key={request.requestID} className="list-group-item d-flex align-items-center gap-3 px-4 py-3">
+                      <span className="item-card-icon" aria-hidden="true"><i className="bi bi-calendar2-week" /></span>
+                      <div className="flex-grow-1 min-w-0">
+                        <div className="fw-semibold">{request.leaveType}</div>
                         <small className="text-muted">
-                          {new Date(request.startDate).toLocaleDateString()} - 
-                          {new Date(request.endDate).toLocaleDateString()}
+                          {new Date(request.startDate).toLocaleDateString()} – {new Date(request.endDate).toLocaleDateString()}
                         </small>
                       </div>
-                      {getStatusBadge(request.status)}
-                    </div>
-                  </div>
-                ))
+                      <span className={`status-chip ${statusClass(request.status)}`}>{request.status}</span>
+                    </li>
+                  ))}
+                </ul>
               ) : (
-                <p>No leave requests</p>
-              )}
-            </Card.Body>
-          </Card>
-        </Col>
-      </Row>
-
-      {/* Dossier Status */}
-      <Row>
-        <Col md={12} className="mb-4">
-          <Card style={{ backgroundColor: '#1E293B', borderColor: '#6366F1', color: 'white' }}>
-            <Card.Header style={{ backgroundColor: '#374151', color: '#6366F1' }}>
-              <div className="d-flex justify-content-between align-items-center">
-                <h5 className="mb-0">Employee Dossier</h5>
-                <Link to="/employee-dossiers">
-                  <Button variant="outline-primary" size="sm">View Dossier</Button>
-                </Link>
-              </div>
-            </Card.Header>
-            <Card.Body>
-              {dossier ? (
-                <div>
-                  <p><strong>Employment Type:</strong> {dossier.employmentType}</p>
-                  <p><strong>Address:</strong> {dossier.address || 'Not specified'}</p>
-                  <p><strong>Emergency Contact:</strong> {dossier.emergencyContact || 'Not specified'}</p>
-                </div>
-              ) : (
-                <p>Dossier not yet created. Contact HR to set up your employee dossier.</p>
+                <EmptyNote icon="bi-calendar2">No leave requests</EmptyNote>
               )}
             </Card.Body>
           </Card>

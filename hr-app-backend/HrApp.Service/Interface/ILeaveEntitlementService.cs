@@ -15,7 +15,7 @@ namespace HrApp.Service.Interface
         Task UpdateAsync(Guid id, LeaveEntitlementRequestDto dto);
         Task DeleteAsync(Guid id);
 
-        /// <summary>Standing for one employee/year/type. Untracked types are uncapped.</summary>
+        /// <summary>Standing for one employee/year/type. Untracked (no allowance) types cannot be requested.</summary>
         Task<LeaveBalanceResponseDto> GetBalanceAsync(Guid employeeId, int year, string leaveType);
 
         /// <summary>Standing across every leave type for one employee/year.</summary>

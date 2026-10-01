@@ -15,6 +15,7 @@ import LeaveEntitlementsPage from './pages/LeaveEntitlementsPage';
 import EmployeeDosiersPage from './pages/EmployeeDosiersPage';
 import DashboardPage from './pages/DashboardPage';
 import SidebarLayout from './components/SidebarLayout';
+import SystemAnalysisPage from './pages/SystemAnalysisPage';
 
 const AppRouter = () => (
   <Router>
@@ -45,6 +46,11 @@ const AppRouter = () => (
           <Route path="/leave-allowances" element={
             <RoleBasedRoute allowedRoles={['Admin']}>
               <LeaveEntitlementsPage />
+            </RoleBasedRoute>
+          } />
+          <Route path="/system-analysis" element={
+            <RoleBasedRoute allowedRoles={['Admin']}>
+              <SystemAnalysisPage />
             </RoleBasedRoute>
           } />
           <Route path="/employee-dossiers" element={<EmployeeDosiersPage />} />

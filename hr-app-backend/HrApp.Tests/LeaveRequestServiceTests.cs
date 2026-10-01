@@ -38,6 +38,7 @@ namespace HrApp.Tests
             // impossible even though TotalDays counts inclusively.
             using var h = new TestHarness();
             var e = h.AddEmployee();
+            h.AddEntitlement(e.EmployeeID, 2030, "Vacation", 30);
 
             var created = await h.LeaveRequestService.CreateAsync(Request(e.EmployeeID, "2030-06-10", "2030-06-10"));
 
@@ -84,6 +85,7 @@ namespace HrApp.Tests
         {
             using var h = new TestHarness();
             var e = h.AddEmployee();
+            h.AddEntitlement(e.EmployeeID, 2030, "Vacation", 30);
             h.AddLeaveRequest(e.EmployeeID, new DateTime(2030, 6, 1), new DateTime(2030, 6, 10), status: "Rejected");
 
             var created = await h.LeaveRequestService.CreateAsync(Request(e.EmployeeID, "2030-06-01", "2030-06-10"));
@@ -96,6 +98,7 @@ namespace HrApp.Tests
         {
             using var h = new TestHarness();
             var e = h.AddEmployee();
+            h.AddEntitlement(e.EmployeeID, 2030, "Vacation", 30);
             h.AddLeaveRequest(e.EmployeeID, new DateTime(2030, 6, 1), new DateTime(2030, 6, 5));
 
             var created = await h.LeaveRequestService.CreateAsync(Request(e.EmployeeID, "2030-06-06", "2030-06-10"));
@@ -206,17 +209,56 @@ namespace HrApp.Tests
         }
 
         [Fact]
-        public async Task LeaveTypeWithNoEntitlementRow_IsUncapped()
+        public async Task LeaveTypeWithNoAllowance_IsRejected()
         {
-            // An absent row means "not capped here", not "zero days".
+            // No entitlement row means no allowance: the request is refused rather than uncapped.
             using var h = new TestHarness();
             var e = h.AddEmployee();
-            h.AddEntitlement(e.EmployeeID, 2030, "Vacation", 1);
+            h.AddEntitlement(e.EmployeeID, 2030, "Vacation", 20);
 
-            var created = await h.LeaveRequestService.CreateAsync(
-                Request(e.EmployeeID, "2030-06-01", "2030-06-20", "Sick"));
+            var ex = await Assert.ThrowsAsync<ArgumentException>(() =>
+                h.LeaveRequestService.CreateAsync(Request(e.EmployeeID, "2030-06-01", "2030-06-03", "Sick")));
 
-            Assert.Equal(20, created.TotalDays);
+            Assert.Contains("No sick leave allowance has been set up for 2030", ex.Message);
+            Assert.Empty(await h.LeaveRequestService.GetByEmployeeIdAsync(e.EmployeeID));
+        }
+
+        [Fact]
+        public async Task RequestLongerThanRemainingAllowance_IsRejected()
+        {
+            using var h = new TestHarness();
+            var e = h.AddEmployee();
+            h.AddEntitlement(e.EmployeeID, 2030, "Vacation", 5);
+
+            var ex = await Assert.ThrowsAsync<ArgumentException>(() =>
+                h.LeaveRequestService.CreateAsync(Request(e.EmployeeID, "2030-06-01", "2030-06-06")));
+
+            Assert.Contains("requesting 6 day(s) but only 5", ex.Message);
+        }
+
+        [Fact]
+        public async Task RequestUsingExactlyTheRemainingAllowance_IsAccepted()
+        {
+            using var h = new TestHarness();
+            var e = h.AddEmployee();
+            h.AddEntitlement(e.EmployeeID, 2030, "Vacation", 5);
+
+            var created = await h.LeaveRequestService.CreateAsync(Request(e.EmployeeID, "2030-06-01", "2030-06-05"));
+
+            Assert.Equal(5, created.TotalDays);
+        }
+
+        [Fact]
+        public async Task RequestSpanningNewYear_NeedsAnAllowanceInBothYears()
+        {
+            using var h = new TestHarness();
+            var e = h.AddEmployee();
+            h.AddEntitlement(e.EmployeeID, 2030, "Vacation", 10);
+
+            var ex = await Assert.ThrowsAsync<ArgumentException>(() =>
+                h.LeaveRequestService.CreateAsync(Request(e.EmployeeID, "2030-12-30", "2031-01-02")));
+
+            Assert.Contains("for 2031", ex.Message);
         }
 
         [Fact]

@@ -169,10 +169,10 @@ const EmployeeModal = ({ show, onHide, employee = null, onSave, departments = []
 
   return (
     <Modal show={show} onHide={onHide} size="lg" centered>
-      <Modal.Header closeButton style={{ backgroundColor: '#1E293B', color: 'white', borderColor: '#6366F1' }}>
+      <Modal.Header closeButton>
         <Modal.Title>{isEditing ? 'Edit Employee' : 'Add New Employee'}</Modal.Title>
       </Modal.Header>
-      <Modal.Body style={{ backgroundColor: '#0F172A', color: 'white' }}>
+      <Modal.Body>
         {error && <Alert variant="danger">{error}</Alert>}
         
         <Form onSubmit={handleSubmit}>
@@ -186,7 +186,6 @@ const EmployeeModal = ({ show, onHide, employee = null, onSave, departments = []
                   value={formData.firstName}
                   onChange={handleChange}
                   required
-                  style={{ backgroundColor: '#1E293B', color: 'white', borderColor: '#6366F1' }}
                 />
               </Form.Group>
             </Col>
@@ -199,7 +198,6 @@ const EmployeeModal = ({ show, onHide, employee = null, onSave, departments = []
                   value={formData.lastName}
                   onChange={handleChange}
                   required
-                  style={{ backgroundColor: '#1E293B', color: 'white', borderColor: '#6366F1' }}
                 />
               </Form.Group>
             </Col>
@@ -215,7 +213,6 @@ const EmployeeModal = ({ show, onHide, employee = null, onSave, departments = []
                   value={formData.email}
                   onChange={handleChange}
                   required
-                  style={{ backgroundColor: '#1E293B', color: 'white', borderColor: '#6366F1' }}
                 />
               </Form.Group>
             </Col>
@@ -228,7 +225,6 @@ const EmployeeModal = ({ show, onHide, employee = null, onSave, departments = []
                   value={formData.position}
                   onChange={handleChange}
                   required
-                  style={{ backgroundColor: '#1E293B', color: 'white', borderColor: '#6366F1' }}
                 />
               </Form.Group>
             </Col>
@@ -243,7 +239,6 @@ const EmployeeModal = ({ show, onHide, employee = null, onSave, departments = []
                   value={formData.departmentID}
                   onChange={handleChange}
                   required
-                  style={{ backgroundColor: '#1E293B', color: 'white', borderColor: '#6366F1' }}
                 >
                   <option value="">Select Department</option>
                   {departments.map(dept => (
@@ -263,7 +258,6 @@ const EmployeeModal = ({ show, onHide, employee = null, onSave, departments = []
                   value={formData.hireDate}
                   onChange={handleChange}
                   required
-                  style={{ backgroundColor: '#1E293B', color: 'white', borderColor: '#6366F1' }}
                 />
               </Form.Group>
             </Col>
@@ -278,7 +272,6 @@ const EmployeeModal = ({ show, onHide, employee = null, onSave, departments = []
                   name="managerName"
                   value={formData.managerName}
                   readOnly
-                  style={{ backgroundColor: '#1E293B', color: 'white', borderColor: '#6366F1' }}
                 />
               </Form.Group>
             </Col>
@@ -290,7 +283,6 @@ const EmployeeModal = ({ show, onHide, employee = null, onSave, departments = []
                   name="mentorName"
                   value={formData.mentorName}
                   readOnly
-                  style={{ backgroundColor: '#1E293B', color: 'white', borderColor: '#6366F1' }}
                 />
               </Form.Group>
             </Col>
@@ -309,9 +301,8 @@ const EmployeeModal = ({ show, onHide, employee = null, onSave, departments = []
                     onChange={handleChange}
                     required
                     placeholder="Enter initial password"
-                    style={{ backgroundColor: '#1E293B', color: 'white', borderColor: '#6366F1' }}
                   />
-                  <Form.Text className="text-muted">
+                  <Form.Text>
                     Minimum 6 characters
                   </Form.Text>
                 </Form.Group>
@@ -326,7 +317,6 @@ const EmployeeModal = ({ show, onHide, employee = null, onSave, departments = []
                     onChange={handleChange}
                     required
                     placeholder="Confirm password"
-                    style={{ backgroundColor: '#1E293B', color: 'white', borderColor: '#6366F1' }}
                   />
                 </Form.Group>
               </Col>
@@ -334,14 +324,14 @@ const EmployeeModal = ({ show, onHide, employee = null, onSave, departments = []
           )}
         </Form>
       </Modal.Body>
-      <Modal.Footer style={{ backgroundColor: '#1E293B', borderColor: '#6366F1' }}>
+      <Modal.Footer>
         <Button variant="secondary" onClick={onHide}>
           Cancel
         </Button>
         <Button
           onClick={handleSubmit}
           disabled={loading}
-          style={{ backgroundColor: '#6366F1', borderColor: '#6366F1' }}
+          variant="primary"
         >
           {loading ? 'Saving...' : (isEditing ? 'Update' : 'Create')}
         </Button>

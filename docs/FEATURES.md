@@ -145,9 +145,9 @@ Three decisions worth knowing:
 
 - **Pending days count against the balance.** Otherwise an employee with 2 days left
   could file three more requests and have every one of them approvable.
-- **A missing entitlement row means uncapped, not zero.** Sick leave is normally governed
-  by policy and certificates rather than a day count, so `LeaveRequestService` skips the
-  check when the type is untracked.
+- **A missing entitlement row means no allowance — the request is refused.** Every leave
+  type, Sick included, needs an allowance for each year the request touches, and the
+  request must fit in the days remaining. The request form warns about both before submit.
 - **A request spanning New Year is charged to both years** and must fit in each.
 
 | Route | Purpose |

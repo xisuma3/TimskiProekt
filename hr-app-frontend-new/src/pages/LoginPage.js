@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { Link } from 'react-router-dom';
 import { login, fetchEmployeeDetails } from '../services/authService';
+import ThemeToggle from '../components/ThemeToggle';
 import './LandingPage.css';
 import './LoginPage.css';
 
@@ -72,9 +73,12 @@ const LoginPage = () => {
             <span className="lp-brand-mark"><i className="bi bi-people-fill" aria-hidden="true" /></span>
             HR Management
           </Link>
-          <Link to="/" className="lg-back">
+          <div className="d-flex align-items-center gap-2">
+            <Link to="/" className="lg-back">
             <i className="bi bi-arrow-left" aria-hidden="true" /> Back to home
           </Link>
+            <ThemeToggle className="lp-btn lp-btn-ghost" />
+          </div>
         </div>
 
         <div className="lg-card">

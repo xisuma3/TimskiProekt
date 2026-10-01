@@ -109,19 +109,25 @@ namespace HrApp.Service.Implementation
         }
 
         /// <summary>
-        /// Rejects the request if it would take the employee past their allowance in any
-        /// year it touches. Leave types with no entitlement row are uncapped and skipped.
+        /// Rejects the request unless the employee has an allowance for this leave type in
+        /// every year it touches, with enough days left in each. A missing entitlement row
+        /// means no allowance — leave of that type can't be requested until HR sets one up.
         /// </summary>
         private async Task GuardSufficientBalance(
             Guid employeeId, DateTime startDate, DateTime endDate, string leaveType)
         {
             for (var year = startDate.Year; year <= endDate.Year; year++)
             {
-                var balance = await _entitlementService.GetBalanceAsync(employeeId, year, leaveType);
-                if (!balance.IsTracked) continue;
-
                 var daysThisYear = DaysInYear(startDate, endDate, year);
                 if (daysThisYear == 0) continue;
+
+                var balance = await _entitlementService.GetBalanceAsync(employeeId, year, leaveType);
+                if (!balance.IsTracked)
+                {
+                    throw new ArgumentException(
+                        $"No {leaveType.ToLowerInvariant()} leave allowance has been set up for {year}. " +
+                        "Ask HR to add one before requesting this leave.");
+                }
 
                 if (daysThisYear > balance.DaysRemaining)
                 {

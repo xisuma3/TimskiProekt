@@ -68,10 +68,10 @@ const DepartmentModal = ({ show, onHide, department = null, onSave }) => {
 
   return (
     <Modal show={show} onHide={onHide} size="lg" centered>
-      <Modal.Header closeButton style={{ backgroundColor: '#1E293B', color: 'white', borderColor: '#6366F1' }}>
+      <Modal.Header closeButton>
         <Modal.Title>{isEditing ? 'Edit Department' : 'Add New Department'}</Modal.Title>
       </Modal.Header>
-      <Modal.Body style={{ backgroundColor: '#0F172A', color: 'white' }}>
+      <Modal.Body>
         {error && <Alert variant="danger">{error}</Alert>}
         
         <Form onSubmit={handleSubmit}>
@@ -83,7 +83,6 @@ const DepartmentModal = ({ show, onHide, department = null, onSave }) => {
               value={formData.name}
               onChange={handleChange}
               required
-              style={{ backgroundColor: '#1E293B', color: 'white', borderColor: '#6366F1' }}
             />
           </Form.Group>
 
@@ -95,19 +94,18 @@ const DepartmentModal = ({ show, onHide, department = null, onSave }) => {
               name="description"
               value={formData.description}
               onChange={handleChange}
-              style={{ backgroundColor: '#1E293B', color: 'white', borderColor: '#6366F1' }}
             />
           </Form.Group>
         </Form>
       </Modal.Body>
-      <Modal.Footer style={{ backgroundColor: '#1E293B', borderColor: '#6366F1' }}>
+      <Modal.Footer>
         <Button variant="secondary" onClick={onHide}>
           Cancel
         </Button>
         <Button
           onClick={handleSubmit}
           disabled={loading}
-          style={{ backgroundColor: '#6366F1', borderColor: '#6366F1' }}
+          variant="primary"
         >
           {loading ? 'Saving...' : (isEditing ? 'Update' : 'Create')}
         </Button>

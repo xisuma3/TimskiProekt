@@ -114,9 +114,9 @@ namespace HrApp.Service.Implementation
         }
 
         /// <summary>
-        /// Standing for one employee/year/type. When no entitlement row exists the type is
-        /// uncapped (<see cref="LeaveBalanceResponseDto.IsTracked"/> false) — an absent row
-        /// means "not capped here", not "zero days".
+        /// Standing for one employee/year/type. When no entitlement row exists,
+        /// <see cref="LeaveBalanceResponseDto.IsTracked"/> is false: there is no allowance,
+        /// and LeaveRequestService refuses requests of that type for that year.
         /// </summary>
         public async Task<LeaveBalanceResponseDto> GetBalanceAsync(Guid employeeId, int year, string leaveType)
         {

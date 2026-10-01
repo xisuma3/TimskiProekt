@@ -1,123 +1,119 @@
 // SidebarLayout.js
-import React from 'react';
-import { Container, Row, Col, Nav } from 'react-bootstrap';
-import { Link, Outlet, useLocation } from 'react-router-dom';
+import React, { useEffect, useState } from 'react';
+import { Offcanvas } from 'react-bootstrap';
+import { Link, NavLink, Outlet, useLocation } from 'react-router-dom';
 import TopBar from './TopBar';
-import RoleBasedContent from './RoleBasedContent';
+import UserMenu from './UserMenu';
 import { isAdmin } from '../services/authService';
 
+// One list drives both the desktop sidebar and the mobile drawer.
+// `adminOnly` hides an item from the menu; the route guard in AppRouter is what enforces it.
+const navSections = (admin) => [
+  {
+    label: 'Overview',
+    items: [{ to: '/dashboard', icon: 'bi-grid-1x2', label: 'Dashboard' }],
+  },
+  {
+    label: 'People',
+    items: [
+      { to: '/employees', icon: 'bi-people', label: 'Employees', adminOnly: true },
+      { to: '/departments', icon: 'bi-building', label: 'Departments', adminOnly: true },
+      { to: '/employee-dossiers', icon: 'bi-person-vcard', label: admin ? 'Employee Dossiers' : 'My Dossier' },
+    ],
+  },
+  {
+    label: 'Time off',
+    items: [
+      { to: '/leave-requests', icon: 'bi-calendar2-check', label: admin ? 'Leave Requests' : 'My Leave Requests' },
+      { to: '/leave-allowances', icon: 'bi-calendar3', label: 'Leave Allowances', adminOnly: true },
+    ],
+  },
+  {
+    label: 'Resources',
+    items: [
+      { to: '/assets', icon: 'bi-laptop', label: admin ? 'Assets' : 'My Assets' },
+      { to: '/documents', icon: 'bi-file-earmark-text', label: admin ? 'Documents' : 'My Documents' },
+    ],
+  },
+  {
+    label: 'Insights',
+    items: [
+      { to: '/system-analysis', icon: 'bi-graph-up', label: 'System Analysis', adminOnly: true },
+    ],
+  },
+];
+
+export const pageTitleFor = (pathname) => {
+  for (const section of navSections(isAdmin())) {
+    const match = section.items.find((i) => pathname === i.to || pathname.startsWith(`${i.to}/`));
+    if (match) return match.label;
+  }
+  if (pathname.startsWith('/document-templates')) return 'Document Templates';
+  if (pathname.startsWith('/generated-documents')) return 'Generated Documents';
+  return 'HR Management';
+};
+
+const SidebarNav = ({ onNavigate }) => {
+  const admin = isAdmin();
+  return (
+    <>
+      <Link to="/dashboard" className="app-sidebar-brand" onClick={onNavigate}>
+        <span className="app-brand-mark"><i className="bi bi-people-fill" aria-hidden="true" /></span>
+        HR Management
+      </Link>
+      <nav className="app-nav" aria-label="Main">
+        {navSections(admin).map((section) => {
+          const items = section.items.filter((i) => admin || !i.adminOnly);
+          if (items.length === 0) return null;
+          return (
+            <div key={section.label}>
+              <div className="app-nav-section">{section.label}</div>
+              {items.map((item) => (
+                <NavLink key={item.to} to={item.to} className="app-nav-link" onClick={onNavigate}>
+                  <i className={`bi ${item.icon}`} aria-hidden="true" />
+                  {item.label}
+                </NavLink>
+              ))}
+            </div>
+          );
+        })}
+      </nav>
+      <div className="app-sidebar-foot">
+        <UserMenu />
+      </div>
+    </>
+  );
+};
+
 const SidebarLayout = () => {
+  const [menuOpen, setMenuOpen] = useState(false);
   const location = useLocation();
 
+  // Close the mobile drawer whenever the route changes.
+  useEffect(() => setMenuOpen(false), [location.pathname]);
+
   return (
-    <div style={{ minHeight: '100vh', backgroundColor: '#0F172A' }}>
-      {/* TopBar spans full width */}
-      <TopBar />
-      
-      <Container fluid>
-        <Row>
-          {/* Sidebar */}
-          <Col md={2} className="p-3" style={{ backgroundColor: '#0F172A', color: 'white', minHeight: 'calc(100vh - 80px)' }}>
-            {/*<h4 className="mb-4" style={{ color: '#6366F1' }}>Navigation</h4>*/}
-            <Nav className="flex-column">
-              <Nav.Link 
-                as={Link} 
-                to="/dashboard" 
-                className={`text-light mb-2 ${location.pathname === '/dashboard' ? 'active' : ''}`}
-                style={location.pathname === '/dashboard' ? { backgroundColor: '#6366F1', borderRadius: '5px' } : {}}
-              >
-                <i className="bi bi-speedometer2 me-2"></i>Dashboard
-              </Nav.Link>
-              
-              {/* Admin Only - Employees Management */}
-              <RoleBasedContent allowedRoles={['Admin']}>
-                <Nav.Link 
-                  as={Link} 
-                  to="/employees" 
-                  className={`text-light mb-2 ${location.pathname === '/employees' ? 'active' : ''}`}
-                  style={location.pathname === '/employees' ? { backgroundColor: '#6366F1', borderRadius: '5px' } : {}}
-                >
-                  <i className="bi bi-people me-2"></i>Employees
-                </Nav.Link>
-              </RoleBasedContent>
+    <div className="app-shell">
+      <a className="visually-hidden-focusable position-absolute m-2 p-2 bg-body rounded" href="#app-content">
+        Skip to content
+      </a>
 
-              {/* Admin Only - Departments */}
-              <RoleBasedContent allowedRoles={['Admin']}>
-                <Nav.Link 
-                  as={Link} 
-                  to="/departments" 
-                  className={`text-light mb-2 ${location.pathname === '/departments' ? 'active' : ''}`}
-                  style={location.pathname === '/departments' ? { backgroundColor: '#6366F1', borderRadius: '5px' } : {}}
-                >
-                  <i className="bi bi-building me-2"></i>Departments
-                </Nav.Link>
-              </RoleBasedContent>
+      <aside className="app-sidebar">
+        <SidebarNav />
+      </aside>
 
-              {/* Both Admin and Employee - Assets */}
-              <Nav.Link 
-                as={Link} 
-                to="/assets" 
-                className={`text-light mb-2 ${location.pathname === '/assets' ? 'active' : ''}`}
-                style={location.pathname === '/assets' ? { backgroundColor: '#6366F1', borderRadius: '5px' } : {}}
-              >
-                <i className="bi bi-laptop me-2"></i>
-                {isAdmin() ? 'Assets' : 'My Assets'}
-              </Nav.Link>
+      <Offcanvas show={menuOpen} onHide={() => setMenuOpen(false)} className="app-offcanvas" aria-label="Main menu">
+        <Offcanvas.Body>
+          <SidebarNav onNavigate={() => setMenuOpen(false)} />
+        </Offcanvas.Body>
+      </Offcanvas>
 
-              {/* Both Admin and Employee - Leave Requests */}
-              <Nav.Link 
-                as={Link} 
-                to="/leave-requests" 
-                className={`text-light mb-2 ${location.pathname === '/leave-requests' ? 'active' : ''}`}
-                style={location.pathname === '/leave-requests' ? { backgroundColor: '#6366F1', borderRadius: '5px' } : {}}
-              >
-                <i className="bi bi-calendar-check me-2"></i>
-                {isAdmin() ? 'Leave Requests' : 'My Leave Requests'}
-              </Nav.Link>
-
-              {/* Admin only - Leave Allowances */}
-              {isAdmin() && (
-                <Nav.Link
-                  as={Link}
-                  to="/leave-allowances"
-                  className={`text-light mb-2 ${location.pathname === '/leave-allowances' ? 'active' : ''}`}
-                  style={location.pathname === '/leave-allowances' ? { backgroundColor: '#6366F1', borderRadius: '5px' } : {}}
-                >
-                  <i className="bi bi-calendar3 me-2"></i>
-                  Leave Allowances
-                </Nav.Link>
-              )}
-
-              {/* Both Admin and Employee - Employee Dossiers */}
-              <Nav.Link 
-                as={Link} 
-                to="/employee-dossiers" 
-                className={`text-light mb-2 ${location.pathname === '/employee-dossiers' ? 'active' : ''}`}
-                style={location.pathname === '/employee-dossiers' ? { backgroundColor: '#6366F1', borderRadius: '5px' } : {}}
-              >
-                <i className="bi bi-file-person me-2"></i>
-                {isAdmin() ? 'Employee Dossiers' : 'My Dossier'}
-              </Nav.Link>
-
-              {/* Both Admin and Employee - Documents */}
-              <Nav.Link 
-                as={Link} 
-                to="/documents" 
-                className={`text-light mb-2 ${location.pathname === '/documents' ? 'active' : ''}`}
-                style={location.pathname === '/documents' ? { backgroundColor: '#6366F1', borderRadius: '5px' } : {}}
-              >
-                <i className="bi bi-file-earmark-text me-2"></i>
-                {isAdmin() ? 'Documents' : 'My Documents'}
-              </Nav.Link>
-            </Nav>
-          </Col>
-
-          {/* Main Content */}
-          <Col md={10} className="p-4" style={{ backgroundColor: '#0F172A', color: 'white', minHeight: 'calc(100vh - 80px)' }}>
-            <Outlet />
-          </Col>
-        </Row>
-      </Container>
+      <div className="app-main">
+        <TopBar title={pageTitleFor(location.pathname)} onMenuClick={() => setMenuOpen(true)} />
+        <main id="app-content" className="app-content" tabIndex={-1}>
+          <Outlet />
+        </main>
+      </div>
     </div>
   );
 };

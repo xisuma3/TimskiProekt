@@ -1,79 +1,68 @@
 import React from 'react';
-import { Container, Row, Col, Card, Button } from 'react-bootstrap';
+import { Row, Col, Card, Button } from 'react-bootstrap';
 import { useNavigate } from 'react-router-dom';
+
+const SECTIONS = [
+  {
+    to: '/document-templates',
+    icon: 'bi-file-earmark-text',
+    tone: 'indigo',
+    title: 'Document Templates',
+    text: 'Create and manage HTML templates with placeholders for employee, asset and system data.',
+    action: 'Manage Templates',
+  },
+  {
+    to: '/generated-documents',
+    icon: 'bi-file-earmark-check',
+    tone: 'green',
+    title: 'Generated Documents',
+    text: 'View and print documents generated from templates, filled with each employee’s data.',
+    action: 'View Documents',
+  },
+];
 
 const DocumentsPage = () => {
   const navigate = useNavigate();
 
   return (
-    <Container fluid>
-      <Row>
-        <Col>
-          <h2 className="mb-4" style={{ color: 'white' }}>Document Management</h2>
-          <p style={{ color: '#94A3B8', fontSize: '1.1em' }}>
-            Manage document templates and generate personalized documents for employees
-          </p>
-        </Col>
+    <div>
+      <div className="page-header">
+        <div>
+          <h1>Document Management</h1>
+          <p>Manage document templates and generate personalized documents for employees.</p>
+        </div>
+      </div>
+
+      <Row className="g-4">
+        {SECTIONS.map((s) => (
+          <Col md={6} key={s.to}>
+            <Card className="item-card">
+              <Card.Body>
+                <div className="item-card-head">
+                  <span className={`item-card-icon tone-${s.tone}`} aria-hidden="true">
+                    <i className={`bi ${s.icon}`} />
+                  </span>
+                  <div className="flex-grow-1 min-w-0">
+                    <Card.Title>{s.title}</Card.Title>
+                    <Card.Text className="text-muted mb-0">{s.text}</Card.Text>
+                  </div>
+                </div>
+                <div className="item-card-actions">
+                  <Button
+                    variant="outline-primary"
+                    className="stretched-link"
+                    onClick={() => navigate(s.to)}
+                  >
+                    {s.action} <i className="bi bi-arrow-right ms-1" aria-hidden="true" />
+                  </Button>
+                </div>
+              </Card.Body>
+            </Card>
+          </Col>
+        ))}
       </Row>
-
-      <Row className="mt-4">
-        <Col md={6} className="mb-4">
-          <Card className="shadow h-100" style={{ backgroundColor: '#1E293B', borderColor: '#6366F1' }}>
-            <Card.Body className="d-flex flex-column">
-              <div className="text-center mb-3">
-                <i className="bi bi-file-earmark-text" style={{ fontSize: '3rem', color: '#6366F1' }}></i>
-              </div>
-              <Card.Title className="text-center" style={{ color: '#6366F1', fontSize: '1.5em' }}>
-                Document Templates
-              </Card.Title>
-              <Card.Text style={{ color: '#94A3B8', textAlign: 'center', flex: 1 }}>
-                Create and manage HTML templates with placeholders for employee data, assets, and system information. 
-                Templates can be used to generate personalized documents like contracts, asset assignments, and reports.
-              </Card.Text>
-              <div className="mt-auto">
-                <Button 
-                  variant="outline-primary" 
-                  size="lg" 
-                  className="w-100"
-                  onClick={() => navigate('/document-templates')}
-                >
-                  Manage Templates
-                </Button>
-              </div>
-            </Card.Body>
-          </Card>
-        </Col>
-
-        <Col md={6} className="mb-4">
-          <Card className="shadow h-100" style={{ backgroundColor: '#1E293B', borderColor: '#10B981' }}>
-            <Card.Body className="d-flex flex-column">
-              <div className="text-center mb-3">
-                <i className="bi bi-file-earmark-check" style={{ fontSize: '3rem', color: '#10B981' }}></i>
-              </div>
-              <Card.Title className="text-center" style={{ color: '#10B981', fontSize: '1.5em' }}>
-                Generated Documents
-              </Card.Title>
-              <Card.Text style={{ color: '#94A3B8', textAlign: 'center', flex: 1 }}>
-                View and manage documents that have been generated from templates. Each document contains 
-                personalized content for specific employees with their data automatically populated.
-              </Card.Text>
-              <div className="mt-auto">
-                <Button 
-                  variant="outline-success" 
-                  size="lg" 
-                  className="w-100"
-                  onClick={() => navigate('/generated-documents')}
-                >
-                  View Documents
-                </Button>
-              </div>
-            </Card.Body>
-          </Card>
-        </Col>
-      </Row>
-
-    </Container>
+    </div>
   );
 };
 
-export default DocumentsPage; 
+export default DocumentsPage;

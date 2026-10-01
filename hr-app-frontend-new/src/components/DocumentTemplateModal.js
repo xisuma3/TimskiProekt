@@ -178,12 +178,12 @@ const DocumentTemplateModal = ({ show, onHide, onSave, editingTemplate }) => {
 
   return (
     <Modal show={show} onHide={onHide} size="xl">
-      <Modal.Header closeButton style={{ backgroundColor: '#1E293B', borderColor: '#374151' }}>
-        <Modal.Title style={{ color: 'white' }}>
+      <Modal.Header closeButton>
+        <Modal.Title>
           {editingTemplate ? 'Edit Template' : 'Create New Template'}
         </Modal.Title>
       </Modal.Header>
-      <Modal.Body style={{ backgroundColor: '#1E293B', color: 'white' }}>
+      <Modal.Body>
         {error && <Alert variant="danger">{error}</Alert>}
         
         <Tabs defaultActiveKey="editor" className="mb-3">
@@ -197,7 +197,6 @@ const DocumentTemplateModal = ({ show, onHide, onSave, editingTemplate }) => {
                   value={templateData.templateName}
                   onChange={handleInputChange}
                   required
-                  style={{ backgroundColor: '#374151', borderColor: '#6B7280', color: 'white' }}
                 />
               </Form.Group>
 
@@ -209,7 +208,6 @@ const DocumentTemplateModal = ({ show, onHide, onSave, editingTemplate }) => {
                   name="description"
                   value={templateData.description}
                   onChange={handleInputChange}
-                  style={{ backgroundColor: '#374151', borderColor: '#6B7280', color: 'white' }}
                 />
               </Form.Group>
 
@@ -219,7 +217,6 @@ const DocumentTemplateModal = ({ show, onHide, onSave, editingTemplate }) => {
                   name="templateType"
                   value={templateData.templateType}
                   onChange={handleInputChange}
-                  style={{ backgroundColor: '#374151', borderColor: '#6B7280', color: 'white' }}
                 >
                   <option value="Asset">Asset</option>
                   <option value="Employment">Employment</option>
@@ -236,7 +233,7 @@ const DocumentTemplateModal = ({ show, onHide, onSave, editingTemplate }) => {
                   value={templateData.templateContent}
                   onChange={handleInputChange}
                   required
-                  style={{ backgroundColor: '#374151', borderColor: '#6B7280', color: 'white', fontFamily: 'monospace' }}
+                  className="font-monospace small"
                   placeholder={sampleTemplate}
                 />
               </Form.Group>
@@ -244,7 +241,7 @@ const DocumentTemplateModal = ({ show, onHide, onSave, editingTemplate }) => {
               <div className="d-flex justify-content-between">
                 <Button 
                   type="button" 
-                  variant="info" 
+                  variant="outline-primary"
                   onClick={() => setTemplateData(prev => ({ ...prev, templateContent: sampleTemplate }))}
                 >
                   Load Sample Template
@@ -268,7 +265,6 @@ const DocumentTemplateModal = ({ show, onHide, onSave, editingTemplate }) => {
                 <Form.Select
                   value={selectedEmployee}
                   onChange={(e) => setSelectedEmployee(e.target.value)}
-                  style={{ backgroundColor: '#374151', borderColor: '#6B7280', color: 'white' }}
                 >
                   {employees.map(emp => (
                     <option key={emp.employeeID} value={emp.employeeID}>
@@ -284,7 +280,6 @@ const DocumentTemplateModal = ({ show, onHide, onSave, editingTemplate }) => {
                   multiple
                   value={selectedAssets}
                   onChange={(e) => setSelectedAssets(Array.from(e.target.selectedOptions, option => option.value))}
-                  style={{ backgroundColor: '#374151', borderColor: '#6B7280', color: 'white' }}
                 >
                   {assets.map(asset => (
                     <option key={asset.assetID} value={asset.assetID}>
@@ -292,27 +287,20 @@ const DocumentTemplateModal = ({ show, onHide, onSave, editingTemplate }) => {
                     </option>
                   ))}
                 </Form.Select>
-                <Form.Text style={{ color: '#9CA3AF' }}>
+                <Form.Text>
                   Hold Ctrl/Cmd to select multiple assets
                 </Form.Text>
               </Form.Group>
 
-              <Button variant="success" onClick={handlePreview} className="mb-3">
+              <Button variant="outline-primary" onClick={handlePreview} className="mb-3">
                 Generate Preview
               </Button>
             </div>
 
             {previewContent && (
-              <div 
-                style={{ 
-                  border: '1px solid #6B7280', 
-                  borderRadius: '4px', 
-                  padding: '15px',
-                  backgroundColor: 'white',
-                  color: 'black',
-                  maxHeight: '400px',
-                  overflow: 'auto'
-                }}
+              <div
+                className="doc-preview"
+                style={{ maxHeight: '400px' }}
                 dangerouslySetInnerHTML={{ __html: previewContent }}
               />
             )}

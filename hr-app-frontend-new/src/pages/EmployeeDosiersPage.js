@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Card, Button, ButtonGroup, Modal } from 'react-bootstrap';
+import { Card, Button, Modal } from 'react-bootstrap';
 import DataPage from '../components/DataPage';
 import EmployeeDossierModal from '../components/EmployeeDossierModal';
 import RoleBasedContent from '../components/RoleBasedContent';
@@ -59,46 +59,57 @@ const EmployeeDosiersPage = () => {
     }
   };
 
-  const renderDossierCard = (dossier) => (
-    <Card className="shadow" style={{ backgroundColor: '#1E293B', borderColor: '#6366F1', color: 'white' }}>
-      <Card.Body>
-        <Card.Title style={{ color: '#6366F1' }}>
-          {isAdmin() ? dossier.employeeName : 'My Dossier'}
-        </Card.Title>
-        <Card.Subtitle className="mb-2" style={{ color: '#94A3B8' }}>
-          {dossier.employmentType} Employee
-        </Card.Subtitle>
-        <Card.Text>
-          <strong>Birth Date:</strong> {dossier.birthDate ? new Date(dossier.birthDate).toLocaleDateString() : 'Not specified'}<br/>
-          <strong>Address:</strong> {dossier.address || 'Not specified'}<br/>
-          <strong>Emergency Contact:</strong> {dossier.emergencyContact || 'Not specified'}<br/>
-          <strong>Employment Type:</strong> {dossier.employmentType}
-        </Card.Text>
-        
-        {/* Admin only - edit and delete buttons */}
-        <RoleBasedContent allowedRoles={['Admin']}>
-          <div className="d-flex justify-content-end mt-3">
-            <ButtonGroup size="sm">
-              <Button
-                variant="outline-primary"
-                onClick={() => handleEditClick(dossier)}
-                style={{ borderColor: '#6366F1', color: '#6366F1' }}
-              >
-                <i className="bi bi-pencil"></i>
-              </Button>
-              <Button
-                variant="outline-danger"
-                onClick={() => handleDeleteClick(dossier)}
-                style={{ borderColor: '#dc3545', color: '#dc3545' }}
-              >
-                <i className="bi bi-trash"></i>
-              </Button>
-            </ButtonGroup>
+  const renderDossierCard = (dossier) => {
+    const name = isAdmin() ? dossier.employeeName : 'My Dossier';
+    return (
+      <Card className="item-card">
+        <Card.Body>
+          <div className="item-card-head">
+            <span className="item-card-icon" aria-hidden="true"><i className="bi bi-person-vcard" /></span>
+            <div className="flex-grow-1 min-w-0">
+              <Card.Title>{name}</Card.Title>
+              <Card.Subtitle>{dossier.employmentType} Employee</Card.Subtitle>
+            </div>
           </div>
-        </RoleBasedContent>
-      </Card.Body>
-    </Card>
-  );
+
+          <dl className="meta-list">
+            <dt>Birth Date</dt>
+            <dd>{dossier.birthDate ? new Date(dossier.birthDate).toLocaleDateString() : 'Not specified'}</dd>
+            <dt>Address</dt>
+            <dd>{dossier.address || 'Not specified'}</dd>
+            <dt>Emergency Contact</dt>
+            <dd>{dossier.emergencyContact || 'Not specified'}</dd>
+            <dt>Employment Type</dt>
+            <dd>{dossier.employmentType}</dd>
+          </dl>
+
+          {/* Admin only - edit and delete buttons */}
+          <RoleBasedContent allowedRoles={['Admin']}>
+            <div className="item-card-actions">
+              <Button
+                size="sm"
+                variant="outline-primary"
+                className="btn-icon"
+                onClick={() => handleEditClick(dossier)}
+                aria-label={`Edit dossier for ${name}`}
+              >
+                <i className="bi bi-pencil" aria-hidden="true"></i>
+              </Button>
+              <Button
+                size="sm"
+                variant="outline-danger"
+                className="btn-icon"
+                onClick={() => handleDeleteClick(dossier)}
+                aria-label={`Delete dossier for ${name}`}
+              >
+                <i className="bi bi-trash" aria-hidden="true"></i>
+              </Button>
+            </div>
+          </RoleBasedContent>
+        </Card.Body>
+      </Card>
+    );
+  };
 
   return (
     <>
@@ -106,6 +117,8 @@ const EmployeeDosiersPage = () => {
         title={isAdmin() ? "Employee Dossiers" : "My Dossier"}
         apiEndpoint={isAdmin() ? API_URLS.EMPLOYEE_DOSSIERS.GET_ALL() : API_URLS.EMPLOYEE_DOSSIERS.GET_MY_DOSSIER()}
         searchFields={isAdmin() ? ['employeeName', 'employmentType', 'address'] : ['employmentType', 'address']}
+        subtitle={isAdmin() ? 'Personal and employment details for every employee.' : 'Your personal and employment details on file.'}
+        emptyIcon="bi-person-vcard"
         renderCard={renderDossierCard}
         searchPlaceholder={isAdmin() ? "Search employee dossiers..." : "Search my dossier..."}
         showAddButton={isAdmin()}
@@ -121,15 +134,15 @@ const EmployeeDosiersPage = () => {
       />
 
       <Modal show={showDeleteModal} onHide={() => setShowDeleteModal(false)} centered>
-        <Modal.Header closeButton style={{ backgroundColor: '#1E293B', color: 'white', borderColor: '#dc3545' }}>
+        <Modal.Header closeButton>
           <Modal.Title>Confirm Delete</Modal.Title>
         </Modal.Header>
-        <Modal.Body style={{ backgroundColor: '#0F172A', color: 'white' }}>
+        <Modal.Body>
           Are you sure you want to delete the dossier for {dossierToDelete?.employeeName}?
           <br />
           <small className="text-muted">This action cannot be undone.</small>
         </Modal.Body>
-        <Modal.Footer style={{ backgroundColor: '#1E293B', borderColor: '#dc3545' }}>
+        <Modal.Footer>
           <Button variant="secondary" onClick={() => setShowDeleteModal(false)}>
             Cancel
           </Button>

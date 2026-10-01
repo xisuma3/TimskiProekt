@@ -98,9 +98,9 @@
   padding: 12px 14px;
   margin-bottom: 20px;
   border-radius: 12px;
-  background: #fef2f2;
-  border: 1px solid #fecaca;
-  color: #991b1b;
+  background: var(--lp-danger-soft);
+  border: 1px solid var(--lp-danger-border);
+  color: var(--lp-danger);
   font-size: 0.925rem;
 }
 .lg-alert .bi { margin-top: 2px; }
@@ -128,18 +128,18 @@
   font: inherit;
   color: var(--lp-text);
   background: var(--lp-surface);
-  border: 1px solid #cbd5e1;
+  border: 1px solid var(--lp-input-border);
   border-radius: 12px;
   transition: border-color 200ms ease, box-shadow 200ms ease;
 }
-.lg-input::placeholder { color: #94a3b8; }
-.lg-input:hover { border-color: #a5b4fc; }
+.lg-input::placeholder { color: var(--lp-placeholder); }
+.lg-input:hover { border-color: var(--lp-border-strong); }
 .lg-input:focus {
   outline: none;
   border-color: var(--lp-primary);
-  box-shadow: 0 0 0 4px rgba(99, 102, 241, 0.18);
+  box-shadow: 0 0 0 4px var(--lp-ring-soft);
 }
-.lg-input[aria-invalid='true'] { border-color: #dc2626; }
+.lg-input[aria-invalid='true'] { border-color: var(--lp-danger); }
 .lg-input.has-toggle { padding-right: 52px; }
 .lg-toggle {
   position: absolute;

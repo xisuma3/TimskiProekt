@@ -1,6 +1,7 @@
 import React from 'react';
 import { Link } from 'react-router-dom';
 import { Container, Row, Col } from 'react-bootstrap';
+import ThemeToggle from '../components/ThemeToggle';
 import './LandingPage.css';
 
 const FEATURES = [
@@ -92,7 +93,10 @@ const LandingPage = () => (
           <span className="lp-brand-mark"><i className="bi bi-people-fill" aria-hidden="true" /></span>
           HR Management
         </Link>
-        <Link to="/login" className="lp-btn lp-btn-ghost">Sign in</Link>
+        <div className="d-flex align-items-center gap-2">
+          <ThemeToggle className="lp-btn lp-btn-ghost" />
+          <Link to="/login" className="lp-btn lp-btn-ghost">Sign in</Link>
+        </div>
       </Container>
     </header>
 

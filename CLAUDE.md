@@ -206,9 +206,11 @@ deleted. Remaining = allocated + carried over − (approved + pending); pending 
 or an employee with 2 days left could file three more requests and have them all
 approvable.
 
-**A missing entitlement row means uncapped, not zero.** Sick leave is usually governed by
-policy rather than a day count, so `LeaveRequestService` skips the check when
-`IsTracked` is false.
+**A missing entitlement row means no allowance, and the request is refused.** Every
+leave type, Sick included, needs an entitlement row for each year a request touches
+(`IsTracked` false → `ArgumentException` → 400). A request longer than the days remaining
+is refused too. `LeaveRequestModal` runs the same check live via `services/leaveBalance.js`
+and disables Submit with a warning; the server remains the authority.
 
 A request spanning New Year is charged to **both** years and must fit in each — see
 `LeaveEntitlementService.DaysWithinYear`.

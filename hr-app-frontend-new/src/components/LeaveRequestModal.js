@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { Modal, Button, Form, Row, Col, Alert } from 'react-bootstrap';
 import { authenticatedFetch, getUserInfo, isAdmin } from '../services/authService';
 import { API_URLS } from '../config/api';
+import { checkAllowance, yearsSpanned } from '../services/leaveBalance';
 
 const LeaveRequestModal = ({ show, onHide, employees = [], onSave }) => {
   const [formData, setFormData] = useState({
@@ -12,6 +13,9 @@ const LeaveRequestModal = ({ show, onHide, employees = [], onSave }) => {
   });
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
+  // Live allowance check: null until employee, type and both dates are known.
+  const [allowance, setAllowance] = useState(null);
+  const [checking, setChecking] = useState(false);
 
   const leaveTypes = ['Vacation', 'Sick', 'Parental', 'Unpaid'];
 
@@ -37,6 +41,34 @@ const LeaveRequestModal = ({ show, onHide, employees = [], onSave }) => {
     setError('');
   }, [show]);
 
+  const { employeeID, leaveType, startDate, endDate } = formData;
+  useEffect(() => {
+    const admin = isAdmin();
+    if (!show || !leaveType || !startDate || !endDate || endDate < startDate || (admin && !employeeID)) {
+      setAllowance(null);
+      return undefined;
+    }
+    let cancelled = false;
+    setChecking(true);
+    Promise.all(yearsSpanned(startDate, endDate).map(async (year) => {
+      const url = admin
+        ? API_URLS.LEAVE_ENTITLEMENTS.GET_BALANCE(employeeID, year)
+        : API_URLS.LEAVE_ENTITLEMENTS.GET_MY_BALANCE(year);
+      const res = await authenticatedFetch(url);
+      if (!res.ok) throw new Error('balance unavailable');
+      return [year, await res.json()];
+    }))
+      .then((pairs) => {
+        if (!cancelled) setAllowance(checkAllowance(Object.fromEntries(pairs), startDate, endDate, leaveType));
+      })
+      // If the balance can't be loaded, don't block here: the server still enforces the rule.
+      .catch(() => { if (!cancelled) setAllowance(null); })
+      .finally(() => { if (!cancelled) setChecking(false); });
+    return () => { cancelled = true; };
+  }, [show, employeeID, leaveType, startDate, endDate]);
+
+  const blocked = Boolean(allowance && !allowance.ok);
+
   const handleSubmit = async (e) => {
     e.preventDefault();
     setLoading(true);
@@ -44,6 +76,12 @@ const LeaveRequestModal = ({ show, onHide, employees = [], onSave }) => {
 
     if (new Date(formData.endDate) < new Date(formData.startDate)) {
       setError('End date must be after start date');
+      setLoading(false);
+      return;
+    }
+
+    if (blocked) {
+      setError(allowance.message);
       setLoading(false);
       return;
     }
@@ -95,10 +133,10 @@ const LeaveRequestModal = ({ show, onHide, employees = [], onSave }) => {
 
   return (
     <Modal show={show} onHide={onHide} size="lg" centered>
-      <Modal.Header closeButton style={{ backgroundColor: '#1E293B', color: 'white', borderColor: '#6366F1' }}>
+      <Modal.Header closeButton>
         <Modal.Title>Submit Leave Request</Modal.Title>
       </Modal.Header>
-      <Modal.Body style={{ backgroundColor: '#0F172A', color: 'white' }}>
+      <Modal.Body>
         {error && <Alert variant="danger">{error}</Alert>}
         
         <Form onSubmit={handleSubmit}>
@@ -112,7 +150,6 @@ const LeaveRequestModal = ({ show, onHide, employees = [], onSave }) => {
                     value={formData.employeeID}
                     onChange={handleChange}
                     required
-                    style={{ backgroundColor: '#1E293B', color: 'white', borderColor: '#6366F1' }}
                   >
                     <option value="">Select Employee</option>
                     {employees.map(emp => (
@@ -132,7 +169,6 @@ const LeaveRequestModal = ({ show, onHide, employees = [], onSave }) => {
                   value={formData.leaveType}
                   onChange={handleChange}
                   required
-                  style={{ backgroundColor: '#1E293B', color: 'white', borderColor: '#6366F1' }}
                 >
                   <option value="">Select Leave Type</option>
                   {leaveTypes.map(type => (
@@ -154,7 +190,6 @@ const LeaveRequestModal = ({ show, onHide, employees = [], onSave }) => {
                   onChange={handleChange}
                   required
                   min={new Date().toISOString().split('T')[0]}
-                  style={{ backgroundColor: '#1E293B', color: 'white', borderColor: '#6366F1' }}
                 />
               </Form.Group>
             </Col>
@@ -168,27 +203,47 @@ const LeaveRequestModal = ({ show, onHide, employees = [], onSave }) => {
                   onChange={handleChange}
                   required
                   min={formData.startDate || new Date().toISOString().split('T')[0]}
-                  style={{ backgroundColor: '#1E293B', color: 'white', borderColor: '#6366F1' }}
                 />
               </Form.Group>
             </Col>
           </Row>
 
           {calculateDays() > 0 && (
-            <div className="mb-3 text-center" style={{ color: '#6366F1' }}>
-              <strong>Duration: {calculateDays()} days</strong>
+            <div className="status-chip is-primary mb-2">
+              Duration: {calculateDays()} {calculateDays() === 1 ? 'day' : 'days'}
             </div>
+          )}
+
+          {checking && !allowance && (
+            <p className="text-muted small mb-0" role="status">
+              <span className="spinner-border spinner-border-sm me-2" aria-hidden="true" />
+              Checking your allowance…
+            </p>
+          )}
+          {allowance && (
+            <Alert
+              variant={allowance.ok ? 'success' : allowance.reason === 'none' ? 'warning' : 'danger'}
+              className="d-flex gap-2 align-items-start mb-0"
+              role={allowance.ok ? 'status' : 'alert'}
+            >
+              <i
+                className={`bi ${allowance.ok ? 'bi-check-circle' : 'bi-exclamation-triangle'} mt-1`}
+                aria-hidden="true"
+              />
+              <span>{allowance.message}</span>
+            </Alert>
           )}
         </Form>
       </Modal.Body>
-      <Modal.Footer style={{ backgroundColor: '#1E293B', borderColor: '#6366F1' }}>
+      <Modal.Footer>
         <Button variant="secondary" onClick={onHide}>
           Cancel
         </Button>
         <Button
+          variant="primary"
           onClick={handleSubmit}
-          disabled={loading}
-          style={{ backgroundColor: '#6366F1', borderColor: '#6366F1' }}
+          disabled={loading || blocked}
+          title={blocked ? allowance.message : undefined}
         >
           {loading ? 'Submitting...' : 'Submit Request'}
         </Button>

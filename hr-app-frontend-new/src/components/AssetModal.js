@@ -82,10 +82,10 @@ const AssetModal = ({ show, onHide, asset = null, onSave, employees = [] }) => {
 
   return (
     <Modal show={show} onHide={onHide} size="lg" centered>
-      <Modal.Header closeButton style={{ backgroundColor: '#1E293B', color: 'white', borderColor: '#6366F1' }}>
+      <Modal.Header closeButton>
         <Modal.Title>{isEditing ? 'Edit Asset' : 'Add New Asset'}</Modal.Title>
       </Modal.Header>
-      <Modal.Body style={{ backgroundColor: '#0F172A', color: 'white' }}>
+      <Modal.Body>
         {error && <Alert variant="danger">{error}</Alert>}
         
         <Form onSubmit={handleSubmit}>
@@ -97,7 +97,6 @@ const AssetModal = ({ show, onHide, asset = null, onSave, employees = [] }) => {
               value={formData.name}
               onChange={handleChange}
               required
-              style={{ backgroundColor: '#1E293B', color: 'white', borderColor: '#6366F1' }}
             />
           </Form.Group>
 
@@ -110,7 +109,6 @@ const AssetModal = ({ show, onHide, asset = null, onSave, employees = [] }) => {
               value={formData.description}
               onChange={handleChange}
               required
-              style={{ backgroundColor: '#1E293B', color: 'white', borderColor: '#6366F1' }}
             />
           </Form.Group>
 
@@ -123,7 +121,6 @@ const AssetModal = ({ show, onHide, asset = null, onSave, employees = [] }) => {
                   name="serialNumber"
                   value={formData.serialNumber}
                   onChange={handleChange}
-                  style={{ backgroundColor: '#1E293B', color: 'white', borderColor: '#6366F1' }}
                 />
               </Form.Group>
             </Col>
@@ -134,7 +131,6 @@ const AssetModal = ({ show, onHide, asset = null, onSave, employees = [] }) => {
                   name="employeeID"
                   value={formData.employeeID}
                   onChange={handleChange}
-                  style={{ backgroundColor: '#1E293B', color: 'white', borderColor: '#6366F1' }}
                 >
                   <option value="">Unassigned</option>
                   {employees.map(emp => (
@@ -154,19 +150,18 @@ const AssetModal = ({ show, onHide, asset = null, onSave, employees = [] }) => {
               label="Active"
               checked={formData.isActive}
               onChange={(e) => setFormData(prev => ({ ...prev, isActive: e.target.checked }))}
-              style={{ color: 'white' }}
             />
           </Form.Group>
         </Form>
       </Modal.Body>
-      <Modal.Footer style={{ backgroundColor: '#1E293B', borderColor: '#6366F1' }}>
+      <Modal.Footer>
         <Button variant="secondary" onClick={onHide}>
           Cancel
         </Button>
         <Button
+          variant="primary"
           onClick={handleSubmit}
           disabled={loading}
-          style={{ backgroundColor: '#6366F1', borderColor: '#6366F1' }}
         >
           {loading ? 'Saving...' : (isEditing ? 'Update' : 'Create')}
         </Button>

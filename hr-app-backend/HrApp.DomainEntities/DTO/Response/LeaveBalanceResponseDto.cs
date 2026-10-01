@@ -16,7 +16,7 @@ namespace HrApp.DomainEntities.DTO.Response
         public int Year { get; set; }
         public string LeaveType { get; set; }
 
-        /// <summary>False when no entitlement row exists; this type is then uncapped.</summary>
+        /// <summary>False when no entitlement row exists; requests of this type are then refused.</summary>
         public bool IsTracked { get; set; }
 
         public decimal DaysAllocated { get; set; }

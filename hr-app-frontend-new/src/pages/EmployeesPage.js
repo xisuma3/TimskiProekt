@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Card, Button, ButtonGroup, Modal, Form, Alert } from 'react-bootstrap';
+import { Card, Button, Modal, Form, Alert } from 'react-bootstrap';
 import DataPage from '../components/DataPage';
 import EmployeeModal from '../components/EmployeeModal';
 import { authenticatedFetch } from '../services/authService';
@@ -101,60 +101,67 @@ const EmployeesPage = () => {
   };
 
   const renderEmployeeCard = (emp) => (
-    <Card className="shadow" style={{ backgroundColor: '#1E293B', borderColor: '#6366F1', color: 'white' }}>
+    <Card className="item-card">
       <Card.Body>
-        <Card.Title style={{ color: '#6366F1' }}>
-          {emp.firstName} {emp.lastName}
-        </Card.Title>
-        <Card.Subtitle className="mb-2" style={{ color: '#94A3B8' }}>
-          {emp.position} | {emp.departmentName || emp.name || 'No Department'}
-        </Card.Subtitle>
-        <Card.Text>
-          <strong>Email:</strong> {emp.email}
-          <br />
-          <strong>Hire Date:</strong> {new Date(emp.hireDate).toLocaleDateString()}
-          <br />
+        <div className="item-card-head">
+          <span className="item-card-icon" aria-hidden="true">
+            {(emp.firstName || '?').charAt(0).toUpperCase()}{(emp.lastName || '').charAt(0).toUpperCase()}
+          </span>
+          <div className="flex-grow-1 min-w-0">
+            <Card.Title>{emp.firstName} {emp.lastName}</Card.Title>
+            <Card.Subtitle>{emp.position} · {emp.departmentName || emp.name || 'No Department'}</Card.Subtitle>
+          </div>
+        </div>
+
+        <dl className="meta-list">
+          <dt>Email</dt>
+          <dd>{emp.email}</dd>
+          <dt>Hire Date</dt>
+          <dd>{new Date(emp.hireDate).toLocaleDateString()}</dd>
           {emp.managerName && (
             <>
-              <strong>Manager:</strong> {emp.managerName}
-              <br />
+              <dt>Manager</dt>
+              <dd>{emp.managerName}</dd>
             </>
           )}
           {emp.mentorName && (
             <>
-              <strong>Mentor:</strong> {emp.mentorName}
-              <br />
+              <dt>Mentor</dt>
+              <dd>{emp.mentorName}</dd>
             </>
           )}
-        </Card.Text>
-        
-        {/* Action Buttons */}
-        <div className="d-flex justify-content-end mt-3">
-          <ButtonGroup size="sm">
-            <Button
-              variant="outline-primary"
-              onClick={() => handleEditClick(emp)}
-              style={{ borderColor: '#6366F1', color: '#6366F1' }}
-            >
-              <i className="bi bi-pencil"></i>
-            </Button>
-            <Button
-              variant="outline-warning"
-              onClick={() => handleDeleteClick(emp)}
-              title="Retire — hides them but keeps their records"
-              style={{ borderColor: '#f59e0b', color: '#f59e0b' }}
-            >
-              <i className="bi bi-box-arrow-right"></i>
-            </Button>
-            <Button
-              variant="outline-danger"
-              onClick={() => { setEmployeeToErase(emp); setEraseConfirmText(''); setEraseError(null); }}
-              title="Erase personal data — irreversible"
-              style={{ borderColor: '#dc3545', color: '#dc3545' }}
-            >
-              <i className="bi bi-trash"></i>
-            </Button>
-          </ButtonGroup>
+        </dl>
+
+        <div className="item-card-actions">
+          <Button
+            size="sm"
+            variant="outline-primary"
+            className="btn-icon"
+            onClick={() => handleEditClick(emp)}
+            aria-label={`Edit ${emp.firstName} ${emp.lastName}`}
+          >
+            <i className="bi bi-pencil" aria-hidden="true"></i>
+          </Button>
+          <Button
+            size="sm"
+            variant="outline-warning"
+            className="btn-icon"
+            onClick={() => handleDeleteClick(emp)}
+            title="Retire — hides them but keeps their records"
+            aria-label={`Retire ${emp.firstName} ${emp.lastName}`}
+          >
+            <i className="bi bi-box-arrow-right" aria-hidden="true"></i>
+          </Button>
+          <Button
+            size="sm"
+            variant="outline-danger"
+            className="btn-icon"
+            onClick={() => { setEmployeeToErase(emp); setEraseConfirmText(''); setEraseError(null); }}
+            title="Erase personal data — irreversible"
+            aria-label={`Erase personal data of ${emp.firstName} ${emp.lastName}`}
+          >
+            <i className="bi bi-trash" aria-hidden="true"></i>
+          </Button>
         </div>
       </Card.Body>
     </Card>
@@ -167,6 +174,8 @@ const EmployeesPage = () => {
         apiEndpoint={API_URLS.EMPLOYEES.GET_ALL()}
         searchFields={['firstName', 'lastName', 'email', 'departmentName']}
         renderCard={renderEmployeeCard}
+        subtitle="Everyone currently employed, with their team and reporting line."
+        emptyIcon="bi-people"
         searchPlaceholder="Search employees..."
         showAddButton={true}
         onAddClick={handleAddClick}
@@ -183,10 +192,10 @@ const EmployeesPage = () => {
 
       {/* Delete Confirmation Modal */}
       <Modal show={showDeleteModal} onHide={() => setShowDeleteModal(false)} centered>
-        <Modal.Header closeButton style={{ backgroundColor: '#1E293B', color: 'white', borderColor: '#dc3545' }}>
+        <Modal.Header closeButton>
           <Modal.Title>Retire Employee</Modal.Title>
         </Modal.Header>
-        <Modal.Body style={{ backgroundColor: '#0F172A', color: 'white' }}>
+        <Modal.Body>
           Retire {employeeToDelete?.firstName} {employeeToDelete?.lastName}?
           <br />
           <small className="text-muted">
@@ -194,7 +203,7 @@ const EmployeesPage = () => {
             generated documents are kept. This can be undone.
           </small>
         </Modal.Body>
-        <Modal.Footer style={{ backgroundColor: '#1E293B', borderColor: '#f59e0b' }}>
+        <Modal.Footer>
           <Button variant="secondary" onClick={() => setShowDeleteModal(false)}>
             Cancel
           </Button>
@@ -206,10 +215,10 @@ const EmployeesPage = () => {
 
       {/* GDPR erasure — deliberately harder to trigger than retiring */}
       <Modal show={Boolean(employeeToErase)} onHide={() => setEmployeeToErase(null)} centered>
-        <Modal.Header closeButton style={{ backgroundColor: '#1E293B', color: 'white', borderColor: '#dc3545' }}>
+        <Modal.Header closeButton>
           <Modal.Title>Erase Personal Data</Modal.Title>
         </Modal.Header>
-        <Modal.Body style={{ backgroundColor: '#0F172A', color: 'white' }}>
+        <Modal.Body>
           {eraseError && <Alert variant="danger">{eraseError}</Alert>}
 
           <p>
@@ -218,24 +227,23 @@ const EmployeesPage = () => {
             their name, email, login, dossier, and the body of every document generated
             for them.
           </p>
-          <p style={{ color: '#94A3B8' }}>
+          <p className="text-muted">
             Their leave decisions and asset custody are <strong>kept</strong> in anonymised
             form — those record what the company did and what happened to company property.
           </p>
           <p className="text-danger"><strong>This cannot be undone.</strong></p>
 
           <Form.Group>
-            <Form.Label style={{ color: '#94A3B8' }}>
+            <Form.Label>
               Type <code>{employeeToErase?.firstName} {employeeToErase?.lastName}</code> to confirm
             </Form.Label>
             <Form.Control
               value={eraseConfirmText}
               onChange={(e) => setEraseConfirmText(e.target.value)}
-              style={{ backgroundColor: '#1E293B', color: 'white', borderColor: '#374151' }}
             />
           </Form.Group>
         </Modal.Body>
-        <Modal.Footer style={{ backgroundColor: '#1E293B', borderColor: '#dc3545' }}>
+        <Modal.Footer>
           <Button variant="secondary" onClick={() => setEmployeeToErase(null)}>Cancel</Button>
           <Button variant="danger" onClick={handleEraseConfirm}>Erase permanently</Button>
         </Modal.Footer>
