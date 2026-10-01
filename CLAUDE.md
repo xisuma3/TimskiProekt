@@ -43,7 +43,7 @@ dotnet run --project HrAppWebApplication --launch-profile http
 - HTTP profile serves at `http://localhost:5190`; HTTPS profile at `https://localhost:7033` (and `http://localhost:5137`). Swagger UI is at `/swagger` in Development.
 - The frontend (`config/api.js`) hard-defaults to `http://localhost:5190`, so use the **http** profile unless you also set `REACT_APP_API_URL`.
 - **Two test suites**, both run by CI:
-  - `dotnet test HrApp.Tests/HrApp.Tests.csproj` — 130 tests on the EF **in-memory**
+  - `dotnet test HrApp.Tests/HrApp.Tests.csproj` — 135 tests on the EF **in-memory**
     provider. Needs no SQL Server; covers *service behaviour*.
   - `dotnet test HrApp.SchemaTests/HrApp.SchemaTests.csproj` — 14 tests against a real
     SQL Server, on a throwaway database built by running the migrations. Covers the rules
@@ -311,7 +311,7 @@ carry-over would strand days already booked next year. `preview: true` saves not
   return an empty list for it rather than erroring, and leave decisions are *refused* for
   it (an approval nobody can be attributed to is not an approval). Startup seeds an
   `Employee` for the dev admin so approvals are attributable.
-- **API timestamps have no offset.** Instants are stored with `DateTime.UtcNow` but serialise as e.g. `2026-10-01T10:00:00` (no `Z`), which browsers read as *local* time. Frontend code that shows "how long ago" must parse instants with `parseInstant` from `services/notificationService.js`; calendar dates (`startDate`, `hireDate`, …) are fine as they are. The real fix is serialising with an offset on the backend.
+- **Instants vs calendar dates.** SQL Server's `datetime2` has no zone, so EF reads values back as `Unspecified` and they would serialise without an offset (browsers then read them as *local* time). `HrAppDbContext.ConfigureUtcInstants` marks the **instant** columns UTC — `LeaveRequest.CreatedAt`/`DecisionAt`, `GeneratedDocument.GeneratedDate`, `ApprovalDelegation.CreatedAt`/`RevokedAt`, `ErasureRecord.PerformedAt`, `Employee.DeletedAt`/`ErasedAt` — so they go out as `…Z`, and their defaults are `GETUTCDATE()`. **Calendar dates** (leave start/end, hire/birth dates, asset handover days, `RequestReceivedAt`) stay offset-free on purpose, so a browser west of UTC doesn't show the previous day. A new instant column must be added to `ConfigureUtcInstants`; a new calendar-date column must not.
 - **`HrAppDbContext` lives in the `HrApp.Repository` project but is declared under `namespace HrAppWebApplication`.** Repositories therefore `using HrAppWebApplication;` to reach the context — don't be misled by the namespace.
 - **Several request DTOs have no validation attributes at all**: `DepartmentRequestDto`, `EmployeeRequestDto`, `UpdateEmployeeRequestDto`, `PreviewTemplateRequest`. `ModelState.IsValid` is therefore meaningless for those endpoints.
 - **A field that is optional in the request DTO must be nullable on the model too.** If it

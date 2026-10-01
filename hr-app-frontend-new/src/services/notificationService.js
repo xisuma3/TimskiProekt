@@ -23,9 +23,11 @@ const fmtDay = (value) =>
 
 const plural = (n, word) => `${n} ${word}${n === 1 ? '' : 's'}`;
 
-// The API records instants with DateTime.UtcNow but serialises them without an offset
-// ("2026-10-01T10:00:00"), which JS reads as local time. Treat offset-less timestamps as
-// UTC. Use this for instants only (createdAt, decisionAt, generatedDate), not calendar dates.
+// The API now sends instants with a UTC offset ("2026-10-01T10:00:00Z"; see
+// HrAppDbContext.ConfigureUtcInstants). This stays as a safety net for any value that
+// still arrives offset-less (older cached responses, raw SQL-seeded rows read elsewhere):
+// such a timestamp is taken as UTC rather than local. Use it for instants only
+// (createdAt, decisionAt, generatedDate) — never for calendar dates like startDate.
 export const parseInstant = (value) => {
   if (!value) return null;
   const s = String(value);

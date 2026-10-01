@@ -1,4 +1,4 @@
-﻿using HrApp.DomainEntities.Models;
+using HrApp.DomainEntities.Models;
 using Microsoft.EntityFrameworkCore;
 using System;
 using System.Collections.Generic;
@@ -142,7 +142,7 @@ namespace HrAppWebApplication
                     .HasConversion<string>();
 
                 entity.Property(l => l.CreatedAt)
-                    .HasDefaultValueSql("GETDATE()");
+                    .HasDefaultValueSql("GETUTCDATE()");
 
                 entity.Property(l => l.DecisionReason).HasMaxLength(500);
 
@@ -316,9 +316,49 @@ namespace HrAppWebApplication
                     .OnDelete(DeleteBehavior.Cascade);
 
                 entity.Property(g => g.Content).IsRequired();
-                entity.Property(g => g.GeneratedDate).HasDefaultValueSql("GETDATE()");
+                entity.Property(g => g.GeneratedDate).HasDefaultValueSql("GETUTCDATE()");
                 entity.Property(g => g.AssetIDs).HasColumnType("NVARCHAR(MAX)").IsRequired(false);
             });
+
+            ConfigureUtcInstants(modelBuilder);
         }
+
+        /// <summary>
+        /// SQL Server's datetime2 has no time zone, so EF reads every value back as
+        /// <see cref="DateTimeKind.Unspecified"/> and System.Text.Json then writes it without
+        /// an offset ("2026-10-01T10:00:00") — which browsers read as *local* time. These
+        /// columns hold moments in time recorded with DateTime.UtcNow, so they are marked UTC
+        /// on read (and serialise with "Z") and normalised to UTC on write.
+        ///
+        /// Calendar dates — leave start/end, hire date, birth date, asset handover days — are
+        /// deliberately NOT here: they mean a day, not an instant, and must stay offset-free
+        /// so a browser west of UTC doesn't render them as the previous day.
+        /// </summary>
+        private static void ConfigureUtcInstants(ModelBuilder modelBuilder)
+        {
+            var utc = new Microsoft.EntityFrameworkCore.Storage.ValueConversion.ValueConverter<DateTime, DateTime>(
+                v => ToUtc(v),
+                v => DateTime.SpecifyKind(v, DateTimeKind.Utc));
+            var utcNullable = new Microsoft.EntityFrameworkCore.Storage.ValueConversion.ValueConverter<DateTime?, DateTime?>(
+                v => v.HasValue ? ToUtc(v.Value) : v,
+                v => v.HasValue ? DateTime.SpecifyKind(v.Value, DateTimeKind.Utc) : v);
+
+            modelBuilder.Entity<LeaveRequest>().Property(l => l.CreatedAt).HasConversion(utc);
+            modelBuilder.Entity<LeaveRequest>().Property(l => l.DecisionAt).HasConversion(utcNullable);
+            modelBuilder.Entity<GeneratedDocument>().Property(g => g.GeneratedDate).HasConversion(utc);
+            modelBuilder.Entity<ApprovalDelegation>().Property(d => d.CreatedAt).HasConversion(utc);
+            modelBuilder.Entity<ApprovalDelegation>().Property(d => d.RevokedAt).HasConversion(utcNullable);
+            modelBuilder.Entity<ErasureRecord>().Property(r => r.PerformedAt).HasConversion(utc);
+            modelBuilder.Entity<Employee>().Property(e => e.DeletedAt).HasConversion(utcNullable);
+            modelBuilder.Entity<Employee>().Property(e => e.ErasedAt).HasConversion(utcNullable);
+        }
+
+        // Local times become UTC; Unspecified is taken to already be UTC (that's what the app writes).
+        private static DateTime ToUtc(DateTime value) => value.Kind switch
+        {
+            DateTimeKind.Local => value.ToUniversalTime(),
+            DateTimeKind.Unspecified => DateTime.SpecifyKind(value, DateTimeKind.Utc),
+            _ => value,
+        };
     }
 }

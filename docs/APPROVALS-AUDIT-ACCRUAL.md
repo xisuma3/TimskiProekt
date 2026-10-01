@@ -87,16 +87,19 @@ booked next year. **Preview** saves nothing, and the UI only offers Apply after 
 
 | | |
 |---|---|
-| Unit tests | **131** passing (in-memory) |
+| Unit tests | **135** passing (in-memory) |
 | Schema tests | **14** passing (real SQL Server, all migrations) |
 | Frontend tests | **82** passing; CI build clean |
-| Migrations | 7, no pending model changes |
+| Migrations | 8, no pending model changes |
+
+## Since fixed
+
+- **Timestamps without an offset** (2026-10-02). Instants now serialise with `Z` via
+  `HrAppDbContext.ConfigureUtcInstants`; calendar dates stay offset-free; the two
+  `GETDATE()` defaults became `GETUTCDATE()` (migration `UtcTimestampDefaults`).
 
 ## Still open
 
-- **Timestamps without an offset.** Instants serialise as `2026-10-01T10:00:00` (no `Z`);
-  the frontend corrects for it where it shows relative times (`parseInstant`). The proper
-  fix is serialising with an offset on the backend.
 - **Audit of ordinary edits.** Erasures are audited; edits to employees, templates and so
   on are not.
 - **Notifications outside the app.** No email or push; managers still have to open the app.
