@@ -16,6 +16,7 @@ import { NativeSelect, NativeSelectOption } from '@/components/ui/native-select'
 import { Spinner } from '@/components/ui/spinner';
 import { Textarea } from '@/components/ui/textarea';
 import { authenticatedFetch } from '../services/authService';
+import { readErrorMessage } from '../services/apiError';
 import { API_URLS } from '../config/api';
 
 const EmployeeDossierModal = ({ show, onHide, dossier = null, onSave, employees = [] }) => {
@@ -71,8 +72,8 @@ const EmployeeDossierModal = ({ show, onHide, dossier = null, onSave, employees 
       });
 
       if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(errorData.message || `Failed to ${isEditing ? 'update' : 'create'} dossier`);
+        // The body may be empty or plain text; never let that become a parsing error.
+        throw new Error(await readErrorMessage(response, `Failed to ${isEditing ? 'update' : 'create'} dossier`));
       }
 
       onSave();
