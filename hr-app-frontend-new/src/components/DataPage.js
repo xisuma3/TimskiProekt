@@ -359,9 +359,11 @@ const DataPage = ({
       {!loading && !error && view !== 'calendar' && filteredData.length > 0 && (
         <Row className={view === 'list' ? 'g-3 data-list' : 'g-4'}>
           {filteredData.map((item, index) => (
-            // The record's own id comes first: employeeID repeats across one person's
-            // leave requests, allowances and dossier, so it can't key those lists.
-            <Col {...(view === 'list' ? { xs: 12 } : { md: 6, xl: 4 })} key={item.id || item.requestID || item.entitlementID || item.dossierID || item.assetID || item.documentID || item.templateID || item.departmentID || item.employeeID || index}>
+            // The record's own id must win over any foreign key it carries. employeeID
+            // repeats across one person's leave requests, allowances and dossier, so those
+            // own ids come first; departmentID repeats across an employee list, so
+            // employeeID has to come before it.
+            <Col {...(view === 'list' ? { xs: 12 } : { md: 6, xl: 4 })} key={item.id || item.requestID || item.entitlementID || item.dossierID || item.assetID || item.documentID || item.templateID || item.employeeID || item.departmentID || index}>
               {/* Check if this is using the new modal system or old approach */}
               {usesManagedModal
                 ? renderCard(item, handleEdit, handleDeleteClick) // New document modals
