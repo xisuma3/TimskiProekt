@@ -11,7 +11,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from '@/components/ui/dialog';
-import { Field, FieldGroup, FieldLabel } from '@/components/ui/field';
+import { Field, FieldDescription, FieldGroup, FieldLabel } from '@/components/ui/field';
 import { Input } from '@/components/ui/input';
 import { NativeSelect, NativeSelectOption } from '@/components/ui/native-select';
 import { Spinner } from '@/components/ui/spinner';
@@ -143,23 +143,42 @@ const AssetModal = ({ show, onHide, asset = null, onSave, employees = [] }) => {
                   onChange={handleChange}
                 />
               </Field>
-              <Field>
-                <FieldLabel htmlFor="asset-employee">Assigned To</FieldLabel>
-                <NativeSelect
-                  id="asset-employee"
-                  name="employeeID"
-                  value={formData.employeeID}
-                  onChange={handleChange}
-                  className="w-full"
-                >
-                  <NativeSelectOption value="">Unassigned</NativeSelectOption>
-                  {employees.map(emp => (
-                    <NativeSelectOption key={emp.employeeID} value={emp.employeeID}>
-                      {emp.firstName} {emp.lastName}
-                    </NativeSelectOption>
-                  ))}
-                </NativeSelect>
-              </Field>
+              {isEditing ? (
+                // Update never reassigns (AssetController.Update): custody moves only through
+                // the Custody action, which records the handover. Show the holder read-only.
+                <Field>
+                  <FieldLabel htmlFor="asset-holder">Held by</FieldLabel>
+                  <Input
+                    id="asset-holder"
+                    type="text"
+                    value={asset.isAssigned && asset.employeeName ? asset.employeeName : 'In stock'}
+                    readOnly
+                    disabled
+                  />
+                  <FieldDescription>
+                    To assign, transfer or return this asset, use the Custody action on its card.
+                  </FieldDescription>
+                </Field>
+              ) : (
+                // Create honours an initial holder: AssetService.CreateAsync opens a custody record.
+                <Field>
+                  <FieldLabel htmlFor="asset-employee">Assigned To</FieldLabel>
+                  <NativeSelect
+                    id="asset-employee"
+                    name="employeeID"
+                    value={formData.employeeID}
+                    onChange={handleChange}
+                    className="w-full"
+                  >
+                    <NativeSelectOption value="">Unassigned</NativeSelectOption>
+                    {employees.map(emp => (
+                      <NativeSelectOption key={emp.employeeID} value={emp.employeeID}>
+                        {emp.firstName} {emp.lastName}
+                      </NativeSelectOption>
+                    ))}
+                  </NativeSelect>
+                </Field>
+              )}
             </div>
 
             <Field orientation="horizontal">
