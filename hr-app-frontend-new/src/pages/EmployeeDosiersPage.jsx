@@ -140,6 +140,10 @@ const EmployeeDosiersPage = () => {
         emptyIcon={IdCard}
         renderCard={renderDossierCard}
         searchPlaceholder={isAdmin() ? "Search employee dossiers..." : "Search my dossier..."}
+        // An employee has at most one dossier: nothing to search or lay out differently.
+        showToolbar={isAdmin()}
+        emptyTitle={isAdmin() ? null : 'No dossier yet'}
+        emptyDescription={isAdmin() ? null : 'HR hasn’t set up your dossier. Contact HR to have it created.'}
         showAddButton={isAdmin()}
         onAddClick={handleAddClick}
       />

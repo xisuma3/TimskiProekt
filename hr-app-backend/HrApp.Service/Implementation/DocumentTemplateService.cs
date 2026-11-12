@@ -30,6 +30,26 @@ namespace HrApp.Service.Implementation
             return templates.Select(MapToDto);
         }
 
+        public async Task<IEnumerable<SelfServiceTemplateResponseDto>> GetSelfServiceAsync()
+        {
+            var templates = await _repository.GetAllAsync();
+            return templates
+                .Where(t => t.AllowSelfService)
+                .Select(t => new SelfServiceTemplateResponseDto
+                {
+                    TemplateID = t.TemplateID,
+                    TemplateName = t.TemplateName,
+                    Description = t.Description,
+                    TemplateType = t.TemplateType,
+                    ListsAssets = ListsAssetsPattern.IsMatch(t.TemplateContent ?? string.Empty),
+                })
+                .ToList();
+        }
+
+        // Same test the frontend used to run on the raw content: an asset placeholder or block.
+        private static readonly System.Text.RegularExpressions.Regex ListsAssetsPattern =
+            new(@"\{\{\s*(#assetList|asset\.)", System.Text.RegularExpressions.RegexOptions.Compiled);
+
         public async Task<DocumentTemplateResponseDto> GetByIdAsync(Guid id)
         {
             var template = await _repository.GetByIdAsync(id);

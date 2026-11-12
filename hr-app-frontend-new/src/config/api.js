@@ -81,7 +81,9 @@ export const API_URLS = {
   
   // Document Template endpoints
   DOCUMENT_TEMPLATES: {
-    GET_ALL: () => buildApiUrl(API_CONFIG.ENDPOINTS.DOCUMENT_TEMPLATE, '/GetAll'),
+    GET_ALL: () => buildApiUrl(API_CONFIG.ENDPOINTS.DOCUMENT_TEMPLATE, '/GetAll'), // Admin only
+    // What an employee may generate for themselves: no template HTML, no usage counts.
+    GET_SELF_SERVICE: () => buildApiUrl(API_CONFIG.ENDPOINTS.DOCUMENT_TEMPLATE, '/GetSelfService'),
     PREVIEW: () => buildApiUrl(API_CONFIG.ENDPOINTS.DOCUMENT_TEMPLATE, '/Preview'),
     CREATE: () => buildApiUrl(API_CONFIG.ENDPOINTS.DOCUMENT_TEMPLATE, '/Create'),
     UPDATE: (id) => buildApiUrl(API_CONFIG.ENDPOINTS.DOCUMENT_TEMPLATE, `/Update/${id}`),

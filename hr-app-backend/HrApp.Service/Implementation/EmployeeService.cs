@@ -235,6 +235,9 @@ namespace HrApp.Service.Implementation
             });
         }
 
+        public Task<int> CountDirectReportsAsync(Guid employeeId) =>
+            _repository.CountActiveDirectReportsAsync(employeeId);
+
         public async Task<IEnumerable<EmployeeDirectoryEntryDto>> GetDirectoryAsync()
         {
             var employees = await _repository.GetAllAsync(); // excludes retired employees

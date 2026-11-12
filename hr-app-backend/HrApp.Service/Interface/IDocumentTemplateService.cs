@@ -11,6 +11,8 @@ namespace HrApp.Service.Interface
     public interface IDocumentTemplateService
     {
         Task<IEnumerable<DocumentTemplateResponseDto>> GetAllAsync();
+        /// <summary>Only templates HR opted in to self-service, without their content.</summary>
+        Task<IEnumerable<SelfServiceTemplateResponseDto>> GetSelfServiceAsync();
         Task<DocumentTemplateResponseDto> GetByIdAsync(Guid id);
         Task<DocumentTemplateResponseDto> GetByNameAsync(string templateName);
         Task<IEnumerable<DocumentTemplateResponseDto>> GetByTypeAsync(string templateType);

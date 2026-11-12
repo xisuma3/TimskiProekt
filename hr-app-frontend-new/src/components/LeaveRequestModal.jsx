@@ -166,8 +166,11 @@ const LeaveRequestModal = ({ show, onHide, employees = [], onSave }) => {
     }
   };
 
+  // A submit error describes the form as it was; once the user edits it, it no longer
+  // applies (it used to keep saying "please choose a leave type" after one was chosen).
   const handleChange = (e) => {
     const { name, value } = e.target;
+    setError('');
     setFormData(prev => ({
       ...prev,
       [name]: value
@@ -242,7 +245,10 @@ const LeaveRequestModal = ({ show, onHide, employees = [], onSave }) => {
                 start={formData.startDate}
                 end={formData.endDate}
                 booked={booked}
-                onChange={({ start, end }) => setFormData((prev) => ({ ...prev, startDate: start, endDate: end }))}
+                onChange={({ start, end }) => {
+                  setError('');
+                  setFormData((prev) => ({ ...prev, startDate: start, endDate: end }));
+                }}
               />
             </Field>
           </FieldGroup>

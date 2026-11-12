@@ -40,8 +40,18 @@ const AppRouter = () => (
             </RoleBasedRoute>
           } />
           <Route path="/assets" element={<AssetsPage />} />
-          <Route path="/documents" element={<DocumentsPage />} />
-          <Route path="/document-templates" element={<DocumentTemplatesPage />} />
+          {/* The hub and the template library are HR's. An employee's documents live on
+              /generated-documents, so an old link lands them there instead. */}
+          <Route path="/documents" element={
+            <RoleBasedRoute allowedRoles={['Admin']} redirectTo="/generated-documents">
+              <DocumentsPage />
+            </RoleBasedRoute>
+          } />
+          <Route path="/document-templates" element={
+            <RoleBasedRoute allowedRoles={['Admin']} redirectTo="/generated-documents">
+              <DocumentTemplatesPage />
+            </RoleBasedRoute>
+          } />
           <Route path="/generated-documents" element={<GeneratedDocumentsPage />} />
           <Route path="/leave-requests" element={<LeaveRequestsPage />} />
           <Route path="/leave-allowances" element={

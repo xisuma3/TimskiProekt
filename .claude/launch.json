@@ -1,0 +1,17 @@
+{
+  "version": "0.0.1",
+  "configurations": [
+    {
+      "name": "api",
+      "runtimeExecutable": "dotnet",
+      "runtimeArgs": ["run", "--project", "hr-app-backend/HrAppWebApplication", "--launch-profile", "http"],
+      "port": 5190
+    },
+    {
+      "name": "web",
+      "runtimeExecutable": "npm",
+      "runtimeArgs": ["--prefix", "hr-app-frontend-new", "start"],
+      "port": 3000
+    }
+  ]
+}

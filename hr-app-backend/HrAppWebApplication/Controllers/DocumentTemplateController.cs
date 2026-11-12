@@ -24,13 +24,28 @@ namespace HrAppWebApplication.Controllers
             _assetService = assetService;
         }
 
+        // The template library is HR's working material: every template's HTML, including
+        // HR-only ones (warnings, salary letters), and how many documents each produced.
+        // Employees get GetSelfService instead.
         [HttpGet]
+        [Authorize(Roles = "Admin")]
         public async Task<ActionResult<IEnumerable<DocumentTemplateResponseDto>>> GetAll()
         {
             return Ok(await _service.GetAllAsync());
         }
 
+        /// <summary>
+        /// The templates the caller may generate for themselves, without content or usage
+        /// counts. Any signed-in user.
+        /// </summary>
+        [HttpGet]
+        public async Task<ActionResult<IEnumerable<SelfServiceTemplateResponseDto>>> GetSelfService()
+        {
+            return Ok(await _service.GetSelfServiceAsync());
+        }
+
         [HttpGet("{id}")]
+        [Authorize(Roles = "Admin")]
         public async Task<ActionResult<DocumentTemplateResponseDto>> GetById(Guid id)
         {
             var result = await _service.GetByIdAsync(id);
@@ -38,6 +53,7 @@ namespace HrAppWebApplication.Controllers
         }
 
         [HttpGet("name/{templateName}")]
+        [Authorize(Roles = "Admin")]
         public async Task<ActionResult<DocumentTemplateResponseDto>> GetByName(string templateName)
         {
             var result = await _service.GetByNameAsync(templateName);
@@ -45,12 +61,14 @@ namespace HrAppWebApplication.Controllers
         }
 
         [HttpGet("type/{templateType}")]
+        [Authorize(Roles = "Admin")]
         public async Task<ActionResult<IEnumerable<DocumentTemplateResponseDto>>> GetByType(string templateType)
         {
             return Ok(await _service.GetByTypeAsync(templateType));
         }
 
         [HttpGet("{id}/content")]
+        [Authorize(Roles = "Admin")]
         public async Task<ActionResult<string>> GetTemplateContent(Guid id)
         {
             var content = await _service.GetTemplateContentAsync(id);

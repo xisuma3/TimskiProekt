@@ -68,7 +68,7 @@ export const checkAllowance = (balancesByYear, start, end, leaveType) => {
       ok: false,
       reason: 'none',
       years,
-      message: `You don't have a ${type} leave allowance for ${missing.year}, so this request can't be submitted. Ask HR to set one up.`,
+      message: `You don't have ${/^[aeiou]/i.test(type) ? 'an' : 'a'} ${type} leave allowance for ${missing.year}, so this request can't be submitted. Ask HR to set one up.`,
     };
   }
 

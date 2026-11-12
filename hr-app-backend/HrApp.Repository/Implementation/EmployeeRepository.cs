@@ -175,6 +175,10 @@ namespace HrApp.Repository.Implementation
                 .Select(e => new { e.EmployeeID, e.ManagerID })
                 .ToDictionaryAsync(e => e.EmployeeID, e => e.ManagerID);
         }
+        public async Task<int> CountActiveDirectReportsAsync(Guid managerId)
+        {
+            return await _context.Employees.CountAsync(e => e.ManagerID == managerId && !e.IsDeleted);
+        }
         public async Task<IEnumerable<ErasureRecord>> GetErasureRecordsAsync()
         {
             return await _context.ErasureRecords

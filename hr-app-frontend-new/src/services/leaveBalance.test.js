@@ -75,3 +75,7 @@ test('a fully accrued monthly allowance reads like an upfront one', () => {
   expect(r.reason).toBe('short');
   expect(r.message).not.toMatch(/accrues monthly/);
 });
+test('the missing-allowance message uses "an" before a vowel', () => {
+  const r = checkAllowance({ 2026: [bal('Vacation', 20, 20)] }, '2026-06-01', '2026-06-03', 'Unpaid');
+  expect(r.message).toMatch(/don't have an unpaid leave allowance for 2026/);
+});

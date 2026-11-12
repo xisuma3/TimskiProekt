@@ -2,7 +2,8 @@
 // no notification table. That keeps the backend untouched, at two costs worth knowing:
 // read/unread state lives in this browser only, and nothing is "pushed"; the bell
 // re-derives the list when it polls.
-import { authenticatedFetch, isAdmin } from './authService';
+import { isAdmin } from './authService';
+import { getJsonShared, getMyProfile } from './sharedFetch';
 import { API_URLS } from '../config/api';
 
 const DAY = 24 * 60 * 60 * 1000;
@@ -182,11 +183,8 @@ export const saveReadIds = (userId, ids) => {
 };
 
 // ---- fetching ----
-const getJson = async (url) => {
-  const res = await authenticatedFetch(url);
-  if (!res.ok) throw new Error(`${res.status}`);
-  return res.json();
-};
+// Shared with whatever else is loading the same URL right now (the dashboard, mostly).
+const getJson = getJsonShared;
 
 const settle = (promise) => promise.then((v) => v, () => undefined);
 
@@ -201,7 +199,7 @@ export const fetchNotifications = async () => {
     admin ? settle(getJson(API_URLS.EMPLOYEES.GET_ALL())) : undefined,
     // Cover arranged for or by me; filtered to the ones where I'm the delegate.
     settle(getJson(API_URLS.APPROVAL_DELEGATIONS.GET_MINE())),
-    settle(getJson(API_URLS.EMPLOYEES.GET_MY_PROFILE())),
+    settle(getMyProfile()),
   ]);
   return buildNotifications(
     { allRequests, teamPending, myRequests, myAssets, myDocuments, employees, delegations, meId: me?.employeeID },

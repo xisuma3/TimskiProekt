@@ -58,6 +58,13 @@ const DataPage = ({
   headingLevel = 1,
   // Change it to refetch, e.g. after the page saved or deleted a record itself.
   refreshKey = 0,
+  // Empty-state wording. The default is built from the title, minus a leading "My", so
+  // "My Leave Requests" reads "No leave requests yet" rather than "No my leave requests".
+  emptyTitle = null,
+  emptyDescription = null,
+  // false for a page that only ever shows one record of the caller's (their dossier):
+  // search, filters and a layout toggle have nothing to work on there.
+  showToolbar = true,
 }) => {
   const headingId = useId();
   const Heading = headingLevel === 2 ? 'h2' : 'h1';
@@ -183,6 +190,7 @@ const DataPage = ({
   const usesManagedModal = ModalComponent && onDelete;
   const showCreate = showAddButton || ModalComponent;
   const hasSearch = searchFields.length > 0;
+  const noun = title.replace(/^my\s+/i, '').toLowerCase();
   const views = VIEWS.filter((v) => v.id !== 'calendar' || renderCalendar);
   const EmptyIcon = typeof emptyIcon === 'string' || !emptyIcon ? Inbox : emptyIcon;
   const fmtDay = (s) => new Date(`${s}T00:00:00`).toLocaleDateString(undefined, { day: 'numeric', month: 'short', year: 'numeric' });
@@ -221,6 +229,7 @@ const DataPage = ({
       </div>
 
       {/* Toolbar: every way to find, narrow and view records, in one bar. */}
+      {showToolbar && (
       <div className="flex flex-wrap items-center gap-2" role="toolbar" aria-label={`${title} tools`}>
         {hasSearch && (
           <div className="relative min-w-[14rem] flex-1" role="search">
@@ -289,6 +298,7 @@ const DataPage = ({
           ))}
         </div>
       </div>
+      )}
 
       {chips.length > 0 && !loading && !error && (
         <div className="flex flex-wrap items-center gap-2" aria-live="polite">
@@ -335,11 +345,12 @@ const DataPage = ({
       {!loading && !error && view !== 'calendar' && filteredData.length === 0 && (
         <EmptyState
           icon={narrowed ? SearchX : EmptyIcon}
-          title={narrowed ? 'No matches' : `No ${title.toLowerCase()} yet`}
+          title={narrowed ? 'No matches' : (emptyTitle || `No ${noun} yet`)}
           description={
             (search && !filtersActive && `Nothing matches “${search}”. Try a different search.`)
             || (filtersActive && 'Nothing matches the current filters.')
-            || `No ${title.toLowerCase()} found.`
+            || emptyDescription
+            || `No ${noun} found.`
           }
         >
           {search && <Button variant="outline" onClick={() => setSearch('')}>Clear search</Button>}

@@ -13,6 +13,7 @@ import StatCard from './app/StatCard';
 import StatusBadge from './app/StatusBadge';
 import { STATUS_TONE } from './app/tones';
 import { authenticatedFetch } from '../services/authService';
+import { getJsonShared, getMyProfile } from '../services/sharedFetch';
 import { API_URLS } from '../config/api';
 import { LeaveBalanceCards } from '../pages/LeaveEntitlementsPage';
 
@@ -74,25 +75,16 @@ const EmployeeDashboard = () => {
     const fetchEmployeeData = async () => {
       try {
         // Fetch employee profile
-        const profileResponse = await authenticatedFetch(API_URLS.EMPLOYEES.GET_MY_PROFILE());
-        if (profileResponse.ok) {
-          const profileData = await profileResponse.json();
-          setEmployeeData(profileData);
-        }
+        const profileData = await getMyProfile();
+        if (profileData) setEmployeeData(profileData);
 
-        // Fetch employee assets
-        const assetsResponse = await authenticatedFetch(API_URLS.ASSETS.GET_MY_ASSETS());
-        if (assetsResponse.ok) {
-          const assetsData = await assetsResponse.json();
-          setAssets(assetsData);
-        }
+        // Assets and leave requests: the notification bell loads the same two as the page
+        // opens, so these share its requests (see sharedFetch).
+        const assetsData = await getJsonShared(API_URLS.ASSETS.GET_MY_ASSETS()).catch(() => null);
+        if (assetsData) setAssets(assetsData);
 
-        // Fetch employee leave requests
-        const leaveResponse = await authenticatedFetch(API_URLS.LEAVE_REQUESTS.GET_MY_REQUESTS());
-        if (leaveResponse.ok) {
-          const leaveData = await leaveResponse.json();
-          setLeaveRequests(leaveData);
-        }
+        const leaveData = await getJsonShared(API_URLS.LEAVE_REQUESTS.GET_MY_REQUESTS()).catch(() => null);
+        if (leaveData) setLeaveRequests(leaveData);
 
         // Fetch employee dossier
         const dossierResponse = await authenticatedFetch(API_URLS.EMPLOYEE_DOSSIERS.GET_MY_DOSSIER());

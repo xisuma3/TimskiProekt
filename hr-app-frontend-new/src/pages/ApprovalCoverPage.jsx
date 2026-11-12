@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useState } from 'react';
-import { AlertCircle, Plus, UserCheck, Users, X } from 'lucide-react';
+import { AlertCircle, Info, Plus, UserCheck, Users, X } from 'lucide-react';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Button } from '@/components/ui/button';
 import {
@@ -22,6 +22,7 @@ import PageHeader, { SectionTitle } from '../components/app/PageHeader';
 import StatusBadge from '../components/app/StatusBadge';
 import DateRangePicker from '../components/DateRangePicker';
 import { authenticatedFetch, isAdmin } from '../services/authService';
+import { getMyProfile } from '../services/sharedFetch';
 import { API_URLS } from '../config/api';
 
 // Approval cover: a manager hands their leave approvals to a colleague for a period.
@@ -253,6 +254,9 @@ const ArrangeCoverModal = ({ show, onHide, onCreated, candidates, meId, admin })
 const ApprovalCoverPage = () => {
   const admin = isAdmin();
   const [meId, setMeId] = useState(null);
+  // How many people report to me. Cover only hands over authority I have, so with nobody
+  // reporting to me there is nothing to arrange (the API refuses it too).
+  const [reportCount, setReportCount] = useState(null);
   const [mine, setMine] = useState([]);
   const [all, setAll] = useState([]);
   const [candidates, setCandidates] = useState(undefined); // undefined = loading, null = unavailable
@@ -266,9 +270,9 @@ const ApprovalCoverPage = () => {
     setLoading(true);
     setError('');
     try {
-      const profileRes = await authenticatedFetch(API_URLS.EMPLOYEES.GET_MY_PROFILE());
-      const profile = profileRes.ok ? await profileRes.json() : null;
+      const profile = await getMyProfile();
       setMeId(profile?.employeeID ?? null);
+      setReportCount(profile?.directReportCount ?? null);
 
       const [myList, allList, people] = await Promise.all([
         getList(API_URLS.APPROVAL_DELEGATIONS.GET_MINE()),
@@ -291,6 +295,8 @@ const ApprovalCoverPage = () => {
 
   const given = mine.filter((d) => d.delegatorEmployeeID === meId);
   const received = mine.filter((d) => d.delegateEmployeeID === meId);
+  // Admins may arrange cover on behalf of any manager, so they always get the button.
+  const canArrange = admin || reportCount > 0;
 
   const confirmRevoke = async () => {
     setRevokeError('');
@@ -315,12 +321,12 @@ const ApprovalCoverPage = () => {
         id="approval-cover-title"
         title="Approval Cover"
         description="Away for a while? Hand your leave approvals to a colleague until you're back."
-        actions={(
+        actions={canArrange ? (
           <Button onClick={() => setShowModal(true)} disabled={loading}>
             <Plus aria-hidden="true" />
             Arrange cover
           </Button>
-        )}
+        ) : null}
       />
 
       {error && (
@@ -341,13 +347,26 @@ const ApprovalCoverPage = () => {
 
       {!loading && !error && (
         <div className="space-y-12">
-          <Section
-            title="Covering for me"
-            empty="Nobody is covering your approvals."
-            items={given}
-            meId={meId}
-            onRevoke={onRevoke}
-          />
+          {!canArrange && (
+            <Alert>
+              <Info aria-hidden="true" />
+              <AlertDescription>
+                You don&apos;t approve anyone&apos;s leave, so there&apos;s nothing to hand over. If a manager asks
+                you to cover their approvals while they&apos;re away, it shows up under &ldquo;I&apos;m covering&rdquo;.
+              </AlertDescription>
+            </Alert>
+          )}
+          {/* Past cover stays listed (it's history); otherwise the section only makes sense
+              for someone who has approvals to hand over. */}
+          {(canArrange || given.length > 0) && (
+            <Section
+              title="Covering for me"
+              empty="Nobody is covering your approvals."
+              items={given}
+              meId={meId}
+              onRevoke={onRevoke}
+            />
+          )}
           <Section
             title="I'm covering"
             empty="You aren't covering anyone's approvals."

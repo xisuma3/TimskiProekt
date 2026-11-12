@@ -28,9 +28,6 @@ import IconTile from './app/IconTile';
 import { authenticatedFetch } from '../services/authService';
 import { API_URLS } from '../config/api';
 
-// Templates that list equipment need the employee to say which of their assets to include.
-export const usesAssets = (content = '') => /\{\{\s*(#assetList|asset\.)/.test(content);
-
 // An employee generating a document about themselves from a template HR opted in.
 // The API decides the subject from the token; this only picks the template and assets.
 const SelfServiceDocumentModal = ({ show, onHide, onGenerated }) => {
@@ -48,12 +45,13 @@ const SelfServiceDocumentModal = ({ show, onHide, onGenerated }) => {
     setTemplateId('');
     setError('');
     Promise.all([
-      authenticatedFetch(API_URLS.DOCUMENT_TEMPLATES.GET_ALL()).then((r) => (r.ok ? r.json() : [])),
+      // Only the opted-in templates, without their HTML: the full library is HR's.
+      authenticatedFetch(API_URLS.DOCUMENT_TEMPLATES.GET_SELF_SERVICE()).then((r) => (r.ok ? r.json() : [])),
       authenticatedFetch(API_URLS.ASSETS.GET_MY_ASSETS()).then((r) => (r.ok ? r.json() : [])),
     ])
-      .then(([allTemplates, myAssets]) => {
+      .then(([selfService, myAssets]) => {
         if (cancelled) return;
-        const available = (allTemplates || []).filter((t) => t.allowSelfService);
+        const available = selfService || [];
         setTemplates(available);
         setAssets(myAssets || []);
         setAssetIds((myAssets || []).map((a) => a.assetID));
@@ -64,7 +62,8 @@ const SelfServiceDocumentModal = ({ show, onHide, onGenerated }) => {
   }, [show]);
 
   const selected = templates?.find((t) => t.templateID === templateId);
-  const needsAssets = selected && usesAssets(selected.templateContent);
+  // The server works this out from the template body, which employees no longer receive.
+  const needsAssets = Boolean(selected?.listsAssets);
 
   const toggleAsset = (id) =>
     setAssetIds((prev) => (prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id]));

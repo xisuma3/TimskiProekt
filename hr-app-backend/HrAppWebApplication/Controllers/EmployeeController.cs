@@ -38,6 +38,7 @@ namespace HrAppWebApplication.Controllers
         {
             var result = await _service.GetByApplicationUserIdAsync(CurrentApplicationUserId);
             if (result == null) return NotFound(new { message = "No employee record is linked to this account." });
+            result.DirectReportCount = await _service.CountDirectReportsAsync(result.EmployeeID);
             return Ok(result);
         }
 

@@ -60,7 +60,8 @@ const navSections = (admin) => [
     label: 'Resources',
     items: [
       { to: '/assets', icon: Laptop, label: admin ? 'Assets' : 'My Assets' },
-      { to: '/documents', icon: FileText, label: admin ? 'Documents' : 'My Documents' },
+      // Admins get the hub (templates + generated); an employee goes straight to theirs.
+      { to: admin ? '/documents' : '/generated-documents', icon: FileText, label: admin ? 'Documents' : 'My Documents' },
     ],
   },
   {
@@ -151,6 +152,16 @@ const CloseMobileOnNavigate = () => {
   return null;
 };
 
+// The window is the scroll container, so without this a new page opens at the previous
+// page's scroll position, with its header out of view.
+const ScrollToTopOnNavigate = () => {
+  const { pathname } = useLocation();
+  useEffect(() => {
+    (document.scrollingElement || document.documentElement).scrollTop = 0;
+  }, [pathname]);
+  return null;
+};
+
 const SidebarLayout = () => {
   const { pathname } = useLocation();
 
@@ -163,6 +174,7 @@ const SidebarLayout = () => {
         Skip to content
       </a>
       <CloseMobileOnNavigate />
+      <ScrollToTopOnNavigate />
       <AppSidebar />
       <SidebarInset>
         <TopBar title={pageTitleFor(pathname)} />

@@ -24,9 +24,10 @@ const delegation = (id, over) => ({
   ...over,
 });
 
-const mockApi = ({ mine = [], all = [], employees = null, onCreate, onRevoke } = {}) =>
+// By default "me" is a manager with two reports; pass reports: 0 for someone who manages nobody.
+const mockApi = ({ mine = [], all = [], employees = null, onCreate, onRevoke, reports = 2 } = {}) =>
   authenticatedFetch.mockImplementation((url, options = {}) => {
-    if (url.includes('GetMyProfile')) return ok({ employeeID: 'me' });
+    if (url.includes('GetMyProfile')) return ok({ employeeID: 'me', directReportCount: reports });
     if (url.includes('ApprovalDelegation/GetMine')) return ok(mine);
     if (url.includes('ApprovalDelegation/GetAll')) return ok(all);
     if (url.includes('Employee/GetDirectory')) return employees ? ok(employees) : fail(500);
@@ -124,4 +125,29 @@ test('revoking asks for confirmation, then calls the API', async () => {
   expect(dialog).toHaveTextContent("End Pat Peer's cover of Mia Manager's approvals now?");
   fireEvent.click(within(dialog).getByRole('button', { name: 'Revoke' }));
   await waitFor(() => expect(onRevoke).toHaveBeenCalledWith(expect.stringContaining('/Revoke/given')));
+});
+
+test("someone who approves nobody's leave is told so, and is not offered cover", async () => {
+  mockApi({
+    reports: 0,
+    mine: [delegation('held', {
+      delegatorEmployeeID: 'dana', delegatorName: 'Dana Director', delegateEmployeeID: 'me', delegateName: 'Mia Manager',
+    })],
+  });
+  render(<ApprovalCoverPage />);
+
+  expect(await screen.findByText(/You don.t approve anyone.s leave/)).toBeInTheDocument();
+  expect(screen.queryByRole('button', { name: /Arrange cover/ })).not.toBeInTheDocument();
+  expect(screen.queryByRole('region', { name: 'Covering for me' })).not.toBeInTheDocument();
+  // They can still be someone's cover.
+  const held = screen.getByRole('region', { name: "I'm covering" });
+  expect(within(held).getByText('Mia Manager covers Dana Director')).toBeInTheDocument();
+});
+
+test('an admin is offered cover even without reports (they arrange it for managers)', async () => {
+  mockAdmin = true;
+  mockApi({ reports: 0 });
+  render(<ApprovalCoverPage />);
+  expect(await screen.findByRole('button', { name: /Arrange cover/ })).toBeInTheDocument();
+  expect(screen.queryByText(/You don.t approve anyone.s leave/)).not.toBeInTheDocument();
 });

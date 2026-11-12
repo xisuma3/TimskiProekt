@@ -148,6 +148,9 @@ namespace HrApp.Tests
             var (h, _, manager, report, peer) = Org();
             using var _h = h;
             var third = h.AddEmployee("Tia", "Third");
+            // The peer manages someone, so their own delegation is allowed; the point is that
+            // it passes on only the peer's authority, never the one they borrowed.
+            h.AddEmployee("Pia", "PeersReport", managerId: peer.EmployeeID);
             var window = new ApprovalDelegationRequestDto { StartDate = h.Today, EndDate = h.Today.AddDays(7) };
 
             window.DelegateEmployeeID = peer.EmployeeID;
@@ -189,6 +192,32 @@ namespace HrApp.Tests
             await Assert.ThrowsAsync<ArgumentException>(() => Create(peer.EmployeeID, "2030-05-01", "2030-05-10"));    // already over
             await Create(peer.EmployeeID, "2030-06-01", "2030-06-10");
             await Assert.ThrowsAsync<InvalidOperationException>(() => Create(peer.EmployeeID, "2030-06-08", "2030-06-12")); // overlaps
+        }
+
+        [Fact]
+        public async Task SomeoneWhoApprovesNobodysLeave_CannotArrangeCover()
+        {
+            var (h, _, manager, report, peer) = Org();
+            using var _h = h;
+            var window = new ApprovalDelegationRequestDto
+            {
+                DelegateEmployeeID = manager.EmployeeID, StartDate = h.Today, EndDate = h.Today.AddDays(5),
+            };
+
+            // Rui reports to Mia but manages nobody: the cover would grant nothing.
+            var refused = await Assert.ThrowsAsync<ArgumentException>(() =>
+                h.DelegationService.CreateAsync(report.EmployeeID, report.EmployeeID, window));
+            Assert.Contains("doesn't approve anyone's leave", refused.Message);
+
+            // A retired report doesn't count either.
+            var former = h.AddEmployee("Fay", "Former", managerId: peer.EmployeeID);
+            await h.EmployeeService.DeleteAsync(former.EmployeeID);
+            await Assert.ThrowsAsync<ArgumentException>(() =>
+                h.DelegationService.CreateAsync(peer.EmployeeID, peer.EmployeeID, window));
+
+            Assert.Empty(await h.DelegationService.GetInvolvingAsync(report.EmployeeID));
+            Assert.Equal(1, await h.EmployeeService.CountDirectReportsAsync(manager.EmployeeID));
+            Assert.Equal(0, await h.EmployeeService.CountDirectReportsAsync(peer.EmployeeID));
         }
 
         [Fact]

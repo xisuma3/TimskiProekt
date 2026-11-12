@@ -26,6 +26,18 @@ import { LeaveBalanceCards } from './LeaveEntitlementsPage';
 import { readErrorMessage } from '../services/apiError';
 import { API_URLS } from '../config/api';
 
+// "23 Nov – 27 Nov 2026", or "23 Nov 2026" for a single day, in the browser's locale.
+// Leave dates are calendar dates (no offset), so they parse as local midnight.
+export const shortRange = (start, end) => {
+  const s = new Date(start);
+  const e = new Date(end);
+  const day = { day: 'numeric', month: 'short' };
+  const full = { ...day, year: 'numeric' };
+  if (s.toDateString() === e.toDateString()) return s.toLocaleDateString(undefined, full);
+  const sameYear = s.getFullYear() === e.getFullYear();
+  return `${s.toLocaleDateString(undefined, sameYear ? day : full)} – ${e.toLocaleDateString(undefined, full)}`;
+};
+
 const LeaveRequestsPage = () => {
   const [showModal, setShowModal] = useState(false);
   const [employees, setEmployees] = useState([]);
@@ -121,8 +133,10 @@ const LeaveRequestsPage = () => {
     <ItemCard
       icon={CalendarRange}
       tone="indigo"
-      title={isAdmin() || canDecide ? request.employeeName : 'My Leave Request'}
-      subtitle={`${request.leaveType} Leave`}
+      // Someone else's request leads with whose it is; your own leads with what it is and
+      // when (every card used to say "My Leave Request").
+      title={isAdmin() || canDecide ? request.employeeName : `${request.leaveType} Leave`}
+      subtitle={isAdmin() || canDecide ? `${request.leaveType} Leave` : shortRange(request.startDate, request.endDate)}
       badge={<StatusBadge status={request.status} />}
       // Admin can approve/reject, employees can only view
       actions={canDecide && request.status === 'Pending' ? (

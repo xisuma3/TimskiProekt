@@ -22,5 +22,6 @@ namespace HrApp.Service.Interface
         Task<IEnumerable<ErasureRecordResponseDto>> GetErasureLogAsync();
         /// <summary>Current employees' id, name, position and department only — for pickers any user may see.</summary>
         Task<IEnumerable<EmployeeDirectoryEntryDto>> GetDirectoryAsync();
+        Task<int> CountDirectReportsAsync(Guid employeeId);
     }
 }

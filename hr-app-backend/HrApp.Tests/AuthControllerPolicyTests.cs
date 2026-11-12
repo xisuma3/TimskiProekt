@@ -207,6 +207,7 @@ namespace HrApp.Tests
             public Task<EmployeeResponseDto> GetByIdAsync(Guid id) => throw new NotImplementedException();
             public Task RestoreAsync(Guid id) => throw new NotImplementedException();
             public Task UpdateAsync(Guid id, UpdateEmployeeRequestDto dto) => throw new NotImplementedException();
+            public Task<int> CountDirectReportsAsync(Guid employeeId) => throw new NotImplementedException();
         }
 
         private sealed class TestAuthenticationHandler : AuthenticationHandler<AuthenticationSchemeOptions>

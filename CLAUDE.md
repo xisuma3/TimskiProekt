@@ -160,6 +160,14 @@ returns 200. Verified with an Employee-role token: the five `GetMy*` endpoints r
 
 `TemplateProcessingService.ProcessTemplateContentAsync` does string/regex `{{...}}` placeholder substitution on `DocumentTemplate.TemplateContent` — e.g. `{{employee.firstName}}`, `{{employee.department}}`, `{{system.currentDate}}`, and a repeating `{{#assetList}}...{{/assetList}}` block. `GeneratedDocument.AssetIDs` is stored as an `NVARCHAR(MAX)` serialized list. `DocumentFormat.OpenXml` is referenced for Word output.
 
+**The template library is HR's.** `DocumentTemplate/GetAll`, `GetById`, `GetByName`,
+`GetByType` and `GetTemplateContent` are Admin-only: they return every template's HTML,
+HR-only ones included, and how many documents each produced (which leaks HR activity, e.g.
+"Salary Adjustment: 1 generated"). An employee's "Get a document" uses
+`DocumentTemplate/GetSelfService`: opted-in templates only, no HTML, no counts, plus a
+server-computed `ListsAssets` flag. `/documents` and `/document-templates` are Admin routes;
+an employee's "My Documents" is `/generated-documents`.
+
 **Rules this engine now enforces** (all covered by live checks against `POST /api/DocumentTemplate/Preview`):
 
 - **Asset ownership.** `ProcessTemplateAsync` rejects any asset whose `EmployeeID` differs
@@ -213,7 +221,10 @@ Decisions go through one private `DecideAsync`:
 authority to a colleague for `[StartDate, EndDate]` (calendar dates, inclusive). Non-admins
 can only delegate **their own** authority (delegator from the token); admins may set one
 up for anyone. Refused: delegating to yourself, end before start, ending in the past, a
-retired delegate, and overlapping a non-revoked delegation from the same delegator (409).
+retired delegate, a delegator with **no current direct reports** (they approve nobody, so
+the cover would grant nothing; 400), and overlapping a non-revoked delegation from the same
+delegator (409). `GetMyProfile` returns `DirectReportCount` (null on every other endpoint)
+so the Approval Cover page shows "Arrange cover" only to managers and admins.
 Revoke (delegator, delegate declining, or admin) sets `RevokedAt` — rows are never
 deleted, so who held authority when stays answerable. "Today" comes from an injected
 `Func<DateTime>` (registered in `Program.cs`, settable as `TestHarness.Today`).
@@ -317,9 +328,17 @@ carry-over would strand days already booked next year. `preview: true` saves not
   mobile); `TopBar` holds the page title, `NotificationBell` and `ThemeToggle`.
 - **API contract**: all endpoint URLs are centralized in `src/config/api.js` (`API_URLS`). Change base URL via `VITE_API_URL`.
 - **Auth/session**: `src/services/authService.js` stores the JWT and `userInfo` (incl. roles) in `localStorage`. Use `authenticatedFetch(url, options)` for all authenticated calls — it injects the `Bearer` token and auto-logs-out on `401`. Role helpers: `hasRole`, `isAdmin`, `isEmployee`.
-- **Routing** (`src/AppRouter.jsx`): public routes (`/`, `/login`, `/register`); everything else is wrapped in `ProtectedRoute` (requires token) inside `SidebarLayout`. `RoleBasedRoute allowedRoles={['Admin']}` guards Admin-only pages (`/employees`, `/departments`) and redirects others to `/dashboard`.
+- **Routing** (`src/AppRouter.jsx`): public routes (`/`, `/login`, `/register`); everything else is wrapped in `ProtectedRoute` (requires token) inside `SidebarLayout`. `RoleBasedRoute allowedRoles={['Admin']}` guards Admin-only pages (`/employees`, `/departments`, `/leave-allowances`, `/system-analysis`, `/documents`, `/document-templates`) and redirects others to `/dashboard`, or to its `redirectTo` (the two document pages send employees to `/generated-documents`).
 - **Data pages**: most list pages are built on the generic `src/components/DataPage.jsx` (fetch + search + add/edit modal + delete confirm). New CRUD screens should reuse it and pass a `renderCard`, `apiEndpoint`, and a `modalComponent`.
 - **Role-dependent endpoints**: `AssetsPage`, `LeaveRequestsPage` and `EmployeeDosiersPage` all pick their `apiEndpoint` with `isAdmin() ? GET_ALL() : GET_MY_*()`.
+- **`DataPage` empty states** come from the title minus a leading "My" ("No leave requests
+  yet"); pass `emptyTitle`/`emptyDescription` to word it yourself, and `showToolbar={false}`
+  for a single-record page.
+- **Shared "my …" GETs**: the dashboard and the notification bell load the same data as a
+  page opens. `services/sharedFetch.js` (`getMyProfile`, `getJsonShared`) lets concurrent
+  calls for one URL share a request and hands each caller its own copy. Use it for data
+  more than one component fetches on mount. It lives outside `authService` because tests
+  mock that module with explicit function lists.
 - **Newer screens**: `/leave-allowances` (Admin) manages entitlements;
   `LeaveBalanceCards` (exported from `LeaveEntitlementsPage`) renders balances on the
   employee dashboard and the leave page; `AssetCustodyModal` handles assign/transfer/return

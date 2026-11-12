@@ -70,3 +70,32 @@ test('refetches when refreshKey changes, keeping the search', async () => {
   expect(authenticatedFetch).toHaveBeenCalledTimes(2);
   expect(screen.getByPlaceholderText('Search...')).toHaveValue('alpha');
 });
+
+test('the empty state drops a leading "My" from the title', async () => {
+  authenticatedFetch.mockResolvedValueOnce({ ok: true, json: async () => [] });
+  render(<DataPage title="My Leave Requests" apiEndpoint="/mine" renderCard={() => null} searchFields={['x']} />);
+
+  expect(await screen.findByText('No leave requests yet')).toBeInTheDocument();
+  expect(screen.getByText('No leave requests found.')).toBeInTheDocument();
+  expect(screen.queryByText(/No my/i)).not.toBeInTheDocument();
+});
+
+test('a page can word its own empty state and drop the toolbar', async () => {
+  authenticatedFetch.mockResolvedValueOnce({ ok: true, json: async () => [] });
+  render(
+    <DataPage
+      title="My Dossier"
+      apiEndpoint="/dossier"
+      renderCard={() => null}
+      searchFields={['address']}
+      showToolbar={false}
+      emptyTitle="No dossier yet"
+      emptyDescription="Contact HR."
+    />
+  );
+
+  expect(await screen.findByText('No dossier yet')).toBeInTheDocument();
+  expect(screen.getByText('Contact HR.')).toBeInTheDocument();
+  expect(screen.queryByRole('toolbar')).not.toBeInTheDocument();
+  expect(screen.queryByRole('searchbox')).not.toBeInTheDocument();
+});

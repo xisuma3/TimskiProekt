@@ -52,6 +52,13 @@ namespace HrApp.Service.Implementation
             var delegator = await _employeeRepository.GetByIdAsync(delegatorEmployeeId);
             if (delegator == null) throw new ArgumentException("The person delegating was not found.");
 
+            // A delegate only borrows the delegator's own authority over their reporting line.
+            // With nobody reporting to them there is none, so the cover would grant nothing
+            // while still showing the delegate a "you're covering" entry.
+            if (await _employeeRepository.CountActiveDirectReportsAsync(delegatorEmployeeId) == 0)
+                throw new ArgumentException(
+                    $"There's nothing to hand over: {delegator.FirstName} {delegator.LastName} doesn't approve anyone's leave.");
+
             // GetByIdAsync excludes retired employees, so a retired delegate is refused here.
             var delegateEmployee = await _employeeRepository.GetByIdAsync(dto.DelegateEmployeeID);
             if (delegateEmployee == null) throw new ArgumentException("The chosen delegate was not found or has left.");

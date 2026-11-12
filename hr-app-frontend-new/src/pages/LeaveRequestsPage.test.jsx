@@ -1,5 +1,5 @@
 import { fireEvent, render, screen, waitFor, within } from '@testing-library/react';
-import LeaveRequestsPage from './LeaveRequestsPage';
+import LeaveRequestsPage, { shortRange } from './LeaveRequestsPage';
 import { authenticatedFetch } from '../services/authService';
 
 vi.mock('../services/authService', () => ({
@@ -90,4 +90,10 @@ test('shows a refused decision in the dialog instead of alert()', async () => {
 
   expect(await within(dialog).findByText('Only a pending request can be decided.')).toBeInTheDocument();
   expect(alertSpy).not.toHaveBeenCalled();
+});
+
+test('an own request is titled by its type and dates, not "My Leave Request"', () => {
+  expect(shortRange('2026-11-23T00:00:00', '2026-11-27T00:00:00')).toMatch(/23.*27.*2026/);
+  expect(shortRange('2026-11-23T00:00:00', '2026-11-23T00:00:00')).not.toMatch(/–/);
+  expect(shortRange('2026-12-30T00:00:00', '2027-01-02T00:00:00')).toMatch(/2026.*–.*2027/);
 });

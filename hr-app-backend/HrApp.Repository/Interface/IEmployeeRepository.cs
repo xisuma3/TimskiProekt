@@ -22,5 +22,7 @@ namespace HrApp.Repository.Interface
         Task EraseAsync(Guid id, ErasureRecord audit);
         Task<IEnumerable<ErasureRecord>> GetErasureRecordsAsync();
         Task<Dictionary<Guid, Guid?>> GetManagerMapAsync();
+        /// <summary>Current (not retired) employees whose manager is <paramref name="managerId"/>.</summary>
+        Task<int> CountActiveDirectReportsAsync(Guid managerId);
     }
 }
