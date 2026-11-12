@@ -1,5 +1,6 @@
 import { useState } from 'react';
-import { Building2, Pencil, Trash2 } from 'lucide-react';
+import { AlertCircle, Building2, Pencil, Trash2 } from 'lucide-react';
+import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Button } from '@/components/ui/button';
 import ConfirmDialog from '../components/app/ConfirmDialog';
 import ItemCard, { MetaList } from '../components/app/ItemCard';
@@ -7,6 +8,7 @@ import StatusBadge from '../components/app/StatusBadge';
 import DataPage from '../components/DataPage';
 import DepartmentModal from '../components/DepartmentModal';
 import { authenticatedFetch } from '../services/authService';
+import { readErrorMessage } from '../services/apiError';
 import { API_URLS } from '../config/api';
 
 const DepartmentsPage = () => {
@@ -14,6 +16,11 @@ const DepartmentsPage = () => {
   const [editingDepartment, setEditingDepartment] = useState(null);
   const [showDeleteModal, setShowDeleteModal] = useState(false);
   const [departmentToDelete, setDepartmentToDelete] = useState(null);
+  const [deleting, setDeleting] = useState(false);
+  const [deleteError, setDeleteError] = useState(null);
+  // Bumped after a save or delete so DataPage refetches instead of reloading the page.
+  const [refreshKey, setRefreshKey] = useState(0);
+  const refresh = () => setRefreshKey((key) => key + 1);
 
   const handleAddClick = () => {
     setEditingDepartment(null);
@@ -30,24 +37,35 @@ const DepartmentsPage = () => {
     setShowDeleteModal(true);
   };
 
+  const closeDelete = () => {
+    if (deleting) return;
+    setShowDeleteModal(false);
+    setDepartmentToDelete(null);
+    setDeleteError(null);
+  };
+
   const handleDeleteConfirm = async () => {
+    setDeleting(true);
+    setDeleteError(null);
     try {
       const response = await authenticatedFetch(
         API_URLS.DEPARTMENTS.DELETE(departmentToDelete.departmentID),
         { method: 'DELETE' }
       );
 
-      if (response.ok) {
-        window.location.reload();
-      } else {
-        throw new Error('Failed to delete department');
+      if (!response.ok) {
+        throw new Error(await readErrorMessage(response, 'Failed to delete department'));
       }
-    } catch (error) {
-      console.error('Delete error:', error);
-      alert('Failed to delete department');
-    } finally {
+
       setShowDeleteModal(false);
       setDepartmentToDelete(null);
+      refresh();
+    } catch (error) {
+      console.error('Delete error:', error);
+      // Keep the dialog open so the reason is read where the action was taken.
+      setDeleteError(error.message);
+    } finally {
+      setDeleting(false);
     }
   };
 
@@ -87,6 +105,7 @@ const DepartmentsPage = () => {
   return (
     <>
       <DataPage
+        refreshKey={refreshKey}
         title="Department Directory"
         apiEndpoint={API_URLS.DEPARTMENTS.GET_ALL()}
         searchFields={['name', 'description', 'location']}
@@ -102,16 +121,24 @@ const DepartmentsPage = () => {
         show={showModal}
         onHide={() => setShowModal(false)}
         department={editingDepartment}
-        onSave={() => window.location.reload()}
+        onSave={refresh}
       />
 
       <ConfirmDialog
         open={showDeleteModal}
-        onOpenChange={setShowDeleteModal}
+        onOpenChange={(open) => { if (!open) closeDelete(); }}
+        busy={deleting}
         title="Confirm Delete"
         description={`Are you sure you want to delete department "${departmentToDelete?.name}"? This action cannot be undone.`}
         onConfirm={handleDeleteConfirm}
-      />
+      >
+        {deleteError && (
+          <Alert variant="destructive">
+            <AlertCircle aria-hidden="true" />
+            <AlertDescription>{deleteError}</AlertDescription>
+          </Alert>
+        )}
+      </ConfirmDialog>
     </>
   );
 };

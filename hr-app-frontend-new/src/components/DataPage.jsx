@@ -56,6 +56,8 @@ const DataPage = ({
   personFilter = null,
   // 2 when the page is a section of a larger page (e.g. the team list above My Leave).
   headingLevel = 1,
+  // Change it to refetch, e.g. after the page saved or deleted a record itself.
+  refreshKey = 0,
 }) => {
   const headingId = useId();
   const Heading = headingLevel === 2 ? 'h2' : 'h1';
@@ -107,7 +109,7 @@ const DataPage = ({
 
   useEffect(() => {
     fetchData();
-  }, [fetchData]);
+  }, [fetchData, refreshKey]);
 
   const handleCreate = () => {
     setEditingItem(null);

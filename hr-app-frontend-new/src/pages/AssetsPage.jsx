@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
-import { ArrowLeftRight, Laptop, Pencil, Trash2 } from 'lucide-react';
+import { AlertCircle, ArrowLeftRight, Laptop, Pencil, Trash2 } from 'lucide-react';
+import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Button } from '@/components/ui/button';
 import ConfirmDialog from '../components/app/ConfirmDialog';
 import ItemCard, { MetaList } from '../components/app/ItemCard';
@@ -9,6 +10,7 @@ import AssetModal from '../components/AssetModal';
 import AssetCustodyModal from '../components/AssetCustodyModal';
 import RoleBasedContent from '../components/RoleBasedContent';
 import { authenticatedFetch, isAdmin } from '../services/authService';
+import { readErrorMessage } from '../services/apiError';
 import { API_URLS } from '../config/api';
 
 const AssetsPage = () => {
@@ -17,6 +19,11 @@ const AssetsPage = () => {
   const [employees, setEmployees] = useState([]);
   const [showDeleteModal, setShowDeleteModal] = useState(false);
   const [assetToDelete, setAssetToDelete] = useState(null);
+  const [deleting, setDeleting] = useState(false);
+  const [deleteError, setDeleteError] = useState(null);
+  // Bumped after a save or delete so DataPage refetches instead of reloading the page.
+  const [refreshKey, setRefreshKey] = useState(0);
+  const refresh = () => setRefreshKey((key) => key + 1);
   const [custodyAsset, setCustodyAsset] = useState(null);
 
   useEffect(() => {
@@ -44,24 +51,35 @@ const AssetsPage = () => {
     setShowDeleteModal(true);
   };
 
+  const closeDelete = () => {
+    if (deleting) return;
+    setShowDeleteModal(false);
+    setAssetToDelete(null);
+    setDeleteError(null);
+  };
+
   const handleDeleteConfirm = async () => {
+    setDeleting(true);
+    setDeleteError(null);
     try {
       const response = await authenticatedFetch(
         API_URLS.ASSETS.DELETE(assetToDelete.assetID),
         { method: 'DELETE' }
       );
 
-      if (response.ok) {
-        window.location.reload();
-      } else {
-        throw new Error('Failed to delete asset');
+      if (!response.ok) {
+        throw new Error(await readErrorMessage(response, 'Failed to delete asset'));
       }
-    } catch (error) {
-      console.error('Delete error:', error);
-      alert('Failed to delete asset');
-    } finally {
+
       setShowDeleteModal(false);
       setAssetToDelete(null);
+      refresh();
+    } catch (error) {
+      console.error('Delete error:', error);
+      // Keep the dialog open so the reason is read where the action was taken.
+      setDeleteError(error.message);
+    } finally {
+      setDeleting(false);
     }
   };
 
@@ -122,6 +140,7 @@ const AssetsPage = () => {
   return (
     <>
       <DataPage
+        refreshKey={refreshKey}
         title={isAdmin() ? "Asset Inventory" : "My Assets"}
         apiEndpoint={isAdmin() ? API_URLS.ASSETS.GET_ALL() : API_URLS.ASSETS.GET_MY_ASSETS()}
         searchFields={['name', 'description', 'serialNumber', 'employeeName']}
@@ -140,7 +159,7 @@ const AssetsPage = () => {
           show={showModal}
           onHide={() => setShowModal(false)}
           asset={editingAsset}
-          onSave={() => window.location.reload()}
+          onSave={refresh}
           employees={employees}
         />
       </RoleBasedContent>
@@ -151,17 +170,25 @@ const AssetsPage = () => {
           asset={custodyAsset}
           employees={employees}
           onHide={() => setCustodyAsset(null)}
-          onChanged={() => window.location.reload()}
+          onChanged={refresh}
         />
       </RoleBasedContent>
 
       <ConfirmDialog
         open={showDeleteModal}
-        onOpenChange={setShowDeleteModal}
+        onOpenChange={(open) => { if (!open) closeDelete(); }}
+        busy={deleting}
         title="Confirm Delete"
         description={`Are you sure you want to delete asset "${assetToDelete?.name}"? This action cannot be undone.`}
         onConfirm={handleDeleteConfirm}
-      />
+      >
+        {deleteError && (
+          <Alert variant="destructive">
+            <AlertCircle aria-hidden="true" />
+            <AlertDescription>{deleteError}</AlertDescription>
+          </Alert>
+        )}
+      </ConfirmDialog>
     </>
   );
 };

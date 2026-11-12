@@ -1,11 +1,13 @@
 import { useState, useEffect } from 'react';
-import { IdCard, Pencil, Trash2 } from 'lucide-react';
+import { AlertCircle, IdCard, Pencil, Trash2 } from 'lucide-react';
+import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Button } from '@/components/ui/button';
 import ConfirmDialog from '../components/app/ConfirmDialog';
 import ItemCard, { MetaList } from '../components/app/ItemCard';
 import DataPage from '../components/DataPage';
 import EmployeeDossierModal from '../components/EmployeeDossierModal';
 import { authenticatedFetch, hasRole, isAdmin } from '../services/authService';
+import { readErrorMessage } from '../services/apiError';
 import { API_URLS } from '../config/api';
 
 const EmployeeDosiersPage = () => {
@@ -14,6 +16,11 @@ const EmployeeDosiersPage = () => {
   const [employees, setEmployees] = useState([]);
   const [showDeleteModal, setShowDeleteModal] = useState(false);
   const [dossierToDelete, setDossierToDelete] = useState(null);
+  const [deleting, setDeleting] = useState(false);
+  const [deleteError, setDeleteError] = useState(null);
+  // Bumped after a save or delete so DataPage refetches instead of reloading the page.
+  const [refreshKey, setRefreshKey] = useState(0);
+  const refresh = () => setRefreshKey((key) => key + 1);
 
   useEffect(() => {
     // Only admins need employee list for dossier management
@@ -40,24 +47,35 @@ const EmployeeDosiersPage = () => {
     setShowDeleteModal(true);
   };
 
+  const closeDelete = () => {
+    if (deleting) return;
+    setShowDeleteModal(false);
+    setDossierToDelete(null);
+    setDeleteError(null);
+  };
+
   const handleDeleteConfirm = async () => {
+    setDeleting(true);
+    setDeleteError(null);
     try {
       const response = await authenticatedFetch(
         API_URLS.EMPLOYEE_DOSSIERS.DELETE(dossierToDelete.dossierID),
         { method: 'DELETE' }
       );
 
-      if (response.ok) {
-        window.location.reload();
-      } else {
-        throw new Error('Failed to delete dossier');
+      if (!response.ok) {
+        throw new Error(await readErrorMessage(response, 'Failed to delete dossier'));
       }
-    } catch (error) {
-      console.error('Delete error:', error);
-      alert('Failed to delete dossier');
-    } finally {
+
       setShowDeleteModal(false);
       setDossierToDelete(null);
+      refresh();
+    } catch (error) {
+      console.error('Delete error:', error);
+      // Keep the dialog open so the reason is read where the action was taken.
+      setDeleteError(error.message);
+    } finally {
+      setDeleting(false);
     }
   };
 
@@ -113,6 +131,7 @@ const EmployeeDosiersPage = () => {
   return (
     <>
       <DataPage
+        refreshKey={refreshKey}
         title={isAdmin() ? "Employee Dossiers" : "My Dossier"}
         apiEndpoint={isAdmin() ? API_URLS.EMPLOYEE_DOSSIERS.GET_ALL() : API_URLS.EMPLOYEE_DOSSIERS.GET_MY_DOSSIER()}
         searchFields={isAdmin() ? ['employeeName', 'employmentType', 'address'] : ['employmentType', 'address']}
@@ -129,17 +148,25 @@ const EmployeeDosiersPage = () => {
         show={showModal}
         onHide={() => setShowModal(false)}
         dossier={editingDossier}
-        onSave={() => window.location.reload()}
+        onSave={refresh}
         employees={employees}
       />
 
       <ConfirmDialog
         open={showDeleteModal}
-        onOpenChange={setShowDeleteModal}
+        onOpenChange={(open) => { if (!open) closeDelete(); }}
+        busy={deleting}
         title="Confirm Delete"
         description={`Are you sure you want to delete the dossier for ${dossierToDelete?.employeeName}? This action cannot be undone.`}
         onConfirm={handleDeleteConfirm}
-      />
+      >
+        {deleteError && (
+          <Alert variant="destructive">
+            <AlertCircle aria-hidden="true" />
+            <AlertDescription>{deleteError}</AlertDescription>
+          </Alert>
+        )}
+      </ConfirmDialog>
     </>
   );
 };

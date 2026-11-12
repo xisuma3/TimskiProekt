@@ -51,3 +51,22 @@ test('switches between grid and list view and remembers the choice per page', as
   await screen.findByText('Item');
   expect(again.container.querySelector('.data-list')).not.toBeNull();
 });
+
+test('refetches when refreshKey changes, keeping the search', async () => {
+  authenticatedFetch.mockReset();
+  authenticatedFetch
+    .mockResolvedValueOnce({ ok: true, json: async () => [{ id: '1', name: 'Alpha' }, { id: '2', name: 'Beta' }] })
+    .mockResolvedValueOnce({ ok: true, json: async () => [{ id: '1', name: 'Alpha' }, { id: '3', name: 'Alpha Two' }] });
+  const renderCard = (item) => <div>{item.name}</div>;
+  const { rerender } = render(
+    <DataPage title="Items" apiEndpoint="/items" searchFields={['name']} renderCard={renderCard} refreshKey={0} />
+  );
+  await screen.findByText('Beta');
+  fireEvent.change(screen.getByPlaceholderText('Search...'), { target: { value: 'alpha' } });
+
+  rerender(<DataPage title="Items" apiEndpoint="/items" searchFields={['name']} renderCard={renderCard} refreshKey={1} />);
+
+  expect(await screen.findByText('Alpha Two')).toBeInTheDocument();
+  expect(authenticatedFetch).toHaveBeenCalledTimes(2);
+  expect(screen.getByPlaceholderText('Search...')).toHaveValue('alpha');
+});

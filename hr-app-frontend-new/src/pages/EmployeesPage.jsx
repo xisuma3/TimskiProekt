@@ -20,6 +20,7 @@ import ItemCard, { MetaList } from '../components/app/ItemCard';
 import DataPage from '../components/DataPage';
 import EmployeeModal from '../components/EmployeeModal';
 import { authenticatedFetch } from '../services/authService';
+import { readErrorMessage } from '../services/apiError';
 import { API_URLS } from '../config/api';
 
 // ItemCard's tile takes an icon component; a person gets their initials instead. One
@@ -56,6 +57,11 @@ const EmployeesPage = () => {
   const [eraseReceivedAt, setEraseReceivedAt] = useState('');
   const [eraseReason, setEraseReason] = useState('');
   const [erasing, setErasing] = useState(false);
+  const [retiring, setRetiring] = useState(false);
+  const [retireError, setRetireError] = useState(null);
+  // Bumped after a save, retire or erase so DataPage refetches instead of reloading the page.
+  const [refreshKey, setRefreshKey] = useState(0);
+  const refresh = () => setRefreshKey((key) => key + 1);
 
   // Fetch departments for the dropdown
   useEffect(() => {
@@ -80,25 +86,35 @@ const EmployeesPage = () => {
     setShowDeleteModal(true);
   };
 
+  const closeRetire = () => {
+    if (retiring) return;
+    setShowDeleteModal(false);
+    setEmployeeToDelete(null);
+    setRetireError(null);
+  };
+
   const handleDeleteConfirm = async () => {
+    setRetiring(true);
+    setRetireError(null);
     try {
       const response = await authenticatedFetch(
         API_URLS.EMPLOYEES.DELETE(employeeToDelete.employeeID),
         { method: 'DELETE' }
       );
 
-      if (response.ok) {
-        // Refresh the page data by triggering a re-render
-        window.location.reload();
-      } else {
-        throw new Error('Failed to retire employee');
+      if (!response.ok) {
+        throw new Error(await readErrorMessage(response, 'Failed to retire employee'));
       }
-    } catch (error) {
-      console.error('Retire error:', error);
-      alert('Failed to retire employee');
-    } finally {
+
       setShowDeleteModal(false);
       setEmployeeToDelete(null);
+      refresh();
+    } catch (error) {
+      console.error('Retire error:', error);
+      // Keep the dialog open so the reason is read where the action was taken.
+      setRetireError(error.message);
+    } finally {
+      setRetiring(false);
     }
   };
 
@@ -132,20 +148,14 @@ const EmployeesPage = () => {
       );
 
       if (response.ok) {
-        window.location.reload();
+        setEmployeeToErase(null);
+        refresh();
         return;
       }
 
-      let message = 'Failed to erase employee';
-      try {
-        const body = await response.json();
-        if (body?.message) message = body.message;
-      } catch {
-        // no JSON body
-      }
       // 400 for missing details / no linked employee record; 409 when not retired yet,
       // already erased, or erasing yourself.
-      setEraseError(message);
+      setEraseError(await readErrorMessage(response, 'Failed to erase employee'));
     } catch (error) {
       setEraseError(error.message);
     } finally {
@@ -167,10 +177,6 @@ const EmployeesPage = () => {
     && eraseConfirmText.trim() === `${employeeToErase.firstName} ${employeeToErase.lastName}`;
   const eraseReady = eraseNameMatches && eraseRequestedBy.trim() !== '' && eraseReason.trim() !== '';
 
-  const handleSave = (savedEmployee) => {
-    // Refresh the page data
-    window.location.reload();
-  };
 
   const renderEmployeeCard = (emp) => (
     <ItemCard
@@ -229,6 +235,7 @@ const EmployeesPage = () => {
   return (
     <>
       <DataPage
+        refreshKey={refreshKey}
         title="Employee Directory"
         apiEndpoint={API_URLS.EMPLOYEES.GET_ALL()}
         searchFields={['firstName', 'lastName', 'email', 'departmentName']}
@@ -247,14 +254,16 @@ const EmployeesPage = () => {
         show={showModal}
         onHide={() => setShowModal(false)}
         employee={editingEmployee}
-        onSave={handleSave}
+        onSave={refresh}
         departments={departments}
       />
 
       {/* Retire confirmation */}
       <ConfirmDialog
         open={showDeleteModal}
-        onOpenChange={setShowDeleteModal}
+        onOpenChange={(open) => { if (!open) closeRetire(); }}
+        busy={retiring}
+        busyLabel="Retiring…"
         title="Retire Employee"
         description={`Retire ${employeeToDelete?.firstName} ${employeeToDelete?.lastName}?`}
         confirmLabel="Retire"
@@ -265,6 +274,12 @@ const EmployeesPage = () => {
           They are removed from listings, but their leave decisions, asset custody and
           generated documents are kept. This can be undone.
         </p>
+        {retireError && (
+          <Alert variant="destructive">
+            <AlertCircle aria-hidden="true" />
+            <AlertDescription>{retireError}</AlertDescription>
+          </Alert>
+        )}
       </ConfirmDialog>
 
       {/* GDPR erasure — deliberately harder to trigger than retiring */}
