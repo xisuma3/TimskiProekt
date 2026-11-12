@@ -82,6 +82,19 @@ jobs:
         with:
           dotnet-version: '10.0.x'
 
+      - name: Cache NuGet packages
+        uses: actions/cache@v4
+        with:
+          path: ~/.nuget/packages
+          key: nuget-${{ runner.os }}-${{ hashFiles('hr-app-backend/**/*.csproj') }}
+          restore-keys: nuget-${{ runner.os }}-
+
+      # dotnet ef reads the target project's metadata before it builds anything, so on a
+      # fresh checkout it fails with "project.assets.json not found" unless restored first.
+      # (It only passed while obj/ was committed.)
+      - name: Restore
+        run: dotnet restore HrApp.sln
+
       - name: Install EF tools
         run: dotnet tool install --global dotnet-ef --version 10.*
 
@@ -175,10 +188,12 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
+      # Vitest 5 needs Node 22.12+ and jsdom 31 needs 22.22+; on Node 20 every test worker
+      # dies at startup ("Cannot read properties of undefined (reading 'bind')").
       - name: Set up Node
         uses: actions/setup-node@v4
         with:
-          node-version: '20'
+          node-version: '24'
           cache: npm
           cache-dependency-path: hr-app-frontend-new/package-lock.json
 

@@ -46,7 +46,7 @@ jobs:
 
       - uses: actions/setup-node@v4
         with:
-          node-version: '20'
+          node-version: '24'   # same as CI; the frontend toolchain needs 22.12+
           cache: npm
           cache-dependency-path: hr-app-frontend-new/package-lock.json
 

@@ -67,6 +67,8 @@ npm test           # Vitest, watch mode; `npm test -- --run` runs once, as CI do
 npm run lint       # ESLint flat config (eslint.config.js), fails on any warning
 ```
 
+- **Node 22.22+ is required** (CI and deploy use 24). Vitest 5 and jsdom 31 crash every test
+  worker on Node 20 with `Cannot read properties of undefined (reading 'bind')`.
 - Files containing JSX must be `.jsx`; Vite won't parse JSX in `.js`.
 - Vitest differs from the old Jest setup in two ways that bite: a `vi.mock` factory for a
   module with a **default** export must return `{ default: ... }`, and a function
