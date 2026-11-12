@@ -3,9 +3,9 @@ import { MemoryRouter } from 'react-router-dom';
 import LoginPage from './LoginPage';
 import { login } from '../services/authService';
 
-jest.mock('../services/authService', () => ({
-  login: jest.fn(),
-  fetchEmployeeDetails: jest.fn(),
+vi.mock('../services/authService', () => ({
+  login: vi.fn(),
+  fetchEmployeeDetails: vi.fn(),
 }));
 
 const renderAndSubmit = () => {
@@ -19,7 +19,7 @@ const renderAndSubmit = () => {
   fireEvent.click(screen.getByRole('button', { name: /sign in/i }));
 };
 
-beforeEach(() => login.mockReset());
+beforeEach(() => { login.mockReset(); });
 
 test('shows a generic message for rejected credentials', async () => {
   login.mockRejectedValue({ response: { status: 401 } });

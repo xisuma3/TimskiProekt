@@ -2,7 +2,7 @@ import { fireEvent, render, screen } from '@testing-library/react';
 import DepartmentsPage from './DepartmentsPage';
 import { authenticatedFetch } from '../services/authService';
 
-jest.mock('../services/authService', () => ({ authenticatedFetch: jest.fn() }));
+vi.mock('../services/authService', () => ({ authenticatedFetch: vi.fn() }));
 
 test('filters departments by their name without requiring departmentName', async () => {
   authenticatedFetch.mockResolvedValue({

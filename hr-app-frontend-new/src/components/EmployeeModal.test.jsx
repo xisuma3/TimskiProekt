@@ -2,9 +2,9 @@ import { fireEvent, render, screen, waitFor } from '@testing-library/react';
 import EmployeeModal from './EmployeeModal';
 import { authenticatedFetch } from '../services/authService';
 
-jest.mock('../services/authService', () => ({
-  authenticatedFetch: jest.fn(),
-  register: jest.fn(),
+vi.mock('../services/authService', () => ({
+  authenticatedFetch: vi.fn(),
+  register: vi.fn(),
 }));
 
 test('preserves manager and mentor IDs when editing an employee', async () => {
@@ -28,8 +28,8 @@ test('preserves manager and mentor IDs when editing an employee', async () => {
       show
       employee={employee}
       departments={[{ departmentID: 'department-id', name: 'Engineering' }]}
-      onHide={jest.fn()}
-      onSave={jest.fn()}
+      onHide={vi.fn()}
+      onSave={vi.fn()}
     />
   );
 

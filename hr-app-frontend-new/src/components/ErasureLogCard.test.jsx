@@ -2,7 +2,7 @@ import { render, screen } from '@testing-library/react';
 import ErasureLogCard from './ErasureLogCard';
 import { authenticatedFetch } from '../services/authService';
 
-jest.mock('../services/authService', () => ({ authenticatedFetch: jest.fn(), isAdmin: () => true }));
+vi.mock('../services/authService', () => ({ authenticatedFetch: vi.fn(), isAdmin: () => true }));
 
 const record = (id, performedAt, reason) => ({
   erasureRecordID: id,
@@ -15,7 +15,7 @@ const record = (id, performedAt, reason) => ({
   reason,
 });
 
-beforeEach(() => authenticatedFetch.mockReset());
+beforeEach(() => { authenticatedFetch.mockReset(); });
 
 test('lists erasures newest first with who, why and the erased record id', async () => {
   authenticatedFetch.mockResolvedValue({

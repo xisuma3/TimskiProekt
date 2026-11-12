@@ -26,7 +26,7 @@ test('month grid starts on Monday', () => {
 });
 
 test('first click sets the start, second sets the end, and the count is inclusive', () => {
-  const onChange = jest.fn();
+  const onChange = vi.fn();
   render(<Harness onChange={onChange} />);
 
   fireEvent.click(day(10));
@@ -39,7 +39,7 @@ test('first click sets the start, second sets the end, and the count is inclusiv
 });
 
 test('clicking before the start begins a new range', () => {
-  const onChange = jest.fn();
+  const onChange = vi.fn();
   render(<Harness onChange={onChange} />);
   fireEvent.click(day(10));
   fireEvent.click(day(5));
@@ -47,7 +47,7 @@ test('clicking before the start begins a new range', () => {
 });
 
 test('booked and past days cannot be picked, and a range cannot cross a booked day', () => {
-  const onChange = jest.fn();
+  const onChange = vi.fn();
   render(<Harness onChange={onChange} booked={[{ startDate: '2030-06-12T00:00:00', endDate: '2030-06-13T00:00:00' }]} />);
 
   expect(day(12)).toBeDisabled();
@@ -60,7 +60,7 @@ test('booked and past days cannot be picked, and a range cannot cross a booked d
 });
 
 test('one-day leave: start and end on the same day', () => {
-  const onChange = jest.fn();
+  const onChange = vi.fn();
   render(<Harness onChange={onChange} />);
   fireEvent.click(day(10));
   fireEvent.click(day(10));

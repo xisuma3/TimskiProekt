@@ -2,7 +2,7 @@ import { fireEvent, render, screen, waitFor } from '@testing-library/react';
 import CarryOverModal from './CarryOverModal';
 import { authenticatedFetch } from '../services/authService';
 
-jest.mock('../services/authService', () => ({ authenticatedFetch: jest.fn() }));
+vi.mock('../services/authService', () => ({ authenticatedFetch: vi.fn() }));
 
 const results = [
   { employeeID: 'e1', employeeName: 'Ana Trajkovska', leaveType: 'Vacation', unusedDays: 8, carriedDays: 5, action: 'Created', note: 'New 2026 allowance of 20 days (upfront).' },
@@ -11,13 +11,13 @@ const results = [
 
 beforeEach(() => {
   authenticatedFetch.mockReset();
-  jest.spyOn(window, 'confirm').mockReturnValue(true);
+  vi.spyOn(window, 'confirm').mockReturnValue(true);
 });
-afterEach(() => window.confirm.mockRestore());
+afterEach(() => { window.confirm.mockRestore(); });
 
 test('apply is only possible after a preview, and sends the chosen options', async () => {
   authenticatedFetch.mockResolvedValue({ ok: true, json: async () => results });
-  const onApplied = jest.fn();
+  const onApplied = vi.fn();
   render(<CarryOverModal show onHide={() => {}} onApplied={onApplied} />);
 
   expect(screen.getByRole('button', { name: 'Apply carry-over' })).toBeDisabled();

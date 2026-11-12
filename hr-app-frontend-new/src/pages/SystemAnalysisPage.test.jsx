@@ -3,7 +3,7 @@ import { MemoryRouter } from 'react-router-dom';
 import SystemAnalysisPage from './SystemAnalysisPage';
 import { authenticatedFetch } from '../services/authService';
 
-jest.mock('../services/authService', () => ({ authenticatedFetch: jest.fn() }));
+vi.mock('../services/authService', () => ({ authenticatedFetch: vi.fn() }));
 
 const employees = [
   { employeeID: 'e1', firstName: 'Ada', lastName: 'Lovelace', departmentID: 'd1', departmentName: 'IT', managerID: null, hireDate: '2021-03-01' },

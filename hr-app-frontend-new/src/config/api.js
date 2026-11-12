@@ -1,7 +1,7 @@
 // API Configuration
 const API_CONFIG = {
   // Use environment variable or fallback to localhost for development
-  BASE_URL: process.env.REACT_APP_API_URL || 'http://localhost:5190',
+  BASE_URL: import.meta.env.VITE_API_URL || 'http://localhost:5190',
   
   // API endpoints
   ENDPOINTS: {

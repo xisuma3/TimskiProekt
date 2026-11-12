@@ -5,8 +5,8 @@ import { authenticatedFetch } from '../services/authService';
 
 let mockIsAdmin = false;
 
-jest.mock('../services/authService', () => ({
-  authenticatedFetch: jest.fn(),
+vi.mock('../services/authService', () => ({
+  authenticatedFetch: vi.fn(),
   isAdmin: () => mockIsAdmin,
 }));
 

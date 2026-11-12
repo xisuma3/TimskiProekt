@@ -3,8 +3,8 @@ import ApprovalCoverPage from './ApprovalCoverPage';
 import { authenticatedFetch } from '../services/authService';
 
 let mockAdmin = false;
-jest.mock('../services/authService', () => ({
-  authenticatedFetch: jest.fn(),
+vi.mock('../services/authService', () => ({
+  authenticatedFetch: vi.fn(),
   isAdmin: () => mockAdmin,
 }));
 
@@ -88,7 +88,7 @@ test('if the directory can not be loaded the form explains instead of an empty p
 
 test('an admin arranges cover on behalf of a manager and sees server errors', async () => {
   mockAdmin = true;
-  const onCreate = jest.fn()
+  const onCreate = vi.fn()
     .mockReturnValueOnce(fail(409, { message: 'There is already a delegation covering 2030-06-01 to 2030-06-14. Revoke it first.' }))
     .mockReturnValueOnce(ok(delegation('new')));
   mockApi({
@@ -115,7 +115,7 @@ test('an admin arranges cover on behalf of a manager and sees server errors', as
 });
 
 test('revoking asks for confirmation, then calls the API', async () => {
-  const onRevoke = jest.fn(() => Promise.resolve({ ok: true, status: 204, json: async () => ({}) }));
+  const onRevoke = vi.fn(() => Promise.resolve({ ok: true, status: 204, json: async () => ({}) }));
   mockApi({ mine: [delegation('given')], onRevoke });
   render(<ApprovalCoverPage />);
 

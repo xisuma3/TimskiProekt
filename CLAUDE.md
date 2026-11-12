@@ -9,7 +9,7 @@ HR management application with a .NET 10 Web API backend and a React frontend. D
 The repository contains **three** top-level app folders:
 
 - `hr-app-backend/` — the .NET 10 solution (`HrApp.sln`; EF Core and ASP.NET Core packages 10.0.x, Swashbuckle deliberately held at 6.6.2 because 10.x needs Microsoft.OpenApi 2 and breaks `AddSwaggerGen`). The real backend.
-- `hr-app-frontend-new/` — **the active frontend** (Create React App, JavaScript, React Bootstrap, axios). This is what the backend's CORS/API contract targets.
+- `hr-app-frontend-new/` — **the active frontend** (Vite, JavaScript, React Bootstrap, axios). This is what the backend's CORS/API contract targets.
 - `hr-app-frontend/front/` — a legacy/abandoned Vite + TypeScript + Tailwind stub with only `HomePage`/`LoginPage`/`Layout`. Do not use for feature work unless explicitly asked.
 
 `docs/BUSINESS-FLOWS.md` maps every business process end to end and records which
@@ -41,7 +41,7 @@ dotnet run --project HrAppWebApplication --launch-profile http
   startup banner says `Now listening on: http://localhost:5190` and
   `Hosting environment: Development`.
 - HTTP profile serves at `http://localhost:5190`; HTTPS profile at `https://localhost:7033` (and `http://localhost:5137`). Swagger UI is at `/swagger` in Development.
-- The frontend (`config/api.js`) hard-defaults to `http://localhost:5190`, so use the **http** profile unless you also set `REACT_APP_API_URL`.
+- The frontend (`config/api.js`) hard-defaults to `http://localhost:5190`, so use the **http** profile unless you also set `VITE_API_URL`.
 - **Two test suites**, both run by CI:
   - `dotnet test HrApp.Tests/HrApp.Tests.csproj` — 142 tests on the EF **in-memory**
     provider. Needs no SQL Server; covers *service behaviour*.
@@ -51,19 +51,28 @@ dotnet run --project HrAppWebApplication --launch-profile http
     migration fidelity. Connection from `HRAPP_TEST_SQL`, falling back to LocalDB.
 - CI is `.github/workflows/ci.yml`: backend build + test, a
   `dotnet ef migrations has-pending-model-changes` drift gate, the schema suite against a
-  SQL Server service container, and a frontend build with **`CI: true`** — ESLint
-  warnings are errors, so keep the tree warning-free.
+  SQL Server service container, and a frontend lint + test + build. Lint runs with
+  `--max-warnings 0`, so keep the tree warning-free.
 
 ### Frontend (run from `hr-app-frontend-new/`)
 
+Vite + Vitest (moved off Create React App). The API base URL is `VITE_API_URL`, read
+through `import.meta.env` and baked in at build time.
+
 ```bash
 npm install
-npm start        # dev server on http://localhost:3000 (matches backend CORS allow-list)
-npm run build    # production build to build/
-npm test         # CRA/Jest watch mode (only the default App.test.js exists)
+npm start          # Vite dev server on http://localhost:3000 (matches backend CORS allow-list)
+npm run build      # production build to build/ (deploy.yml uploads that folder)
+npm test           # Vitest, watch mode; `npm test -- --run` runs once, as CI does
+npm run lint       # ESLint flat config (eslint.config.js), fails on any warning
 ```
 
-No standalone lint script — ESLint runs via `react-scripts` (`react-app` config).
+- Files containing JSX must be `.jsx`; Vite won't parse JSX in `.js`.
+- Vitest differs from the old Jest setup in two ways that bite: a `vi.mock` factory for a
+  module with a **default** export must return `{ default: ... }`, and a function
+  **returned** from `beforeEach` is run as teardown. So write
+  `beforeEach(() => { fn.mockReset(); })`, never `beforeEach(() => fn.mockReset())`,
+  because `mockReset()` returns the mock and Vitest then calls it after each test.
 
 ### Smoke-testing a change
 
@@ -294,7 +303,7 @@ carry-over would strand days already booked next year. `preview: true` saves not
 
 ## Frontend architecture (`hr-app-frontend-new`)
 
-- **API contract**: all endpoint URLs are centralized in `src/config/api.js` (`API_URLS`). Change base URL via `REACT_APP_API_URL`.
+- **API contract**: all endpoint URLs are centralized in `src/config/api.js` (`API_URLS`). Change base URL via `VITE_API_URL`.
 - **Auth/session**: `src/services/authService.js` stores the JWT and `userInfo` (incl. roles) in `localStorage`. Use `authenticatedFetch(url, options)` for all authenticated calls — it injects the `Bearer` token and auto-logs-out on `401`. Role helpers: `hasRole`, `isAdmin`, `isEmployee`.
 - **Routing** (`src/AppRouter.js`): public routes (`/`, `/login`, `/register`); everything else is wrapped in `ProtectedRoute` (requires token) inside `SidebarLayout`. `RoleBasedRoute allowedRoles={['Admin']}` guards Admin-only pages (`/employees`, `/departments`) and redirects others to `/dashboard`.
 - **Data pages**: most list pages are built on the generic `src/components/DataPage.js` (fetch + search + add/edit modal + delete confirm). New CRUD screens should reuse it and pass a `renderCard`, `apiEndpoint`, and a `modalComponent`.

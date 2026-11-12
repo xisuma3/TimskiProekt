@@ -166,7 +166,7 @@ jobs:
           if-no-files-found: ignore
 
   frontend:
-    name: Frontend (build)
+    name: Frontend (lint + test + build)
     runs-on: ubuntu-latest
     defaults:
       run:
@@ -185,10 +185,14 @@ jobs:
       - name: Install
         run: npm ci
 
-      # CI=true promotes ESLint warnings to errors, so a new unused import or a missing
-      # hook dependency fails the build instead of accumulating. The tree is clean as of
-      # the commit that turned this on — keep it that way.
+      # --max-warnings 0 (in the lint script) fails on any warning, so a new unused import
+      # or a missing hook dependency fails CI instead of accumulating. Vite's build does
+      # not lint, so this step is the only gate.
+      - name: Lint
+        run: npm run lint
+
+      - name: Test
+        run: npm test -- --run
+
       - name: Build
         run: npm run build
-        env:
-          CI: true

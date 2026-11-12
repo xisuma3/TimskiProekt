@@ -77,7 +77,6 @@ const CarryOverModal = ({ show, onHide, onApplied }) => {
 
   const apply = () => {
     const toYear = Number(fromYear) + 1;
-    // eslint-disable-next-line no-alert
     if (window.confirm(`Apply carry-over from ${fromYear} into ${toYear}? Next year's allowances will be created or updated.`)) {
       run(false);
     }

@@ -90,14 +90,13 @@ jobs:
         run: npm ci
         working-directory: hr-app-frontend-new
 
-      # REACT_APP_API_URL is baked into the bundle at build time; it cannot be changed on
-      # the Static Web App afterwards.
+      # VITE_API_URL is baked into the bundle at build time; it cannot be changed on the
+      # Static Web App afterwards.
       - name: Build
         working-directory: hr-app-frontend-new
         env:
-          CI: true
           API_URL: ${{ vars.API_URL }}
-        run: REACT_APP_API_URL="${API_URL%/}" npm run build
+        run: VITE_API_URL="${API_URL%/}" npm run build
 
       - name: Deploy to Static Web Apps
         uses: Azure/static-web-apps-deploy@v1

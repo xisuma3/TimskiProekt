@@ -4,15 +4,15 @@ import ThemeToggle from './ThemeToggle';
 beforeEach(() => {
   localStorage.clear();
   document.documentElement.removeAttribute('data-bs-theme');
-  window.matchMedia = jest.fn().mockReturnValue({
+  window.matchMedia = vi.fn().mockReturnValue({
     matches: false,
-    addEventListener: jest.fn(),
-    removeEventListener: jest.fn(),
+    addEventListener: vi.fn(),
+    removeEventListener: vi.fn(),
   });
 });
 
 test('follows the system preference until the user chooses', () => {
-  window.matchMedia.mockReturnValue({ matches: true, addEventListener: jest.fn(), removeEventListener: jest.fn() });
+  window.matchMedia.mockReturnValue({ matches: true, addEventListener: vi.fn(), removeEventListener: vi.fn() });
   render(<ThemeToggle />);
   expect(screen.getByRole('button', { name: /switch to light mode/i })).toBeInTheDocument();
   expect(localStorage.getItem('theme')).toBeNull();

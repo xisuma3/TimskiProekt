@@ -2,7 +2,7 @@ import { fireEvent, render, screen, waitFor } from '@testing-library/react';
 import SelfServiceDocumentModal, { usesAssets } from './SelfServiceDocumentModal';
 import { authenticatedFetch } from '../services/authService';
 
-jest.mock('../services/authService', () => ({ authenticatedFetch: jest.fn() }));
+vi.mock('../services/authService', () => ({ authenticatedFetch: vi.fn() }));
 
 const templates = [
   { templateID: 't-conf', templateName: 'Employment Confirmation', description: 'For banks and visas',
@@ -22,7 +22,7 @@ const mockApi = (onGenerate) =>
     return Promise.resolve({ ok: false, json: async () => ({}) });
   });
 
-beforeEach(() => authenticatedFetch.mockReset());
+beforeEach(() => { authenticatedFetch.mockReset(); });
 
 test('detects templates that list equipment', () => {
   expect(usesAssets('{{#assetList}}x{{/assetList}}')).toBe(true);
@@ -31,9 +31,9 @@ test('detects templates that list equipment', () => {
 });
 
 test('only offers self-service templates and sends just the template for a plain letter', async () => {
-  const generate = jest.fn(() => Promise.resolve({ ok: true, json: async () => ({ documentID: 'd1' }) }));
+  const generate = vi.fn(() => Promise.resolve({ ok: true, json: async () => ({ documentID: 'd1' }) }));
   mockApi(generate);
-  const onGenerated = jest.fn();
+  const onGenerated = vi.fn();
   render(<SelfServiceDocumentModal show onHide={() => {}} onGenerated={onGenerated} />);
 
   expect(await screen.findByText('Employment Confirmation')).toBeInTheDocument();
@@ -49,7 +49,7 @@ test('only offers self-service templates and sends just the template for a plain
 });
 
 test('a handover template lists my assets, all ticked by default', async () => {
-  const generate = jest.fn(() => Promise.resolve({ ok: true, json: async () => ({ documentID: 'd2' }) }));
+  const generate = vi.fn(() => Promise.resolve({ ok: true, json: async () => ({ documentID: 'd2' }) }));
   mockApi(generate);
   render(<SelfServiceDocumentModal show onHide={() => {}} onGenerated={() => {}} />);
 

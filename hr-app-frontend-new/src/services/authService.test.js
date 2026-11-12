@@ -2,12 +2,12 @@ import axios from 'axios';
 import { register } from './authService';
 import { API_URLS } from '../config/api';
 
-jest.mock('axios', () => ({ post: jest.fn() }));
+vi.mock('axios', () => ({ default: { post: vi.fn() } }));
 
 describe('register', () => {
   afterEach(() => {
     localStorage.clear();
-    jest.clearAllMocks();
+    vi.clearAllMocks();
   });
 
   test('attaches the caller Bearer token, since /api/Auth/register is Admin-only', async () => {

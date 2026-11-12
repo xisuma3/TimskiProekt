@@ -3,7 +3,7 @@ import DataPage from './DataPage';
 import { matchesDate, matchesPerson, personOptions } from './listFilters';
 import { authenticatedFetch } from '../services/authService';
 
-jest.mock('../services/authService', () => ({ authenticatedFetch: jest.fn() }));
+vi.mock('../services/authService', () => ({ authenticatedFetch: vi.fn() }));
 
 const leave = (id, name, start, end) => ({ requestID: id, employeeName: name, startDate: `${start}T00:00:00`, endDate: `${end}T00:00:00` });
 

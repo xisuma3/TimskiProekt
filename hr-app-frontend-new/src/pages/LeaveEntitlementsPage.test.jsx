@@ -2,13 +2,15 @@ import { fireEvent, render, screen, waitFor } from '@testing-library/react';
 import LeaveEntitlementsPage from './LeaveEntitlementsPage';
 import { authenticatedFetch } from '../services/authService';
 
-jest.mock('../services/authService', () => ({ authenticatedFetch: jest.fn() }));
-jest.mock('../components/LeaveEntitlementModal', () => ({ item, onSave }) => (
-  <div data-testid="allowance-modal">
-    {item ? `edit:${item.entitlementID}` : 'create'}
-    <button onClick={onSave}>Save allowance</button>
-  </div>
-));
+vi.mock('../services/authService', () => ({ authenticatedFetch: vi.fn() }));
+vi.mock('../components/LeaveEntitlementModal', () => ({
+  default: ({ item, onSave }) => (
+    <div data-testid="allowance-modal">
+      {item ? `edit:${item.entitlementID}` : 'create'}
+      <button onClick={onSave}>Save allowance</button>
+    </div>
+  ),
+}));
 
 test('wires allowance create, edit, delete, and refresh through DataPage', async () => {
   const entitlement = {

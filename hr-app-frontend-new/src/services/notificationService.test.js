@@ -1,6 +1,6 @@
-import { buildNotifications, getReadIds, saveReadIds } from './notificationService';
+import { buildNotifications, getReadIds, parseInstant, saveReadIds } from './notificationService';
 
-jest.mock('./authService', () => ({ authenticatedFetch: jest.fn(), isAdmin: () => false }));
+vi.mock('./authService', () => ({ authenticatedFetch: vi.fn(), isAdmin: () => false }));
 
 const now = new Date('2026-10-01T12:00:00Z').getTime();
 const daysAgo = (n) => new Date(now - n * 24 * 60 * 60 * 1000).toISOString();
@@ -79,7 +79,6 @@ test('read state is stored per user', () => {
 });
 
 test('offset-less API timestamps are read as UTC; calendar dates and offsets are untouched', () => {
-  const { parseInstant } = require('./notificationService');
   expect(parseInstant('2026-10-01T10:00:00').toISOString()).toBe('2026-10-01T10:00:00.000Z');
   expect(parseInstant('2026-10-01T10:00:00.123').toISOString()).toBe('2026-10-01T10:00:00.123Z');
   expect(parseInstant('2026-10-01T10:00:00+02:00').toISOString()).toBe('2026-10-01T08:00:00.000Z');

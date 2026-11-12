@@ -2,12 +2,12 @@ import { fireEvent, render, screen } from '@testing-library/react';
 import DataPage from './DataPage';
 import { authenticatedFetch } from '../services/authService';
 
-jest.mock('../services/authService', () => ({
-  authenticatedFetch: jest.fn(),
+vi.mock('../services/authService', () => ({
+  authenticatedFetch: vi.fn(),
 }));
 
 test('clears a previous fetch error after a successful retry', async () => {
-  const consoleError = jest.spyOn(console, 'error').mockImplementation(() => {});
+  const consoleError = vi.spyOn(console, 'error').mockImplementation(() => {});
   authenticatedFetch
     .mockRejectedValueOnce(new Error('Unable to load items.'))
     .mockResolvedValueOnce({ ok: true, json: async () => [{ id: '1', name: 'Item' }] });
