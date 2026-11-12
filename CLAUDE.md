@@ -358,11 +358,26 @@ carry-over would strand days already booked next year. `preview: true` saves not
 
 ## Deployment
 
-Azure free tiers (Azure for Students): Azure SQL free offer, App Service F1 (Linux, .NET 10)
-for the API, and Static Web Apps Free for the frontend. `.github/workflows/deploy.yml` runs
-after CI passes on `main`, or manually. It skips until the repo variables
-`AZURE_WEBAPP_NAME` and `API_URL` exist. `docs/DEPLOY.md` has the portal setup, the App
-Service settings, and how to load the demo data.
+Azure free tiers (Azure for Students): Azure SQL free offer and **one** App Service F1
+(Linux, .NET 10) that serves both the API and the React build. Static Web Apps is not an
+option: the subscription's region policy allows only Austria East, Spain Central, Germany
+West Central, Poland Central and Denmark East, and Static Web Apps runs in none of them.
+The free tiers don't overlap either: F1 had quota only in **Austria East**, and the free SQL
+offer refuses Austria East, so the Web App runs there and the database in **Germany West
+Central**.
+
+- `deploy.yml` builds the frontend, copies `build/` into the publish output's `wwwroot`,
+  and ships one package. `FrontendHosting.cs` serves it: static files run **before**
+  authorization (so the login page loads without a token), client routes fall back to
+  `index.html`, and the fallbacks are `AllowAnonymous` because the `FallbackPolicy` would
+  otherwise demand a token for them. Unknown `/api/*` URLs and missing files stay **404**,
+  never `index.html`. `Program.cs` only turns this on when `wwwroot/index.html` exists, so
+  local development (Vite on :3000) is unchanged.
+- UI and API share an origin in production, so no `Cors__AllowedOrigins` setting is needed.
+
+`.github/workflows/deploy.yml` runs after CI passes on `main`, or manually. It skips until the repo variables `AZURE_WEBAPP_NAME` and
+`API_URL` exist. `docs/DEPLOY.md` has the setup, the App Service settings, and how to load
+the demo data.
 
 ## Agents
 

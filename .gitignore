@@ -15,3 +15,16 @@ Thumbs.db
 # Local environment / secrets
 *.env
 .env.local
+
+# Deployment credentials and output. This repository is public: a publish profile carries
+# the Web App's deployment password, and production settings belong in App Service, never
+# in a file here (docs/DEPLOY.md).
+*.PublishSettings
+*publish-profile*.xml
+*.azurePubxml
+appsettings.Production.json
+appsettings.*.local.json
+/publish/
+
+# Claude Code per-user permissions (may embed commands with tokens)
+.claude/settings.local.json

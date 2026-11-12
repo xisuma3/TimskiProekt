@@ -168,10 +168,11 @@ builder.Services.AddSwaggerGen(c =>
     });
 });
 
-// A deployed frontend is allowed through configuration, e.g.
-// Cors__AllowedOrigins__0=https://<name>.azurestaticapps.net. With nothing configured the
-// local dev server keeps working. An origin never has a trailing slash, so a pasted URL
-// that does would otherwise silently never match.
+// The deployed frontend is served by this app (same origin), so it needs no CORS entry. A
+// frontend hosted elsewhere is allowed through configuration, e.g.
+// Cors__AllowedOrigins__0=https://ui.example.com. With nothing configured the local dev
+// server keeps working. An origin never has a trailing slash, so a pasted URL that does
+// would otherwise silently never match.
 var allowedOrigins = builder.Configuration.GetSection("Cors:AllowedOrigins").Get<string[]>()?
     .Where(origin => !string.IsNullOrWhiteSpace(origin))
     .Select(origin => origin.Trim().TrimEnd('/'))
@@ -205,6 +206,13 @@ if (app.Environment.IsDevelopment())
 
 app.UseHttpsRedirection();
 
+// A deployment ships the React build in wwwroot (see FrontendHosting); locally there is none.
+var serveFrontend = app.Environment.WebRootFileProvider.GetFileInfo("index.html").Exists;
+if (serveFrontend)
+{
+    app.UseFrontendStaticFiles();
+}
+
 app.UseCors(MyAllowSpecificOrigins);
 
 app.UseRouting();
@@ -214,6 +222,10 @@ app.UseAuthentication();
 app.UseAuthorization();
 
 app.MapControllers();
+if (serveFrontend)
+{
+    app.MapFrontendFallback();
+}
 
 using (var scope = app.Services.CreateScope())
 {

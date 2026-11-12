@@ -1,15 +1,16 @@
 name: Deploy
 
 # Ships main to Azure once CI has passed on it, or on demand from the Actions tab.
-# Setup (resources, secrets, variables) is in docs/DEPLOY.md.
+# One App Service serves both the API and the React build (from wwwroot, see
+# FrontendHosting.cs): Static Web Apps is not offered in any region an Azure for Students
+# subscription may deploy to. Setup (resources, secret, variables) is in docs/DEPLOY.md.
 #
 #   secrets.AZUREAPPSERVICE_PUBLISHPROFILE   Web App > Download publish profile (whole XML)
-#   secrets.AZURE_STATIC_WEB_APPS_API_TOKEN  Static Web App > Manage deployment token
 #   vars.AZURE_WEBAPP_NAME                   the Web App's name
 #   vars.API_URL                             the Web App's https URL, from its Overview page
 #
-# Until the variables exist both jobs are skipped rather than failed, so merging this
-# before Azure is set up does not turn every push to main red.
+# Until the variables exist the job is skipped rather than failed, so merging this before
+# Azure is set up does not turn every push to main red.
 on:
   workflow_run:
     workflows: [CI]
@@ -26,8 +27,8 @@ concurrency:
   cancel-in-progress: false
 
 jobs:
-  api:
-    name: API (App Service)
+  app:
+    name: App Service (API + frontend)
     if: >-
       vars.AZURE_WEBAPP_NAME != '' && vars.API_URL != '' &&
       (github.event_name == 'workflow_dispatch' || github.event.workflow_run.conclusion == 'success')
@@ -43,8 +44,32 @@ jobs:
         with:
           dotnet-version: '10.0.x'
 
-      - name: Publish
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: npm
+          cache-dependency-path: hr-app-frontend-new/package-lock.json
+
+      - name: Install frontend
+        run: npm ci
+        working-directory: hr-app-frontend-new
+
+      # VITE_API_URL is baked into the bundle at build time. The UI and the API share an
+      # origin, so this is the Web App's own URL.
+      - name: Build frontend
+        working-directory: hr-app-frontend-new
+        env:
+          API_URL: ${{ vars.API_URL }}
+        run: VITE_API_URL="${API_URL%/}" npm run build
+
+      - name: Publish API
         run: dotnet publish hr-app-backend/HrAppWebApplication/HrAppWebApplication.csproj --configuration Release --output publish
+
+      - name: Bundle the frontend into the API
+        run: |
+          mkdir -p publish/wwwroot
+          cp -r hr-app-frontend-new/build/. publish/wwwroot/
+          test -f publish/wwwroot/index.html
 
       - name: Deploy to App Service
         uses: azure/webapps-deploy@v3
@@ -71,37 +96,13 @@ jobs:
           echo "::error::The API never answered 401. Check the Web App's Log stream for a startup failure."
           exit 1
 
-  web:
-    name: Frontend (Static Web Apps)
-    needs: api
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-        with:
-          ref: ${{ github.event.workflow_run.head_sha || github.sha }}
-
-      - uses: actions/setup-node@v4
-        with:
-          node-version: '20'
-          cache: npm
-          cache-dependency-path: hr-app-frontend-new/package-lock.json
-
-      - name: Install
-        run: npm ci
-        working-directory: hr-app-frontend-new
-
-      # VITE_API_URL is baked into the bundle at build time; it cannot be changed on the
-      # Static Web App afterwards.
-      - name: Build
-        working-directory: hr-app-frontend-new
+      - name: Check the frontend is served
         env:
           API_URL: ${{ vars.API_URL }}
-        run: VITE_API_URL="${API_URL%/}" npm run build
-
-      - name: Deploy to Static Web Apps
-        uses: Azure/static-web-apps-deploy@v1
-        with:
-          azure_static_web_apps_api_token: ${{ secrets.AZURE_STATIC_WEB_APPS_API_TOKEN }}
-          action: upload
-          app_location: hr-app-frontend-new/build
-          skip_app_build: true
+        run: |
+          base="${API_URL%/}"
+          curl -sf --max-time 60 "$base/" | grep -q 'id="root"' \
+            || { echo "::error::$base/ did not return the React index.html"; exit 1; }
+          curl -sf --max-time 60 "$base/dashboard" | grep -q 'id="root"' \
+            || { echo "::error::$base/dashboard did not fall back to index.html"; exit 1; }
+          echo "Frontend is up at $base"
