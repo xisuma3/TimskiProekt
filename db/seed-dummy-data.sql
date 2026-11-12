@@ -14,9 +14,30 @@ SELECT NEWID(), v.Name, v.Description
 FROM (VALUES
   ('Finance', 'Accounting, payroll and budgeting'),
   ('Sales',   'Customer acquisition and account management'),
-  ('Legal',   'Contracts, compliance and data protection')
+  ('Legal',   'Contracts, compliance and data protection'),
+  ('IT',              'Software, infrastructure and support'),
+  ('Marketing',       'Brand, content and campaigns'),
+  ('Human Resources', 'People operations, recruiting and onboarding'),
+  ('Operations',      'Facilities, procurement and logistics')
 ) v(Name, Description)
 WHERE NOT EXISTS (SELECT 1 FROM Departments d WHERE d.Name = v.Name);
+
+-- Base employees: department heads the rest of the script reports into. A fresh database
+-- (built by migrations) has none of them, so they are created here rather than assumed.
+DECLARE @base TABLE (First nvarchar(100), Last nvarchar(100), Email nvarchar(255), Dept nvarchar(100),
+                     Pos nvarchar(100), Hired date, ManagerEmail nvarchar(255));
+INSERT INTO @base VALUES
+ ('Alice', 'Johnson', 'alice.johnson@example.com', 'Human Resources', 'HR Director',        '2017-04-03', NULL),
+ ('Bob',   'Smith',   'bob.smith@example.com',     'IT',              'IT Manager',         '2018-02-12', NULL),
+ ('Carol', 'Davis',   'carol.davis@example.com',   'Marketing',       'Marketing Manager',  '2019-06-24', NULL),
+ ('David', 'Wilson',  'david.wilson@example.com',  'Human Resources', 'HR Generalist',      '2020-10-05', 'alice.johnson@example.com'),
+ ('Eva',   'Brown',   'eva.brown@example.com',     'IT',              'Support Engineer',   '2021-03-15', 'bob.smith@example.com');
+
+INSERT INTO Employees (EmployeeID, FirstName, LastName, Email, HireDate, Position, DepartmentID, IsDeleted, IsErased)
+SELECT NEWID(), b.First, b.Last, b.Email, b.Hired, b.Pos, d.DepartmentID, 0, 0
+FROM @base b
+JOIN Departments d ON d.Name = b.Dept
+WHERE NOT EXISTS (SELECT 1 FROM Employees x WHERE x.Email = b.Email AND x.IsDeleted = 0);
 
 -- Employees -----------------------------------------------------------------------------
 -- Manager/Mentor are emails, resolved after insert so order does not matter.
@@ -74,12 +95,26 @@ FROM Employees e
 WHERE e.IsDeleted = 0 AND e.Email LIKE '%@example.com' AND e.Email <> 'admin@example.com'
   AND NOT EXISTS (SELECT 1 FROM EmployeeDossiers d WHERE d.EmployeeID = e.EmployeeID);
 
--- Leave entitlements for 2026 (Vacation capped, Sick uncapped = no row) -------------------
+-- Leave entitlements for 2026 -------------------------------------------------------------
+-- Every leave type needs a row: a request with no entitlement is refused. Everyone gets
+-- Vacation and Sick; Parental/Unpaid only where a request below uses them.
+DECLARE @ent TABLE (Email nvarchar(255), Type nvarchar(50), Days int);
+INSERT INTO @ent VALUES
+ ('sara.atanasova@example.com', 'Parental', 90),
+ ('jovana.ristova@example.com', 'Unpaid',   20);
+
 INSERT INTO LeaveEntitlements (EntitlementID, EmployeeID, Year, LeaveType, DaysAllocated, DaysCarriedOver)
-SELECT NEWID(), e.EmployeeID, 2026, 'Vacation', 20, ABS(CHECKSUM(e.Email)) % 6
+SELECT NEWID(), e.EmployeeID, 2026, t.Type, t.Days, CASE WHEN t.Type = 'Vacation' THEN ABS(CHECKSUM(e.Email)) % 6 ELSE 0 END
 FROM Employees e
+CROSS JOIN (VALUES ('Vacation', 20), ('Sick', 15)) t(Type, Days)
 WHERE e.IsDeleted = 0 AND e.Email LIKE '%@example.com' AND e.Email <> 'admin@example.com'
-  AND NOT EXISTS (SELECT 1 FROM LeaveEntitlements l WHERE l.EmployeeID = e.EmployeeID AND l.Year = 2026 AND l.LeaveType = 'Vacation');
+  AND NOT EXISTS (SELECT 1 FROM LeaveEntitlements l WHERE l.EmployeeID = e.EmployeeID AND l.Year = 2026 AND l.LeaveType = t.Type);
+
+INSERT INTO LeaveEntitlements (EntitlementID, EmployeeID, Year, LeaveType, DaysAllocated, DaysCarriedOver)
+SELECT NEWID(), e.EmployeeID, 2026, x.Type, x.Days, 0
+FROM @ent x
+JOIN Employees e ON e.Email = x.Email AND e.IsDeleted = 0
+WHERE NOT EXISTS (SELECT 1 FROM LeaveEntitlements l WHERE l.EmployeeID = e.EmployeeID AND l.Year = 2026 AND l.LeaveType = x.Type);
 
 -- Leave requests ------------------------------------------------------------------------
 -- Approved/Rejected ones are decided by the requester's manager (or Alice when they have none),

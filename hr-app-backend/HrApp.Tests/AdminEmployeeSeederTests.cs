@@ -7,13 +7,13 @@ using Xunit;
 
 namespace HrApp.Tests
 {
-    public class DevelopmentAdminEmployeeSeederTests
+    public class AdminEmployeeSeederTests
     {
         [Fact]
         public async Task MissingLinkedEmployee_IsCreatedOnlyOnce()
         {
             using var h = new TestHarness();
-            var seeder = new DevelopmentAdminEmployeeSeeder(h.Employees);
+            var seeder = new AdminEmployeeSeeder(h.Employees);
 
             await seeder.EnsureLinkedEmployeeAsync("admin-id", "admin@example.com");
             await seeder.EnsureLinkedEmployeeAsync("admin-id", "admin@example.com");
@@ -32,7 +32,7 @@ namespace HrApp.Tests
             employee.ApplicationUserId = "admin-id";
             h.Context.SaveChanges();
 
-            await new DevelopmentAdminEmployeeSeeder(h.Employees).EnsureLinkedEmployeeAsync("admin-id", "admin@example.com");
+            await new AdminEmployeeSeeder(h.Employees).EnsureLinkedEmployeeAsync("admin-id", "admin@example.com");
 
             Assert.Single(await h.Context.Employees.Where(e => e.ApplicationUserId == "admin-id").ToListAsync());
             Assert.Equal("Existing", employee.FirstName);
@@ -48,7 +48,7 @@ namespace HrApp.Tests
             employee.DeletedAt = DateTime.UtcNow;
             h.Context.SaveChanges();
 
-            await new DevelopmentAdminEmployeeSeeder(h.Employees).EnsureLinkedEmployeeAsync("admin-id", "admin@example.com");
+            await new AdminEmployeeSeeder(h.Employees).EnsureLinkedEmployeeAsync("admin-id", "admin@example.com");
 
             Assert.Single(await h.Context.Employees.Where(e => e.ApplicationUserId == "admin-id").ToListAsync());
             Assert.True(employee.IsDeleted);
@@ -73,7 +73,7 @@ namespace HrApp.Tests
             h.Context.Employees.Add(employee);
             h.Context.SaveChanges();
 
-            await new DevelopmentAdminEmployeeSeeder(h.Employees).EnsureLinkedEmployeeAsync("admin-id", "admin@example.com");
+            await new AdminEmployeeSeeder(h.Employees).EnsureLinkedEmployeeAsync("admin-id", "admin@example.com");
 
             Assert.Single(await h.Context.Employees.Where(e => e.ApplicationUserId == "admin-id").ToListAsync());
             Assert.True(employee.IsErased);

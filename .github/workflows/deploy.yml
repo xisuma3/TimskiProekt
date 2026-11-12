@@ -1,0 +1,108 @@
+name: Deploy
+
+# Ships main to Azure once CI has passed on it, or on demand from the Actions tab.
+# Setup (resources, secrets, variables) is in docs/DEPLOY.md.
+#
+#   secrets.AZUREAPPSERVICE_PUBLISHPROFILE   Web App > Download publish profile (whole XML)
+#   secrets.AZURE_STATIC_WEB_APPS_API_TOKEN  Static Web App > Manage deployment token
+#   vars.AZURE_WEBAPP_NAME                   the Web App's name
+#   vars.API_URL                             the Web App's https URL, from its Overview page
+#
+# Until the variables exist both jobs are skipped rather than failed, so merging this
+# before Azure is set up does not turn every push to main red.
+on:
+  workflow_run:
+    workflows: [CI]
+    types: [completed]
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+# Never cancel a deploy halfway; queue the next one behind it instead.
+concurrency:
+  group: deploy
+  cancel-in-progress: false
+
+jobs:
+  api:
+    name: API (App Service)
+    if: >-
+      vars.AZURE_WEBAPP_NAME != '' && vars.API_URL != '' &&
+      (github.event_name == 'workflow_dispatch' || github.event.workflow_run.conclusion == 'success')
+    runs-on: ubuntu-latest
+    steps:
+      # workflow_run would otherwise check out main's latest commit, which may be newer
+      # than the one CI actually passed.
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.workflow_run.head_sha || github.sha }}
+
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '10.0.x'
+
+      - name: Publish
+        run: dotnet publish hr-app-backend/HrAppWebApplication/HrAppWebApplication.csproj --configuration Release --output publish
+
+      - name: Deploy to App Service
+        uses: azure/webapps-deploy@v3
+        with:
+          app-name: ${{ vars.AZURE_WEBAPP_NAME }}
+          publish-profile: ${{ secrets.AZUREAPPSERVICE_PUBLISHPROFILE }}
+          package: publish
+
+      # The app only starts listening after it has migrated the database and seeded the
+      # roles and bootstrap admin, so an anonymous call answered with 401 proves all of
+      # that worked. The first request after a deploy also has to wake the free-tier app
+      # and possibly resume the auto-paused database, so allow a few minutes.
+      - name: Wait for the API to come up
+        env:
+          API_URL: ${{ vars.API_URL }}
+        run: |
+          url="${API_URL%/}/api/Employee/GetAll"
+          for attempt in $(seq 1 20); do
+            code=$(curl -s -o /dev/null -w '%{http_code}' --max-time 120 "$url" || true)
+            echo "attempt $attempt: HTTP $code"
+            if [ "$code" = "401" ]; then exit 0; fi
+            sleep 15
+          done
+          echo "::error::The API never answered 401. Check the Web App's Log stream for a startup failure."
+          exit 1
+
+  web:
+    name: Frontend (Static Web Apps)
+    needs: api
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.workflow_run.head_sha || github.sha }}
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: npm
+          cache-dependency-path: hr-app-frontend-new/package-lock.json
+
+      - name: Install
+        run: npm ci
+        working-directory: hr-app-frontend-new
+
+      # REACT_APP_API_URL is baked into the bundle at build time; it cannot be changed on
+      # the Static Web App afterwards.
+      - name: Build
+        working-directory: hr-app-frontend-new
+        env:
+          CI: true
+          API_URL: ${{ vars.API_URL }}
+        run: REACT_APP_API_URL="${API_URL%/}" npm run build
+
+      - name: Deploy to Static Web Apps
+        uses: Azure/static-web-apps-deploy@v1
+        with:
+          azure_static_web_apps_api_token: ${{ secrets.AZURE_STATIC_WEB_APPS_API_TOKEN }}
+          action: upload
+          app_location: hr-app-frontend-new/build
+          skip_app_build: true

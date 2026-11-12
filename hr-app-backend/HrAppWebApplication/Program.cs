@@ -25,8 +25,12 @@ var jwtSettings = JwtSettings.Create(builder.Configuration["Jwt:Key"], builder.C
 var connectionString = builder.Configuration.GetConnectionString("DefaultConnection") ??
                        throw new InvalidOperationException("Connection string 'DefaultConnection' not found.");
 
+// Retry transient failures. The free Azure SQL database auto-pauses when idle, and the
+// first connection after a pause fails with error 40613 while it resumes; without a retry
+// that first request (or the startup seeding below) is a 500. Safe because the app opens
+// no transactions of its own, which a retrying strategy would reject.
 builder.Services.AddDbContext<HrAppDbContext>(options =>
-    options.UseSqlServer(connectionString));
+    options.UseSqlServer(connectionString, sql => sql.EnableRetryOnFailure()));
 
 builder.Services.AddIdentity<ApplicationUser, IdentityRole>(options =>
 {
@@ -164,12 +168,25 @@ builder.Services.AddSwaggerGen(c =>
     });
 });
 
+// A deployed frontend is allowed through configuration, e.g.
+// Cors__AllowedOrigins__0=https://<name>.azurestaticapps.net. With nothing configured the
+// local dev server keeps working. An origin never has a trailing slash, so a pasted URL
+// that does would otherwise silently never match.
+var allowedOrigins = builder.Configuration.GetSection("Cors:AllowedOrigins").Get<string[]>()?
+    .Where(origin => !string.IsNullOrWhiteSpace(origin))
+    .Select(origin => origin.Trim().TrimEnd('/'))
+    .ToArray();
+if (allowedOrigins is not { Length: > 0 })
+{
+    allowedOrigins = ["http://localhost:3000"];
+}
+
 builder.Services.AddCors(options =>
 {
     options.AddPolicy(name: MyAllowSpecificOrigins,
                       policy =>
                       {
-                          policy.WithOrigins("http://localhost:3000")
+                          policy.WithOrigins(allowedOrigins)
                           .AllowAnyHeader()
                           .AllowAnyMethod();
                       });
@@ -186,10 +203,6 @@ if (app.Environment.IsDevelopment())
     app.UseSwaggerUI();
 }
 
-// Seeding a well-known admin password is a development convenience, not something
-// that should ever run in a deployed environment.
-var seedDevAdmin = app.Environment.IsDevelopment();
-
 app.UseHttpsRedirection();
 
 app.UseCors(MyAllowSpecificOrigins);
@@ -204,48 +217,32 @@ app.MapControllers();
 
 using (var scope = app.Services.CreateScope())
 {
-    var roleManager = scope.ServiceProvider.GetRequiredService<RoleManager<IdentityRole>>();
-    var userManager = scope.ServiceProvider.GetRequiredService<UserManager<ApplicationUser>>();
-
-    // Create "Employee" role if it doesn't exist
-    if (!await roleManager.RoleExistsAsync("Employee"))
+    // Off by default: locally the schema is applied with `dotnet ef database update`. A
+    // deployment sets Database__MigrateOnStartup=true so a new database builds itself on
+    // first boot and each release brings its own migrations. EF holds a lock while it
+    // migrates, so two instances starting together cannot both apply one.
+    if (app.Configuration.GetValue<bool>("Database:MigrateOnStartup"))
     {
-        await roleManager.CreateAsync(new IdentityRole("Employee"));
+        await scope.ServiceProvider.GetRequiredService<HrAppDbContext>().Database.MigrateAsync();
     }
 
-    // Optional: Create "Admin" role if you plan to use it (and assign it in your register logic or separately)
-    if (!await roleManager.RoleExistsAsync("Admin"))
+    var accountSeeder = ActivatorUtilities.CreateInstance<AdminAccountSeeder>(scope.ServiceProvider);
+    await accountSeeder.EnsureRolesAsync();
+
+    // Seeding a well-known admin password is a development convenience, not something
+    // that should ever run in a deployed environment.
+    if (app.Environment.IsDevelopment())
     {
-        await roleManager.CreateAsync(new IdentityRole("Admin"));
+        await accountSeeder.SeedDevelopmentAdminAsync();
     }
 
-    if (seedDevAdmin)
+    // A deployed database has no admin until this creates one from BootstrapAdmin__Email /
+    // BootstrapAdmin__Password. It does nothing once any admin exists.
+    var bootstrap = await accountSeeder.BootstrapAdminAsync(
+        app.Configuration["BootstrapAdmin:Email"], app.Configuration["BootstrapAdmin:Password"]);
+    if (bootstrap is BootstrapAdminOutcome.Created or BootstrapAdminOutcome.PromotedExistingAccount)
     {
-        var adminUser = await userManager.FindByEmailAsync("admin@example.com");
-        if (adminUser == null)
-        {
-            adminUser = new ApplicationUser { UserName = "admin@example.com", Email = "admin@example.com", EmailConfirmed = true };
-            var createAdminResult = await userManager.CreateAsync(adminUser, "AdminP@ss123!");
-            if (createAdminResult.Succeeded)
-            {
-                await userManager.AddToRoleAsync(adminUser, "Admin");
-                await userManager.AddToRoleAsync(adminUser, "Employee");
-            }
-            else
-            {
-                adminUser = null;
-            }
-        }
-
-        // An approver has to be a person in the org chart, not just a login: decisions are
-        // recorded against an Employee. Without this the admin can approve leave but the
-        // approval cannot be attributed to anyone.
-        if (adminUser != null)
-        {
-            var employeeRepository = scope.ServiceProvider.GetRequiredService<IEmployeeRepository>();
-            var employeeSeeder = new DevelopmentAdminEmployeeSeeder(employeeRepository);
-            await employeeSeeder.EnsureLinkedEmployeeAsync(adminUser.Id, adminUser.Email);
-        }
+        app.Logger.LogWarning("Bootstrap admin {Outcome}. BootstrapAdmin__Password can now be removed from the settings.", bootstrap);
     }
 }
 

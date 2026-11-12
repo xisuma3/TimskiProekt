@@ -4,11 +4,11 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Overview
 
-HR management application with a .NET 8 Web API backend and a React frontend. Domain covers employees, departments, assets, leave requests, employee dossiers, and document templates/generation. Auth is JWT + ASP.NET Core Identity with `Admin` and `Employee` roles.
+HR management application with a .NET 10 Web API backend and a React frontend. Domain covers employees, departments, assets, leave requests, employee dossiers, and document templates/generation. Auth is JWT + ASP.NET Core Identity with `Admin` and `Employee` roles.
 
 The repository contains **three** top-level app folders:
 
-- `hr-app-backend/` — the .NET 8 solution (`HrApp.sln`). The real backend.
+- `hr-app-backend/` — the .NET 10 solution (`HrApp.sln`; EF Core and ASP.NET Core packages 10.0.x, Swashbuckle deliberately held at 6.6.2 because 10.x needs Microsoft.OpenApi 2 and breaks `AddSwaggerGen`). The real backend.
 - `hr-app-frontend-new/` — **the active frontend** (Create React App, JavaScript, React Bootstrap, axios). This is what the backend's CORS/API contract targets.
 - `hr-app-frontend/front/` — a legacy/abandoned Vite + TypeScript + Tailwind stub with only `HomePage`/`LoginPage`/`Layout`. Do not use for feature work unless explicitly asked.
 
@@ -43,7 +43,7 @@ dotnet run --project HrAppWebApplication --launch-profile http
 - HTTP profile serves at `http://localhost:5190`; HTTPS profile at `https://localhost:7033` (and `http://localhost:5137`). Swagger UI is at `/swagger` in Development.
 - The frontend (`config/api.js`) hard-defaults to `http://localhost:5190`, so use the **http** profile unless you also set `REACT_APP_API_URL`.
 - **Two test suites**, both run by CI:
-  - `dotnet test HrApp.Tests/HrApp.Tests.csproj` — 135 tests on the EF **in-memory**
+  - `dotnet test HrApp.Tests/HrApp.Tests.csproj` — 142 tests on the EF **in-memory**
     provider. Needs no SQL Server; covers *service behaviour*.
   - `dotnet test HrApp.SchemaTests/HrApp.SchemaTests.csproj` — 14 tests against a real
     SQL Server, on a throwaway database built by running the migrations. Covers the rules
@@ -106,7 +106,12 @@ registration step.
 - `AuthController.Register` is **Admin-only**. It creates the Identity user, assigns the `Employee` role, and creates the linked `Employee` record; if the employee insert fails it deletes the login again, so no orphan account is left (compensating delete, not a transaction).
 - `Login` returns a JWT via `GenerateJwtToken` (roles embedded as `ClaimTypes.Role`).
 - JWT settings live under `Jwt`: `Issuer`/`Audience`/`DurationInMinutes` in `appsettings.json`, and a **development-only** `Key` in `appsettings.Development.json`. Anything else must supply `Jwt__Key` (CI generates an ephemeral one); `JwtSettings.Create` refuses to start without a ≥32-byte key.
-- On startup, `Program.cs` seeds the `Admin` and `Employee` roles; in **Development only** it also seeds a default admin, **`admin@example.com` / `AdminP@ss123!`**, with a linked `Employee` record so their decisions are attributable.
+- On startup, `AdminAccountSeeder` (called from `Program.cs`) seeds the `Admin` and `Employee` roles; in **Development only** it also seeds a default admin, **`admin@example.com` / `AdminP@ss123!`**, with a linked `Employee` record so their decisions are attributable.
+- **A deployed database gets its first admin from config**: `BootstrapAdmin:Email` /
+  `BootstrapAdmin:Password`, in any environment, but **only while nobody holds the Admin
+  role**. After that it is a no-op, so leaving the settings in place can never reset a
+  password or mint a second admin. Without it a fresh production database has no way in,
+  because `Register` is Admin-only.
 
 #### Authorization model
 
@@ -256,6 +261,8 @@ carry-over would strand days already booked next year. `preview: true` saves not
 - **EF migrations own the schema** (`HrApp.Repository/Migrations/`). A new database is
   built entirely by `dotnet ef database update --project HrApp.Repository --startup-project HrAppWebApplication`.
   `db/README.md` covers the one-time scripts an older database needs first.
+- `Database:MigrateOnStartup=true` makes the API apply pending migrations itself on boot,
+  before seeding. Off locally; the Azure deployment turns it on (see below).
 - Add a schema change with `dotnet ef migrations add <Name> ...`, never by hand. CI fails
   on a model change committed without its migration.
 - **Watch out on legacy databases.** The original tables were hand-written, so their
@@ -320,8 +327,23 @@ carry-over would strand days already booked next year. `preview: true` saves not
   `DocumentTemplate.Description`, and `EmployeeDossier.Address`/`EmergencyContact`. All the
   columns were already nullable in the database; only the model disagreed. Check both sides
   whenever either changes.
+- **The DbContext retries transient SQL errors** (`EnableRetryOnFailure`), because the
+  free Azure SQL database auto-pauses and the first connection after a pause fails while it
+  resumes. A retrying strategy **throws on a user-opened transaction**. The app has none
+  today; if you add `BeginTransaction`, wrap it in
+  `context.Database.CreateExecutionStrategy().ExecuteAsync(...)`.
+- **CORS origins come from `Cors:AllowedOrigins`** (array), defaulting to
+  `http://localhost:3000` when unset.
 - `WeatherForecastController`/`WeatherForecast.cs` are leftover scaffolding.
 - Committed `bin/`/`obj/` artifacts appear as modified in `git status`; they are build output, not source changes.
+
+## Deployment
+
+Azure free tiers (Azure for Students): Azure SQL free offer, App Service F1 (Linux, .NET 10)
+for the API, and Static Web Apps Free for the frontend. `.github/workflows/deploy.yml` runs
+after CI passes on `main`, or manually. It skips until the repo variables
+`AZURE_WEBAPP_NAME` and `API_URL` exist. `docs/DEPLOY.md` has the portal setup, the App
+Service settings, and how to load the demo data.
 
 ## Agents
 

@@ -26,7 +26,7 @@ jobs:
       - name: Set up .NET
         uses: actions/setup-dotnet@v4
         with:
-          dotnet-version: '8.0.x'
+          dotnet-version: '10.0.x'
 
       # Cache by lockfile-ish inputs: any project file change invalidates it.
       - name: Cache NuGet packages
@@ -80,10 +80,10 @@ jobs:
       - name: Set up .NET
         uses: actions/setup-dotnet@v4
         with:
-          dotnet-version: '8.0.x'
+          dotnet-version: '10.0.x'
 
       - name: Install EF tools
-        run: dotnet tool install --global dotnet-ef --version 9.*
+        run: dotnet tool install --global dotnet-ef --version 10.*
 
       # JwtSettings.Create rejects a missing/short key before the host can build, which is
       # correct in production but means the design-time host EF spins up to discover the
@@ -138,7 +138,7 @@ jobs:
       - name: Set up .NET
         uses: actions/setup-dotnet@v4
         with:
-          dotnet-version: '8.0.x'
+          dotnet-version: '10.0.x'
 
       - name: Cache NuGet packages
         uses: actions/cache@v4

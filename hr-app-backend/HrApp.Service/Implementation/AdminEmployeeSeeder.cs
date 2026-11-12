@@ -3,11 +3,11 @@ using HrApp.Repository.Interface;
 
 namespace HrApp.Service.Implementation
 {
-    public class DevelopmentAdminEmployeeSeeder
+    public class AdminEmployeeSeeder
     {
         private readonly IEmployeeRepository _employeeRepository;
 
-        public DevelopmentAdminEmployeeSeeder(IEmployeeRepository employeeRepository)
+        public AdminEmployeeSeeder(IEmployeeRepository employeeRepository)
         {
             _employeeRepository = employeeRepository;
         }
