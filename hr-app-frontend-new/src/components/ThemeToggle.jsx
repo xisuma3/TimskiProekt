@@ -1,9 +1,10 @@
-import React, { useEffect, useState } from 'react';
+import { useEffect, useState } from 'react';
+import { Moon, Sun } from 'lucide-react';
+import { Button } from '@/components/ui/button';
 import { getTheme, setTheme, watchSystemTheme } from '../services/themeService';
 
-// Icon button that flips between light and dark. `className` lets each page
-// supply its own button look (Bootstrap .btn in the app, .lp-btn on landing/login).
-const ThemeToggle = ({ className = 'btn btn-light' }) => {
+// Icon button that flips between light and dark.
+const ThemeToggle = ({ className, variant = 'ghost' }) => {
   const [theme, setThemeState] = useState(getTheme);
 
   useEffect(() => {
@@ -17,17 +18,20 @@ const ThemeToggle = ({ className = 'btn btn-light' }) => {
   }, []);
 
   const isDark = theme === 'dark';
+  const label = isDark ? 'Switch to light mode' : 'Switch to dark mode';
 
   return (
-    <button
+    <Button
       type="button"
-      className={`theme-toggle ${className}`}
+      variant={variant}
+      size="icon"
+      className={className}
       onClick={() => setTheme(isDark ? 'light' : 'dark')}
-      aria-label={isDark ? 'Switch to light mode' : 'Switch to dark mode'}
-      title={isDark ? 'Switch to light mode' : 'Switch to dark mode'}
+      aria-label={label}
+      title={label}
     >
-      <i className={`bi ${isDark ? 'bi-sun' : 'bi-moon-stars'}`} aria-hidden="true" />
-    </button>
+      {isDark ? <Sun /> : <Moon />}
+    </Button>
   );
 };
 

@@ -32,10 +32,10 @@ test('delete confirmation shows the selected department\'s real name', async () 
     ],
   });
 
-  const { container } = render(<DepartmentsPage />);
+  render(<DepartmentsPage />);
   expect(await screen.findByText('Engineering')).toBeInTheDocument();
 
-  fireEvent.click(container.querySelector('.btn-outline-danger'));
+  fireEvent.click(screen.getByRole('button', { name: 'Delete Engineering' }));
 
   expect(await screen.findByText('Confirm Delete')).toBeInTheDocument();
   expect(document.body.textContent).toContain('delete department "Engineering"?');

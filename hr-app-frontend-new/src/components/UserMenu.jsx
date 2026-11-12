@@ -1,5 +1,14 @@
-import React from 'react';
-import { Dropdown } from 'react-bootstrap';
+import { ChevronsUpDown, LogOut } from 'lucide-react';
+import { Avatar, AvatarFallback } from '@/components/ui/avatar';
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuLabel,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu';
+import { SidebarMenu, SidebarMenuButton, SidebarMenuItem, useSidebar } from '@/components/ui/sidebar';
 import { logout, getUserInfo } from '../services/authService';
 
 export const describeUser = () => {
@@ -13,35 +22,63 @@ export const describeUser = () => {
   };
 };
 
-// Account control pinned to the bottom of the sidebar; opens upwards.
+const initials = (name) =>
+  name
+    .split(/[\s@.]+/)
+    .filter(Boolean)
+    .slice(0, 2)
+    .map((part) => part[0].toUpperCase())
+    .join('');
+
+// Account control pinned to the bottom of the sidebar.
 const UserMenu = () => {
   const user = describeUser();
+  const { isMobile } = useSidebar();
 
   return (
-    <Dropdown drop="up" className="app-user">
-      <Dropdown.Toggle as="button" className="app-user-btn" aria-label={`Account menu for ${user.name}`}>
-        <span className="app-avatar" aria-hidden="true">{user.name.charAt(0).toUpperCase()}</span>
-        <span className="app-user-meta">
-          <b>{user.name}</b>
-          <small>{user.role}</small>
-        </span>
-        <i className="bi bi-chevron-expand text-muted" aria-hidden="true" />
-      </Dropdown.Toggle>
-      <Dropdown.Menu className="app-user-menu">
-        <Dropdown.Header>
-          <div className="fw-semibold text-body text-truncate">{user.name}</div>
-          <small className="text-muted">{user.role}</small>
-          {user.email && user.email !== user.name && (
-            <small className="text-muted text-truncate d-block">{user.email}</small>
-          )}
-        </Dropdown.Header>
-        <Dropdown.Divider />
-        <Dropdown.Item as="button" onClick={logout}>
-          <i className="bi bi-box-arrow-right me-2" aria-hidden="true" />
-          Sign out
-        </Dropdown.Item>
-      </Dropdown.Menu>
-    </Dropdown>
+    <SidebarMenu>
+      <SidebarMenuItem>
+        <DropdownMenu>
+          <DropdownMenuTrigger asChild>
+            <SidebarMenuButton
+              size="lg"
+              className="data-[state=open]:bg-sidebar-accent data-[state=open]:text-sidebar-accent-foreground"
+              aria-label={`Account menu for ${user.name}`}
+            >
+              <Avatar className="size-8 rounded-lg">
+                <AvatarFallback className="rounded-lg bg-primary/10 text-primary">{initials(user.name)}</AvatarFallback>
+              </Avatar>
+              <span className="grid flex-1 text-left text-sm leading-tight">
+                <span className="truncate font-medium">{user.name}</span>
+                <span className="truncate text-xs text-muted-foreground">{user.role}</span>
+              </span>
+              <ChevronsUpDown className="ml-auto size-4" aria-hidden="true" />
+            </SidebarMenuButton>
+          </DropdownMenuTrigger>
+          <DropdownMenuContent
+            className="w-(--radix-dropdown-menu-trigger-width) min-w-56"
+            side={isMobile ? 'bottom' : 'right'}
+            align="end"
+            sideOffset={4}
+          >
+            <DropdownMenuLabel className="font-normal">
+              <div className="grid text-sm leading-tight">
+                <span className="truncate font-medium">{user.name}</span>
+                <span className="truncate text-xs text-muted-foreground">{user.role}</span>
+                {user.email && user.email !== user.name && (
+                  <span className="truncate text-xs text-muted-foreground">{user.email}</span>
+                )}
+              </div>
+            </DropdownMenuLabel>
+            <DropdownMenuSeparator />
+            <DropdownMenuItem onSelect={logout}>
+              <LogOut aria-hidden="true" />
+              Sign out
+            </DropdownMenuItem>
+          </DropdownMenuContent>
+        </DropdownMenu>
+      </SidebarMenuItem>
+    </SidebarMenu>
   );
 };
 

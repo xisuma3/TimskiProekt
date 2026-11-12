@@ -1,6 +1,6 @@
-// Light/dark colour mode. The theme lives on <html data-bs-theme>, which both Bootstrap
-// and theme.css key off. public/index.html applies the saved choice before React loads,
-// so the page never flashes the wrong theme.
+// Light/dark colour mode. Dark mode is the `dark` class on <html>, which Tailwind's `dark:`
+// variant and the shadcn tokens in index.css key off. index.html applies the saved choice
+// before React loads, so the page never flashes the wrong theme.
 const STORAGE_KEY = 'theme';
 const media = () => window.matchMedia?.('(prefers-color-scheme: dark)');
 
@@ -19,7 +19,9 @@ export const getSystemTheme = () => (media()?.matches ? 'dark' : 'light');
 export const getTheme = () => getStoredTheme() || getSystemTheme();
 
 export const applyTheme = (theme) => {
-  document.documentElement.setAttribute('data-bs-theme', theme);
+  document.documentElement.classList.toggle('dark', theme === 'dark');
+  // Native controls (scrollbars, date inputs) follow along.
+  document.documentElement.style.colorScheme = theme;
 };
 
 export const setTheme = (theme) => {

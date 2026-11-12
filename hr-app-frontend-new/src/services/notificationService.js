@@ -60,7 +60,7 @@ export const buildNotifications = (
     items.push({
       id: `leave-pending:${r.requestID}`,
       kind: 'approval',
-      icon: 'bi-hourglass-split',
+      icon: 'Hourglass',
       tone: stale ? 'red' : 'amber',
       title: `${r.employeeName || 'An employee'} requested ${plural(days(r.startDate, r.endDate), 'day')} of ${leaveLabel(r)}`,
       body: [
@@ -81,7 +81,7 @@ export const buildNotifications = (
     items.push({
       id: `delegation:${d.delegationID}`,
       kind: 'delegation',
-      icon: 'bi-person-check',
+      icon: 'UserCheck',
       tone: 'sky',
       title: `${d.delegatorName || 'A manager'} asked you to cover their approvals`,
       body: `${fmtDay(d.startDate)} – ${fmtDay(d.endDate)}${d.status === 'Scheduled' ? ' · starts later' : ''}`,
@@ -97,7 +97,7 @@ export const buildNotifications = (
     items.push({
       id: `leave-decided:${r.requestID}:${r.status}`,
       kind: 'decision',
-      icon: approved ? 'bi-check-circle' : 'bi-x-circle',
+      icon: approved ? 'CircleCheck' : 'CircleX',
       tone: approved ? 'green' : 'red',
       title: `Your ${leaveLabel(r)} was ${approved ? 'approved' : 'rejected'}`,
       body: [r.approvedByName && `by ${r.approvedByName}`, r.decisionReason && `“${r.decisionReason}”`]
@@ -114,7 +114,7 @@ export const buildNotifications = (
     items.push({
       id: `asset-assigned:${a.assetID}:${a.assignmentDate}`,
       kind: 'asset',
-      icon: 'bi-laptop',
+      icon: 'Laptop',
       tone: 'sky',
       title: `${a.name} was assigned to you`,
       body: a.serialNumber ? `Serial ${a.serialNumber}` : 'Check it in My Assets',
@@ -129,7 +129,7 @@ export const buildNotifications = (
     items.push({
       id: `document:${d.documentID}`,
       kind: 'document',
-      icon: 'bi-file-earmark-text',
+      icon: 'FileText',
       tone: 'violet',
       title: `New document: ${d.templateName || d.documentType || 'HR document'}`,
       body: 'Ready to view and print',
@@ -146,7 +146,7 @@ export const buildNotifications = (
       items.push({
         id: `starter:${e.employeeID}:${e.hireDate}`,
         kind: 'starter',
-        icon: 'bi-person-plus',
+        icon: 'UserPlus',
         tone: 'indigo',
         title: `${e.firstName} ${e.lastName} starts on ${new Date(e.hireDate).toLocaleDateString()}`,
         body: [e.position, e.departmentName].filter(Boolean).join(' · ') || 'New starter',

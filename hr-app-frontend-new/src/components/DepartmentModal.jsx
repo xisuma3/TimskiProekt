@@ -1,30 +1,34 @@
-import React, { useState, useEffect } from 'react';
-import { Modal, Button, Form, Alert } from 'react-bootstrap';
+import { useEffect, useState } from 'react';
+import { AlertCircle } from 'lucide-react';
+import { Alert, AlertDescription } from '@/components/ui/alert';
+import { Button } from '@/components/ui/button';
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from '@/components/ui/dialog';
+import { Field, FieldGroup, FieldLabel } from '@/components/ui/field';
+import { Input } from '@/components/ui/input';
+import { Spinner } from '@/components/ui/spinner';
+import { Textarea } from '@/components/ui/textarea';
 import { authenticatedFetch } from '../services/authService';
 import { API_URLS } from '../config/api';
 
 const DepartmentModal = ({ show, onHide, department = null, onSave }) => {
-  const [formData, setFormData] = useState({
-    name: '', // Backend expects 'Name' field (consistent with entity)
-    description: ''
-  });
+  const [formData, setFormData] = useState({ name: '', description: '' });
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
 
   const isEditing = !!department;
 
   useEffect(() => {
-    if (department) {
-      setFormData({
-        name: department.name || '',
-        description: department.description || ''
-      });
-    } else {
-      setFormData({
-        name: '',
-        description: ''
-      });
-    }
+    setFormData({
+      name: department?.name || '',
+      description: department?.description || '',
+    });
     setError('');
   }, [department, show]);
 
@@ -34,15 +38,13 @@ const DepartmentModal = ({ show, onHide, department = null, onSave }) => {
     setError('');
 
     try {
-      const url = isEditing 
+      const url = isEditing
         ? API_URLS.DEPARTMENTS.UPDATE(department.departmentID)
         : API_URLS.DEPARTMENTS.CREATE();
-      
-      const method = isEditing ? 'PUT' : 'POST';
-      
+
       const response = await authenticatedFetch(url, {
-        method,
-        body: JSON.stringify(formData)
+        method: isEditing ? 'PUT' : 'POST',
+        body: JSON.stringify(formData),
       });
 
       if (!response.ok) {
@@ -60,57 +62,54 @@ const DepartmentModal = ({ show, onHide, department = null, onSave }) => {
 
   const handleChange = (e) => {
     const { name, value } = e.target;
-    setFormData(prev => ({
-      ...prev,
-      [name]: value
-    }));
+    setFormData((prev) => ({ ...prev, [name]: value }));
   };
 
   return (
-    <Modal show={show} onHide={onHide} size="lg" centered>
-      <Modal.Header closeButton>
-        <Modal.Title>{isEditing ? 'Edit Department' : 'Add New Department'}</Modal.Title>
-      </Modal.Header>
-      <Modal.Body>
-        {error && <Alert variant="danger">{error}</Alert>}
-        
-        <Form onSubmit={handleSubmit}>
-          <Form.Group className="mb-3">
-            <Form.Label>Department Name *</Form.Label>
-            <Form.Control
-              type="text"
-              name="name"
-              value={formData.name}
-              onChange={handleChange}
-              required
-            />
-          </Form.Group>
+    <Dialog open={show} onOpenChange={(open) => { if (!open) onHide(); }}>
+      <DialogContent className="sm:max-w-lg">
+        <form onSubmit={handleSubmit} className="grid gap-6">
+          <DialogHeader>
+            <DialogTitle>{isEditing ? 'Edit Department' : 'Add New Department'}</DialogTitle>
+            <DialogDescription>
+              {isEditing ? 'Update the department’s name and description.' : 'Create a team people can be assigned to.'}
+            </DialogDescription>
+          </DialogHeader>
 
-          <Form.Group className="mb-3">
-            <Form.Label>Description</Form.Label>
-            <Form.Control
-              as="textarea"
-              rows={3}
-              name="description"
-              value={formData.description}
-              onChange={handleChange}
-            />
-          </Form.Group>
-        </Form>
-      </Modal.Body>
-      <Modal.Footer>
-        <Button variant="secondary" onClick={onHide}>
-          Cancel
-        </Button>
-        <Button
-          onClick={handleSubmit}
-          disabled={loading}
-          variant="primary"
-        >
-          {loading ? 'Saving...' : (isEditing ? 'Update' : 'Create')}
-        </Button>
-      </Modal.Footer>
-    </Modal>
+          {error && (
+            <Alert variant="destructive">
+              <AlertCircle aria-hidden="true" />
+              <AlertDescription>{error}</AlertDescription>
+            </Alert>
+          )}
+
+          <FieldGroup>
+            <Field>
+              <FieldLabel htmlFor="department-name">Department name *</FieldLabel>
+              <Input id="department-name" name="name" value={formData.name} onChange={handleChange} required />
+            </Field>
+            <Field>
+              <FieldLabel htmlFor="department-description">Description</FieldLabel>
+              <Textarea
+                id="department-description"
+                name="description"
+                rows={3}
+                value={formData.description}
+                onChange={handleChange}
+              />
+            </Field>
+          </FieldGroup>
+
+          <DialogFooter>
+            <Button type="button" variant="outline" onClick={onHide}>Cancel</Button>
+            <Button type="submit" disabled={loading}>
+              {loading && <Spinner />}
+              {loading ? 'Saving…' : isEditing ? 'Update' : 'Create'}
+            </Button>
+          </DialogFooter>
+        </form>
+      </DialogContent>
+    </Dialog>
   );
 };
 

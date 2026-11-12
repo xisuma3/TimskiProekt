@@ -1,8 +1,12 @@
-import React from 'react';
+import { TooltipProvider } from '@/components/ui/tooltip';
 import AppRouter from './AppRouter';
 
 function App() {
-  return <AppRouter />;
+  return (
+    <TooltipProvider>
+      <AppRouter />
+    </TooltipProvider>
+  );
 }
 
 export default App;

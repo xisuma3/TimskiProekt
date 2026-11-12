@@ -1,5 +1,9 @@
-import React, { useState } from 'react';
-import { Card, Button, Modal } from 'react-bootstrap';
+import { useState } from 'react';
+import { Building2, Pencil, Trash2 } from 'lucide-react';
+import { Button } from '@/components/ui/button';
+import ConfirmDialog from '../components/app/ConfirmDialog';
+import ItemCard, { MetaList } from '../components/app/ItemCard';
+import StatusBadge from '../components/app/StatusBadge';
 import DataPage from '../components/DataPage';
 import DepartmentModal from '../components/DepartmentModal';
 import { authenticatedFetch } from '../services/authService';
@@ -32,7 +36,7 @@ const DepartmentsPage = () => {
         API_URLS.DEPARTMENTS.DELETE(departmentToDelete.departmentID),
         { method: 'DELETE' }
       );
-      
+
       if (response.ok) {
         window.location.reload();
       } else {
@@ -48,52 +52,36 @@ const DepartmentsPage = () => {
   };
 
   const renderDepartmentCard = (dept) => (
-    <Card className="item-card">
-      <Card.Body>
-        <div className="item-card-head">
-          <span className="item-card-icon tone-violet" aria-hidden="true"><i className="bi bi-building" /></span>
-          <div className="flex-grow-1 min-w-0">
-            <Card.Title>{dept.name}</Card.Title>
-            <Card.Subtitle>{dept.location || 'No location set'}</Card.Subtitle>
-          </div>
-          {dept.employeeCount ? (
-            <span className="status-chip is-primary">{dept.employeeCount} people</span>
-          ) : null}
-        </div>
-
-        <dl className="meta-list">
-          <dt>Description</dt>
-          <dd>{dept.description || 'No description available'}</dd>
-          {dept.managerName && (
-            <>
-              <dt>Manager</dt>
-              <dd>{dept.managerName}</dd>
-            </>
-          )}
-        </dl>
-
-        <div className="item-card-actions">
-          <Button
-            size="sm"
-            variant="outline-primary"
-            className="btn-icon"
-            onClick={() => handleEditClick(dept)}
-            aria-label={`Edit ${dept.name}`}
-          >
-            <i className="bi bi-pencil" aria-hidden="true"></i>
+    <ItemCard
+      icon={Building2}
+      tone="violet"
+      title={dept.name}
+      subtitle={dept.location || 'No location set'}
+      badge={dept.employeeCount ? <StatusBadge tone="primary">{dept.employeeCount} people</StatusBadge> : null}
+      actions={(
+        <>
+          <Button variant="ghost" size="icon-sm" onClick={() => handleEditClick(dept)} aria-label={`Edit ${dept.name}`}>
+            <Pencil aria-hidden="true" />
           </Button>
           <Button
-            size="sm"
-            variant="outline-danger"
-            className="btn-icon"
+            variant="ghost"
+            size="icon-sm"
+            className="text-destructive hover:bg-destructive/10 hover:text-destructive"
             onClick={() => handleDeleteClick(dept)}
             aria-label={`Delete ${dept.name}`}
           >
-            <i className="bi bi-trash" aria-hidden="true"></i>
+            <Trash2 aria-hidden="true" />
           </Button>
-        </div>
-      </Card.Body>
-    </Card>
+        </>
+      )}
+    >
+      <MetaList
+        items={[
+          { label: 'Description', value: dept.description, fallback: 'No description available' },
+          { label: 'Manager', value: dept.managerName },
+        ]}
+      />
+    </ItemCard>
   );
 
   return (
@@ -104,7 +92,7 @@ const DepartmentsPage = () => {
         searchFields={['name', 'description', 'location']}
         renderCard={renderDepartmentCard}
         subtitle="Teams across the organisation and who leads them."
-        emptyIcon="bi-building"
+        emptyIcon={Building2}
         searchPlaceholder="Search departments..."
         showAddButton={true}
         onAddClick={handleAddClick}
@@ -117,24 +105,13 @@ const DepartmentsPage = () => {
         onSave={() => window.location.reload()}
       />
 
-      <Modal show={showDeleteModal} onHide={() => setShowDeleteModal(false)} centered>
-        <Modal.Header closeButton>
-          <Modal.Title>Confirm Delete</Modal.Title>
-        </Modal.Header>
-        <Modal.Body>
-          Are you sure you want to delete department "{departmentToDelete?.name}"?
-          <br />
-          <small className="text-muted">This action cannot be undone.</small>
-        </Modal.Body>
-        <Modal.Footer>
-          <Button variant="secondary" onClick={() => setShowDeleteModal(false)}>
-            Cancel
-          </Button>
-          <Button variant="danger" onClick={handleDeleteConfirm}>
-            Delete
-          </Button>
-        </Modal.Footer>
-      </Modal>
+      <ConfirmDialog
+        open={showDeleteModal}
+        onOpenChange={setShowDeleteModal}
+        title="Confirm Delete"
+        description={`Are you sure you want to delete department "${departmentToDelete?.name}"? This action cannot be undone.`}
+        onConfirm={handleDeleteConfirm}
+      />
     </>
   );
 };

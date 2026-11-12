@@ -1,5 +1,14 @@
-import React, { useCallback, useDeferredValue, useEffect, useState } from 'react';
-import { Row, Col, Alert, Form, Button, Modal } from 'react-bootstrap';
+import { useCallback, useDeferredValue, useEffect, useState } from 'react';
+import { AlertCircle, CalendarDays, Inbox, LayoutGrid, List, Plus, Search, SearchX, X } from 'lucide-react';
+import { Alert, AlertDescription } from '@/components/ui/alert';
+import { Badge } from '@/components/ui/badge';
+import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import { NativeSelect, NativeSelectOption } from '@/components/ui/native-select';
+import { Skeleton } from '@/components/ui/skeleton';
+import { cn } from '@/lib/utils';
+import ConfirmDialog from './app/ConfirmDialog';
+import EmptyState from './app/EmptyState';
 import { authenticatedFetch } from '../services/authService';
 import { matchesDate, matchesPerson, personOptions } from './listFilters';
 
@@ -17,21 +26,28 @@ const readView = (title, allowCalendar) => {
   return 'grid';
 };
 
+const VIEWS = [
+  { id: 'grid', label: 'Grid view', icon: LayoutGrid },
+  { id: 'list', label: 'List view', icon: List },
+  { id: 'calendar', label: 'Calendar view', icon: CalendarDays },
+];
+
 const DataPage = ({
   title,
   subtitle = null,
   apiEndpoint,
   searchFields = [],
   renderCard,
-  searchPlaceholder = "Search...",
+  searchPlaceholder = 'Search...',
   showAddButton = false,
   onAddClick = null,
-  createButtonText = "Add New",
+  createButtonText = 'Add New',
   modalComponent: ModalComponent = null,
   modalItemProp = 'editingTemplate',
   onDelete = null,
-  deleteConfirmText = "Are you sure you want to delete this item?",
-  emptyIcon = 'bi-inbox',
+  deleteConfirmText = 'Are you sure you want to delete this item?',
+  // A lucide icon component shown when the list is empty.
+  emptyIcon = Inbox,
   headerContent = null,
   // Optional third view: (filteredItems) => node. Adds a Calendar button to the toggle.
   renderCalendar = null,
@@ -65,17 +81,16 @@ const DataPage = ({
   const fetchData = useCallback(() => {
     setLoading(true);
     setError(null);
-    authenticatedFetch(apiEndpoint)
+    return authenticatedFetch(apiEndpoint)
       .then((response) => {
         if (!response.ok) {
           throw new Error(`Failed to fetch ${title.toLowerCase()}.`);
         }
         return response.json();
       })
-      .then((data) => {
+      .then((result) => {
         // Ensure data is always an array for consistent handling
-        const arrayData = Array.isArray(data) ? data : [data];
-        setData(arrayData);
+        setData(Array.isArray(result) ? result : [result]);
         setError(null);
         setLoading(false);
       })
@@ -118,7 +133,7 @@ const DataPage = ({
     try {
       const token = localStorage.getItem('token');
       await onDelete(itemToDelete, token);
-      await fetchData(); // Refresh data
+      await fetchData();
       setShowDeleteConfirm(false);
       setItemToDelete(null);
     } catch (err) {
@@ -131,7 +146,7 @@ const DataPage = ({
   const handleModalSave = () => {
     setShowModal(false);
     setEditingItem(null);
-    fetchData(); // Refresh data
+    fetchData();
   };
 
   // A person filter is only useful when the list holds more than one person (an
@@ -146,10 +161,10 @@ const DataPage = ({
   // Search, then date range, then person. Filtering reads a deferred copy of the search so
   // typing stays responsive on long lists.
   const deferredSearch = useDeferredValue(search);
-  const filteredData = data.filter(item => {
+  const filteredData = data.filter((item) => {
     if (deferredSearch) {
       const searchLower = deferredSearch.toLowerCase();
-      const hit = searchFields.some(field => {
+      const hit = searchFields.some((field) => {
         const value = item[field];
         return value && value.toString().toLowerCase().includes(searchLower);
       });
@@ -162,9 +177,11 @@ const DataPage = ({
   const usesManagedModal = ModalComponent && onDelete;
   const showCreate = showAddButton || ModalComponent;
   const hasSearch = searchFields.length > 0;
+  const views = VIEWS.filter((v) => v.id !== 'calendar' || renderCalendar);
+  const EmptyIcon = typeof emptyIcon === 'string' || !emptyIcon ? Inbox : emptyIcon;
   const fmtDay = (s) => new Date(`${s}T00:00:00`).toLocaleDateString(undefined, { day: 'numeric', month: 'short', year: 'numeric' });
 
-  // Active filters as removable chips under the ribbon.
+  // Active filters as removable chips under the toolbar.
   const chips = [];
   if (search) chips.push({ key: 'search', label: `“${search}”`, clear: () => setSearch('') });
   if (dateFilter && (dateFrom || dateTo)) {
@@ -177,204 +194,170 @@ const DataPage = ({
   }
   const clearAll = () => { setSearch(''); clearFilters(); };
 
+  const cardGrid = view === 'list' ? 'grid gap-3' : 'grid gap-4 md:grid-cols-2 xl:grid-cols-3';
+
   return (
-    <section aria-labelledby="data-page-title">
-      <div className="page-header">
-        <div>
-          <h1 id="data-page-title">{title}</h1>
-          {subtitle && <p>{subtitle}</p>}
+    <section aria-labelledby="data-page-title" className="space-y-5">
+      <div className="flex flex-wrap items-end justify-between gap-4">
+        <div className="min-w-0">
+          <h1 id="data-page-title" className="text-2xl font-semibold tracking-tight">{title}</h1>
+          {subtitle && <p className="mt-1 text-sm text-muted-foreground">{subtitle}</p>}
           {!subtitle && !loading && !error && (
-            <p>{`${data.length} ${data.length === 1 ? 'item' : 'items'}`}</p>
+            <p className="mt-1 text-sm text-muted-foreground">{`${data.length} ${data.length === 1 ? 'item' : 'items'}`}</p>
           )}
         </div>
+        {showCreate && (
+          <Button onClick={showAddButton ? onAddClick : handleCreate}>
+            <Plus aria-hidden="true" />
+            {createButtonText}
+          </Button>
+        )}
       </div>
 
-      {/* Ribbon: every way to find, narrow, view and add records, in one bar. Each group
-          carries a visible caption, so no control relies on a placeholder as its label. */}
-      <div className={`ribbon${(dateFilter || showPersonFilter) && !error ? ' ribbon-has-filters' : ''}`} role="toolbar" aria-label={`${title} tools`}>
+      {/* Toolbar: every way to find, narrow and view records, in one bar. */}
+      <div className="flex flex-wrap items-center gap-2" role="toolbar" aria-label={`${title} tools`}>
         {hasSearch && (
-          <div className="ribbon-group ribbon-group-grow">
-            <div className="ribbon-controls page-search" role="search">
-              <i className="bi bi-search" aria-hidden="true" />
-              <Form.Control
-                id={`${idBase}-search`}
-                type="search"
-                placeholder={searchPlaceholder}
-                aria-label={searchPlaceholder}
-                value={search}
-                onChange={e => setSearch(e.target.value)}
-              />
-            </div>
-            <label className="ribbon-caption" htmlFor={`${idBase}-search`}>Search</label>
+          <div className="relative min-w-[14rem] flex-1" role="search">
+            <Search className="pointer-events-none absolute left-2.5 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" aria-hidden="true" />
+            <Input
+              id={`${idBase}-search`}
+              type="search"
+              placeholder={searchPlaceholder}
+              aria-label={searchPlaceholder}
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+              className="pl-8"
+            />
           </div>
         )}
 
         {dateFilter && !error && (
-          <div className="ribbon-group" role="group" aria-labelledby={`${idBase}-date-caption`}>
-            <div className="ribbon-controls">
-              <Form.Control
-                type="date"
-                className="ribbon-date"
-                aria-label={`${dateFilter.label} from`}
-                value={dateFrom}
-                max={dateTo || undefined}
-                onChange={(e) => setDateFrom(e.target.value)}
-              />
-              <span className="ribbon-range-sep" aria-hidden="true">→</span>
-              <Form.Control
-                type="date"
-                className="ribbon-date"
-                aria-label={`${dateFilter.label} to`}
-                value={dateTo}
-                min={dateFrom || undefined}
-                onChange={(e) => setDateTo(e.target.value)}
-              />
-            </div>
-            <span className="ribbon-caption" id={`${idBase}-date-caption`}>{dateFilter.label} dates</span>
+          <div className="flex items-center gap-1.5" role="group" aria-labelledby={`${idBase}-date-caption`}>
+            <span id={`${idBase}-date-caption`} className="text-sm text-muted-foreground">{dateFilter.label}</span>
+            <Input
+              type="date"
+              className="w-[9.5rem]"
+              aria-label={`${dateFilter.label} from`}
+              value={dateFrom}
+              max={dateTo || undefined}
+              onChange={(e) => setDateFrom(e.target.value)}
+            />
+            <span className="text-muted-foreground" aria-hidden="true">–</span>
+            <Input
+              type="date"
+              className="w-[9.5rem]"
+              aria-label={`${dateFilter.label} to`}
+              value={dateTo}
+              min={dateFrom || undefined}
+              onChange={(e) => setDateTo(e.target.value)}
+            />
           </div>
         )}
 
         {showPersonFilter && !error && (
-          <div className="ribbon-group">
-            <div className="ribbon-controls">
-              <Form.Select
-                id={`${idBase}-person`}
-                className="ribbon-person"
-                value={person}
-                onChange={(e) => setPerson(e.target.value)}
-              >
-                <option value="">Everyone</option>
-                {people.map((p) => <option key={p} value={p}>{p}</option>)}
-              </Form.Select>
-            </div>
-            <label className="ribbon-caption" htmlFor={`${idBase}-person`}>{personFilter.label}</label>
+          <div className="flex items-center gap-1.5">
+            <label className="text-sm text-muted-foreground" htmlFor={`${idBase}-person`}>{personFilter.label}</label>
+            <NativeSelect id={`${idBase}-person`} value={person} onChange={(e) => setPerson(e.target.value)} className="min-w-[10rem]">
+              <NativeSelectOption value="">Everyone</NativeSelectOption>
+              {people.map((p) => <NativeSelectOption key={p} value={p}>{p}</NativeSelectOption>)}
+            </NativeSelect>
           </div>
         )}
 
-        <div className="ribbon-group ribbon-group-view">
-          <div className="ribbon-controls view-toggle" role="group" aria-label="Layout">
-            <button
+        <div className="ml-auto flex items-center rounded-md border bg-background p-0.5 shadow-xs" role="group" aria-label="Layout">
+          {views.map(({ id, label, icon: Icon }) => (
+            <Button
+              key={id}
               type="button"
-              className={`view-toggle-btn ${view === 'grid' ? 'active' : ''}`}
-              aria-pressed={view === 'grid'}
-              aria-label="Grid view"
-              title="Grid view"
-              onClick={() => changeView('grid')}
+              variant="ghost"
+              size="icon-sm"
+              className={cn('size-7', view === id && 'bg-muted text-foreground')}
+              aria-pressed={view === id}
+              aria-label={label}
+              title={label}
+              onClick={() => changeView(id)}
             >
-              <i className="bi bi-grid-3x3-gap" aria-hidden="true" />
-            </button>
-            <button
-              type="button"
-              className={`view-toggle-btn ${view === 'list' ? 'active' : ''}`}
-              aria-pressed={view === 'list'}
-              aria-label="List view"
-              title="List view"
-              onClick={() => changeView('list')}
-            >
-              <i className="bi bi-list-ul" aria-hidden="true" />
-            </button>
-            {renderCalendar && (
-              <button
-                type="button"
-                className={`view-toggle-btn ${view === 'calendar' ? 'active' : ''}`}
-                aria-pressed={view === 'calendar'}
-                aria-label="Calendar view"
-                title="Calendar view"
-                onClick={() => changeView('calendar')}
-              >
-                <i className="bi bi-calendar3" aria-hidden="true" />
-              </button>
-            )}
-          </div>
-          <span className="ribbon-caption" aria-hidden="true">View</span>
+              <Icon aria-hidden="true" />
+            </Button>
+          ))}
         </div>
-
-        {showCreate && (
-          <div className="ribbon-group ribbon-group-create">
-            <div className="ribbon-controls">
-              <Button variant="primary" onClick={showAddButton ? onAddClick : handleCreate}>
-                <i className="bi bi-plus-lg me-2" aria-hidden="true"></i>
-                {createButtonText}
-              </Button>
-            </div>
-            <span className="ribbon-caption" aria-hidden="true">Create</span>
-          </div>
-        )}
       </div>
 
       {chips.length > 0 && !loading && !error && (
-        <div className="ribbon-chips" aria-live="polite">
+        <div className="flex flex-wrap items-center gap-2" aria-live="polite">
           {chips.map((c) => (
-            <span key={c.key} className="ribbon-chip">
+            <Badge key={c.key} variant="secondary" className="gap-1 pr-1">
               {c.label}
-              <button type="button" onClick={c.clear} aria-label={`Remove filter ${c.label}`}>
-                <i className="bi bi-x" aria-hidden="true" />
+              <button
+                type="button"
+                onClick={c.clear}
+                aria-label={`Remove filter ${c.label}`}
+                className="rounded-sm p-0.5 hover:bg-foreground/10"
+              >
+                <X className="size-3" aria-hidden="true" />
               </button>
-            </span>
+            </Badge>
           ))}
-          <span className="text-muted small">{filteredData.length} of {data.length} shown</span>
-          <button type="button" className="ribbon-clear" onClick={clearAll}>Clear filters</button>
+          <span className="text-sm text-muted-foreground">{filteredData.length} of {data.length} shown</span>
+          <Button variant="link" size="sm" className="h-auto px-1" onClick={clearAll}>Clear filters</Button>
         </div>
       )}
 
       {headerContent}
 
       {error && (
-        <Alert variant="danger" className="d-flex align-items-center justify-content-between gap-3">
-          <span><i className="bi bi-exclamation-circle me-2" aria-hidden="true" />{error}</span>
-          <Button size="sm" variant="light" onClick={fetchData}>Try again</Button>
+        <Alert variant="destructive">
+          <AlertCircle aria-hidden="true" />
+          <AlertDescription className="flex flex-wrap items-center justify-between gap-3">
+            <span>{error}</span>
+            <Button size="sm" variant="outline" onClick={fetchData}>Try again</Button>
+          </AlertDescription>
         </Alert>
       )}
 
       {loading && (
-        <Row className={view === 'list' ? 'g-3' : 'g-4'} aria-busy="true" aria-label={`Loading ${title.toLowerCase()}`}>
+        <div className={cardGrid} aria-busy="true" aria-label={`Loading ${title.toLowerCase()}`}>
           {Array.from({ length: SKELETON_COUNT }).map((_, i) => (
-            <Col {...(view === 'list' ? { xs: 12 } : { md: 6, xl: 4 })} key={i}>
-              <div className="skeleton" style={{ height: view === 'list' ? 76 : 180 }} />
-            </Col>
+            <Skeleton key={i} className={view === 'list' ? 'h-20' : 'h-44'} />
           ))}
-        </Row>
+        </div>
       )}
 
       {!loading && !error && view === 'calendar' && renderCalendar && renderCalendar(filteredData)}
 
       {!loading && !error && view !== 'calendar' && filteredData.length === 0 && (
-        <div className="empty-state">
-          <i className={`bi ${narrowed ? 'bi-search' : emptyIcon}`} aria-hidden="true" />
-          <h3>{narrowed ? 'No matches' : `No ${title.toLowerCase()} yet`}</h3>
-          <p className="mb-0">
-            {search && !filtersActive && `Nothing matches “${search}”. Try a different search.`}
-            {filtersActive && 'Nothing matches the current filters.'}
-            {!narrowed && `No ${title.toLowerCase()} found.`}
-          </p>
-          {search && (
-            <Button variant="light" className="mt-3" onClick={() => setSearch('')}>Clear search</Button>
-          )}
-          {filtersActive && (
-            <Button variant="light" className="mt-3 ms-2" onClick={clearFilters}>Clear filters</Button>
-          )}
-        </div>
+        <EmptyState
+          icon={narrowed ? SearchX : EmptyIcon}
+          title={narrowed ? 'No matches' : `No ${title.toLowerCase()} yet`}
+          description={
+            (search && !filtersActive && `Nothing matches “${search}”. Try a different search.`)
+            || (filtersActive && 'Nothing matches the current filters.')
+            || `No ${title.toLowerCase()} found.`
+          }
+        >
+          {search && <Button variant="outline" onClick={() => setSearch('')}>Clear search</Button>}
+          {filtersActive && <Button variant="outline" onClick={clearFilters}>Clear filters</Button>}
+        </EmptyState>
       )}
 
       {!loading && !error && view !== 'calendar' && filteredData.length > 0 && (
-        <Row className={view === 'list' ? 'g-3 data-list' : 'g-4'}>
+        <div className={cn(cardGrid, view === 'list' && 'data-list')}>
           {filteredData.map((item, index) => (
             // The record's own id must win over any foreign key it carries. employeeID
             // repeats across one person's leave requests, allowances and dossier, so those
             // own ids come first; departmentID repeats across an employee list, so
             // employeeID has to come before it.
-            <Col {...(view === 'list' ? { xs: 12 } : { md: 6, xl: 4 })} key={item.id || item.requestID || item.entitlementID || item.dossierID || item.assetID || item.documentID || item.templateID || item.employeeID || item.departmentID || index}>
-              {/* Check if this is using the new modal system or old approach */}
+            <div key={item.id || item.requestID || item.entitlementID || item.dossierID || item.assetID || item.documentID || item.templateID || item.employeeID || item.departmentID || index}>
               {usesManagedModal
-                ? renderCard(item, handleEdit, handleDeleteClick) // New document modals
-                : renderCard(item) // Existing pages that handle their own edit/delete
+                ? renderCard(item, handleEdit, handleDeleteClick) // DataPage owns edit/delete
+                : renderCard(item) // The page handles its own edit/delete
               }
-            </Col>
+            </div>
           ))}
-        </Row>
+        </div>
       )}
 
-      {/* Modal Component - Only for new document modals */}
+      {/* The modal contract every *Modal component follows: show / onHide / onSave. */}
       {usesManagedModal && (
         <ModalComponent
           show={showModal}
@@ -385,25 +368,15 @@ const DataPage = ({
         />
       )}
 
-      {/* Delete Confirmation Modal - Only for new document modals */}
       {usesManagedModal && (
-        <Modal show={showDeleteConfirm} onHide={closeDeleteConfirm} centered>
-          <Modal.Header closeButton>
-            <Modal.Title>Confirm Delete</Modal.Title>
-          </Modal.Header>
-          <Modal.Body>
-            <p className="mb-1">{deleteConfirmText}</p>
-            <small className="text-muted">This action cannot be undone.</small>
-          </Modal.Body>
-          <Modal.Footer>
-            <Button variant="secondary" onClick={closeDeleteConfirm} disabled={deleteLoading}>
-              Cancel
-            </Button>
-            <Button variant="danger" onClick={handleDeleteConfirm} disabled={deleteLoading}>
-              {deleteLoading ? 'Deleting...' : 'Delete'}
-            </Button>
-          </Modal.Footer>
-        </Modal>
+        <ConfirmDialog
+          open={showDeleteConfirm}
+          onOpenChange={(open) => { if (!open) closeDeleteConfirm(); }}
+          title="Confirm delete"
+          description={`${deleteConfirmText} This action cannot be undone.`}
+          busy={deleteLoading}
+          onConfirm={handleDeleteConfirm}
+        />
       )}
     </section>
   );

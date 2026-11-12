@@ -3,7 +3,7 @@ import ThemeToggle from './ThemeToggle';
 
 beforeEach(() => {
   localStorage.clear();
-  document.documentElement.removeAttribute('data-bs-theme');
+  document.documentElement.classList.remove('dark');
   window.matchMedia = vi.fn().mockReturnValue({
     matches: false,
     addEventListener: vi.fn(),
@@ -22,11 +22,11 @@ test('toggling applies the theme to <html> and remembers it', () => {
   render(<ThemeToggle />);
   fireEvent.click(screen.getByRole('button', { name: /switch to dark mode/i }));
 
-  expect(document.documentElement).toHaveAttribute('data-bs-theme', 'dark');
+  expect(document.documentElement).toHaveClass('dark');
   expect(localStorage.getItem('theme')).toBe('dark');
   expect(screen.getByRole('button', { name: /switch to light mode/i })).toBeInTheDocument();
 
   fireEvent.click(screen.getByRole('button', { name: /switch to light mode/i }));
-  expect(document.documentElement).toHaveAttribute('data-bs-theme', 'light');
+  expect(document.documentElement).not.toHaveClass('dark');
   expect(localStorage.getItem('theme')).toBe('light');
 });
