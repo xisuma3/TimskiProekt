@@ -1,5 +1,25 @@
-import React, { useCallback, useEffect, useState } from 'react';
-import { Alert, Button, Card, Form, Modal } from 'react-bootstrap';
+import { useCallback, useEffect, useState } from 'react';
+import { AlertCircle, Plus, UserCheck, Users, X } from 'lucide-react';
+import { Alert, AlertDescription } from '@/components/ui/alert';
+import { Button } from '@/components/ui/button';
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from '@/components/ui/dialog';
+import { Field, FieldDescription, FieldGroup, FieldLabel, FieldTitle } from '@/components/ui/field';
+import { NativeSelect, NativeSelectOption } from '@/components/ui/native-select';
+import { Skeleton } from '@/components/ui/skeleton';
+import { Spinner } from '@/components/ui/spinner';
+import { Textarea } from '@/components/ui/textarea';
+import ConfirmDialog from '../components/app/ConfirmDialog';
+import EmptyState from '../components/app/EmptyState';
+import ItemCard, { MetaList } from '../components/app/ItemCard';
+import PageHeader, { SectionTitle } from '../components/app/PageHeader';
+import StatusBadge from '../components/app/StatusBadge';
 import DateRangePicker from '../components/DateRangePicker';
 import { authenticatedFetch, isAdmin } from '../services/authService';
 import { API_URLS } from '../config/api';
@@ -8,7 +28,7 @@ import { API_URLS } from '../config/api';
 // The API takes the delegator from the token for non-admins; admins may arrange cover
 // on behalf of any manager.
 
-const STATUS_CHIP = { Active: 'is-success', Scheduled: 'is-info', Ended: '', Revoked: 'is-rejected' };
+const STATUS_TONE = { Active: 'success', Scheduled: 'info', Ended: 'muted', Revoked: 'danger' };
 
 const fmtDay = (value) =>
   value
@@ -36,55 +56,44 @@ const DelegationRow = ({ d, meId, onRevoke }) => {
   const iAmDelegate = meId && d.delegateEmployeeID === meId;
   const canRevoke = d.status === 'Active' || d.status === 'Scheduled';
   return (
-    <Card className="item-card">
-      <Card.Body>
-        <div className="item-card-head">
-          <span className="item-card-icon tone-sky" aria-hidden="true"><i className="bi bi-person-check" /></span>
-          <div className="flex-grow-1 min-w-0">
-            <Card.Title>{d.delegateName} covers {d.delegatorName}</Card.Title>
-            <Card.Subtitle>{fmtDay(d.startDate)} – {fmtDay(d.endDate)}</Card.Subtitle>
-          </div>
-          <span className={`status-chip ${STATUS_CHIP[d.status] ?? ''}`}>{d.status}</span>
-        </div>
-        <dl className="meta-list">
-          <dt>Approvals of</dt>
-          <dd>{d.delegatorName}</dd>
-          <dt>Covered by</dt>
-          <dd>{d.delegateName}</dd>
-          {d.note && (
-            <>
-              <dt>Note</dt>
-              <dd>{d.note}</dd>
-            </>
-          )}
-        </dl>
-        {canRevoke && (
-          <div className="item-card-actions">
-            <Button size="sm" variant="outline-danger" onClick={() => onRevoke(d, iAmDelegate)}>
-              <i className="bi bi-x-lg me-1" aria-hidden="true" />
-              {iAmDelegate ? 'Decline' : 'Revoke'}
-            </Button>
-          </div>
-        )}
-      </Card.Body>
-    </Card>
+    <ItemCard
+      icon={UserCheck}
+      tone="sky"
+      title={`${d.delegateName} covers ${d.delegatorName}`}
+      subtitle={`${fmtDay(d.startDate)} – ${fmtDay(d.endDate)}`}
+      badge={<StatusBadge tone={STATUS_TONE[d.status] ?? 'muted'}>{d.status}</StatusBadge>}
+      actions={canRevoke ? (
+        <Button
+          size="sm"
+          variant="outline"
+          className="text-destructive hover:bg-destructive/10 hover:text-destructive"
+          onClick={() => onRevoke(d, iAmDelegate)}
+        >
+          <X aria-hidden="true" />
+          {iAmDelegate ? 'Decline' : 'Revoke'}
+        </Button>
+      ) : null}
+    >
+      <MetaList
+        items={[
+          { label: 'Approvals of', value: d.delegatorName },
+          { label: 'Covered by', value: d.delegateName },
+          { label: 'Note', value: d.note },
+        ]}
+      />
+    </ItemCard>
   );
 };
 
 const Section = ({ title, empty, items, meId, onRevoke }) => (
-  <section className="mb-5" aria-label={title}>
-    <h2 className="section-title">{title}</h2>
+  <section aria-label={title}>
+    <SectionTitle>{title}</SectionTitle>
     {items.length === 0 ? (
-      <div className="empty-state py-4">
-        <i className="bi bi-person-check" aria-hidden="true" />
-        <p className="mb-0">{empty}</p>
-      </div>
+      <EmptyState icon={UserCheck} title={empty} className="py-6" />
     ) : (
-      <div className="row g-4">
+      <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
         {items.map((d) => (
-          <div className="col-md-6 col-xl-4" key={d.delegationID}>
-            <DelegationRow d={d} meId={meId} onRevoke={onRevoke} />
-          </div>
+          <DelegationRow key={d.delegationID} d={d} meId={meId} onRevoke={onRevoke} />
         ))}
       </div>
     )}
@@ -144,53 +153,66 @@ const ArrangeCoverModal = ({ show, onHide, onCreated, candidates, meId, admin })
   const noDirectory = candidates === null;
 
   return (
-    <Modal show={show} onHide={onHide} size="lg" centered>
-      <Modal.Header closeButton>
-        <Modal.Title>Arrange cover</Modal.Title>
-      </Modal.Header>
-      <Modal.Body>
-        {error && <Alert variant="danger">{error}</Alert>}
-        {noDirectory ? (
-          <div className="empty-state">
-            <i className="bi bi-people" aria-hidden="true" />
-            <h3>Directory unavailable</h3>
-            <p className="mb-0">
-              The staff directory couldn't be loaded, so a colleague can't be chosen right now. HR can set up cover for you.
-            </p>
-          </div>
-        ) : (
-          <>
-            {admin && (
-              <Form.Group className="mb-3" controlId="cover-delegator">
-                <Form.Label>On behalf of</Form.Label>
-                <Form.Select
-                  value={form.delegator}
-                  onChange={(e) => setForm((f) => ({ ...f, delegator: e.target.value, delegate: '' }))}
+    <Dialog open={show} onOpenChange={(open) => { if (!open) onHide(); }}>
+      <DialogContent className="sm:max-w-2xl">
+        {/* noValidate: submit() checks the fields itself and names everything missing at once. */}
+        <form onSubmit={(e) => { e.preventDefault(); submit(); }} noValidate className="grid gap-6">
+          <DialogHeader>
+            <DialogTitle>Arrange cover</DialogTitle>
+            <DialogDescription>Hand leave approvals to a colleague for a set period.</DialogDescription>
+          </DialogHeader>
+
+          {error && (
+            <Alert variant="destructive">
+              <AlertCircle aria-hidden="true" />
+              <AlertDescription>{error}</AlertDescription>
+            </Alert>
+          )}
+
+          {noDirectory ? (
+            <EmptyState
+              icon={Users}
+              title="Directory unavailable"
+              description="The staff directory couldn't be loaded, so a colleague can't be chosen right now. HR can set up cover for you."
+            />
+          ) : (
+            <FieldGroup>
+              {admin && (
+                <Field>
+                  <FieldLabel htmlFor="cover-delegator">On behalf of</FieldLabel>
+                  <NativeSelect
+                    id="cover-delegator"
+                    className="w-full"
+                    value={form.delegator}
+                    onChange={(e) => setForm((f) => ({ ...f, delegator: e.target.value, delegate: '' }))}
+                    aria-describedby="cover-delegator-hint"
+                  >
+                    <NativeSelectOption value="">Myself</NativeSelectOption>
+                    {(candidates || []).map((e) => (
+                      <NativeSelectOption key={e.employeeID} value={e.employeeID}>{e.name}{e.position ? ` · ${e.position}` : ''}</NativeSelectOption>
+                    ))}
+                  </NativeSelect>
+                  <FieldDescription id="cover-delegator-hint">The manager whose approvals are being handed over.</FieldDescription>
+                </Field>
+              )}
+              <Field>
+                <FieldLabel htmlFor="cover-delegate">Covered by *</FieldLabel>
+                <NativeSelect
+                  id="cover-delegate"
+                  className="w-full"
+                  value={form.delegate}
+                  onChange={(e) => setForm((f) => ({ ...f, delegate: e.target.value }))}
+                  aria-describedby="cover-delegate-hint"
                 >
-                  <option value="">Myself</option>
-                  {(candidates || []).map((e) => (
-                    <option key={e.employeeID} value={e.employeeID}>{e.name}{e.position ? ` · ${e.position}` : ''}</option>
+                  <NativeSelectOption value="">Choose a colleague</NativeSelectOption>
+                  {options.map((e) => (
+                    <NativeSelectOption key={e.employeeID} value={e.employeeID}>{e.name}{e.position ? ` · ${e.position}` : ''}</NativeSelectOption>
                   ))}
-                </Form.Select>
-                <Form.Text>The manager whose approvals are being handed over.</Form.Text>
-              </Form.Group>
-            )}
-            <Form.Group className="mb-3" controlId="cover-delegate">
-              <Form.Label>Covered by *</Form.Label>
-              <Form.Select
-                value={form.delegate}
-                onChange={(e) => setForm((f) => ({ ...f, delegate: e.target.value }))}
-              >
-                <option value="">Choose a colleague</option>
-                {options.map((e) => (
-                  <option key={e.employeeID} value={e.employeeID}>{e.name}{e.position ? ` · ${e.position}` : ''}</option>
-                ))}
-              </Form.Select>
-              <Form.Text>They can decide leave requests on your behalf while the cover is active.</Form.Text>
-            </Form.Group>
-            <Form.Group className="mb-3">
-              <Form.Label as="div" id="cover-dates-label">Dates *</Form.Label>
-              <div role="group" aria-labelledby="cover-dates-label">
+                </NativeSelect>
+                <FieldDescription id="cover-delegate-hint">They can decide leave requests on your behalf while the cover is active.</FieldDescription>
+              </Field>
+              <Field aria-labelledby="cover-dates-label">
+                <FieldTitle id="cover-dates-label">Dates *</FieldTitle>
                 <DateRangePicker
                   start={form.start}
                   end={form.end}
@@ -198,31 +220,33 @@ const ArrangeCoverModal = ({ show, onHide, onCreated, candidates, meId, admin })
                   startPrompt="Select the first day of cover."
                   endPrompt="select the last day of cover"
                 />
-              </div>
-            </Form.Group>
-            <Form.Group controlId="cover-note">
-              <Form.Label>Note (optional)</Form.Label>
-              <Form.Control
-                as="textarea"
-                rows={2}
-                maxLength={500}
-                value={form.note}
-                onChange={(e) => setForm((f) => ({ ...f, note: e.target.value }))}
-                placeholder="e.g. Away on holiday"
-              />
-            </Form.Group>
-          </>
-        )}
-      </Modal.Body>
-      <Modal.Footer>
-        <Button variant="secondary" onClick={onHide}>Cancel</Button>
-        {!noDirectory && (
-          <Button variant="primary" onClick={submit} disabled={saving}>
-            {saving ? 'Saving…' : 'Arrange cover'}
-          </Button>
-        )}
-      </Modal.Footer>
-    </Modal>
+              </Field>
+              <Field>
+                <FieldLabel htmlFor="cover-note">Note (optional)</FieldLabel>
+                <Textarea
+                  id="cover-note"
+                  rows={2}
+                  maxLength={500}
+                  value={form.note}
+                  onChange={(e) => setForm((f) => ({ ...f, note: e.target.value }))}
+                  placeholder="e.g. Away on holiday"
+                />
+              </Field>
+            </FieldGroup>
+          )}
+
+          <DialogFooter>
+            <Button type="button" variant="outline" onClick={onHide}>Cancel</Button>
+            {!noDirectory && (
+              <Button type="submit" disabled={saving}>
+                {saving && <Spinner />}
+                {saving ? 'Saving…' : 'Arrange cover'}
+              </Button>
+            )}
+          </DialogFooter>
+        </form>
+      </DialogContent>
+    </Dialog>
   );
 };
 
@@ -287,35 +311,36 @@ const ApprovalCoverPage = () => {
 
   return (
     <section aria-labelledby="approval-cover-title">
-      <div className="page-header">
-        <div>
-          <h1 id="approval-cover-title">Approval Cover</h1>
-          <p>Away for a while? Hand your leave approvals to a colleague until you're back.</p>
-        </div>
-        <div className="page-header-actions">
-          <Button variant="primary" onClick={() => setShowModal(true)} disabled={loading}>
-            <i className="bi bi-plus-lg me-2" aria-hidden="true" />Arrange cover
+      <PageHeader
+        id="approval-cover-title"
+        title="Approval Cover"
+        description="Away for a while? Hand your leave approvals to a colleague until you're back."
+        actions={(
+          <Button onClick={() => setShowModal(true)} disabled={loading}>
+            <Plus aria-hidden="true" />
+            Arrange cover
           </Button>
-        </div>
-      </div>
+        )}
+      />
 
       {error && (
-        <Alert variant="danger" className="d-flex align-items-center justify-content-between gap-3">
-          <span>{error}</span>
-          <Button size="sm" variant="light" onClick={load}>Try again</Button>
+        <Alert variant="destructive">
+          <AlertCircle aria-hidden="true" />
+          <AlertDescription className="flex flex-wrap items-center justify-between gap-3">
+            <span>{error}</span>
+            <Button size="sm" variant="outline" onClick={load}>Try again</Button>
+          </AlertDescription>
         </Alert>
       )}
 
       {loading && (
-        <div className="row g-4" aria-busy="true" aria-label="Loading approval cover">
-          {[0, 1, 2].map((i) => (
-            <div className="col-md-6 col-xl-4" key={i}><div className="skeleton" style={{ height: 160 }} /></div>
-          ))}
+        <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3" aria-busy="true" aria-label="Loading approval cover">
+          {[0, 1, 2].map((i) => <Skeleton key={i} className="h-40" />)}
         </div>
       )}
 
       {!loading && !error && (
-        <>
+        <div className="space-y-12">
           <Section
             title="Covering for me"
             empty="Nobody is covering your approvals."
@@ -339,7 +364,7 @@ const ApprovalCoverPage = () => {
               onRevoke={onRevoke}
             />
           )}
-        </>
+        </div>
       )}
 
       <ArrangeCoverModal
@@ -351,25 +376,23 @@ const ApprovalCoverPage = () => {
         admin={admin}
       />
 
-      <Modal show={Boolean(toRevoke)} onHide={() => setToRevoke(null)} centered>
-        <Modal.Header closeButton>
-          <Modal.Title>{toRevoke?.decline ? 'Decline cover' : 'Revoke cover'}</Modal.Title>
-        </Modal.Header>
-        <Modal.Body>
-          {revokeError && <Alert variant="danger">{revokeError}</Alert>}
-          {toRevoke && (
-            <p className="mb-0">
-              {toRevoke.decline
-                ? `Stop covering ${toRevoke.d.delegatorName}'s approvals? Their requests go back to them.`
-                : `End ${toRevoke.d.delegateName}'s cover of ${toRevoke.d.delegatorName}'s approvals now?`}
-            </p>
-          )}
-        </Modal.Body>
-        <Modal.Footer>
-          <Button variant="secondary" onClick={() => setToRevoke(null)}>Cancel</Button>
-          <Button variant="danger" onClick={confirmRevoke}>{toRevoke?.decline ? 'Decline' : 'Revoke'}</Button>
-        </Modal.Footer>
-      </Modal>
+      <ConfirmDialog
+        open={Boolean(toRevoke)}
+        onOpenChange={(open) => { if (!open) setToRevoke(null); }}
+        title={toRevoke?.decline ? 'Decline cover' : 'Revoke cover'}
+        description={toRevoke && (toRevoke.decline
+          ? `Stop covering ${toRevoke.d.delegatorName}'s approvals? Their requests go back to them.`
+          : `End ${toRevoke.d.delegateName}'s cover of ${toRevoke.d.delegatorName}'s approvals now?`)}
+        confirmLabel={toRevoke?.decline ? 'Decline' : 'Revoke'}
+        onConfirm={confirmRevoke}
+      >
+        {revokeError && (
+          <Alert variant="destructive">
+            <AlertCircle aria-hidden="true" />
+            <AlertDescription>{revokeError}</AlertDescription>
+          </Alert>
+        )}
+      </ConfirmDialog>
     </section>
   );
 };

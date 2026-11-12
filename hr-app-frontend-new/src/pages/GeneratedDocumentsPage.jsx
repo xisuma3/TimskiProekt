@@ -1,14 +1,25 @@
-import React from 'react';
-import { Card, Button, Modal } from 'react-bootstrap';
 import { useState } from 'react';
+import { Eye, FileCheck, Printer, Trash2 } from 'lucide-react';
+import { Button } from '@/components/ui/button';
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from '@/components/ui/dialog';
+import DocPreview from '../components/app/DocPreview';
+import ItemCard, { MetaList } from '../components/app/ItemCard';
+import StatusBadge from '../components/app/StatusBadge';
 import DataPage from '../components/DataPage';
 import DocumentGenerationModal from '../components/DocumentGenerationModal';
 import SelfServiceDocumentModal from '../components/SelfServiceDocumentModal';
 import { API_URLS } from '../config/api';
 import { isAdmin } from '../services/authService';
 
-const typeChip = (type) =>
-  type === 'Asset' ? 'is-primary' : type === 'Employment' ? 'is-success' : 'is-pending';
+const typeTone = (type) =>
+  type === 'Asset' ? 'primary' : type === 'Employment' ? 'success' : 'warning';
 
 const GeneratedDocumentsPage = () => {
   const [viewingDocument, setViewingDocument] = useState(null);
@@ -19,51 +30,48 @@ const GeneratedDocumentsPage = () => {
   const admin = isAdmin();
 
   const renderDocumentCard = (document, onEdit, onDelete) => (
-    <Card className="item-card">
-      <Card.Body>
-        <div className="item-card-head">
-          <span className="item-card-icon tone-green" aria-hidden="true"><i className="bi bi-file-earmark-check" /></span>
-          <div className="flex-grow-1 min-w-0">
-            <Card.Title>{document.templateName || 'Document'}</Card.Title>
-            <Card.Subtitle className="text-truncate">Document ID: {document.documentID}</Card.Subtitle>
-          </div>
-          <span className={`status-chip ${typeChip(document.documentType)}`}>{document.documentType || 'Unknown'}</span>
-        </div>
-
-        <dl className="meta-list mb-3">
-          <dt>Employee</dt>
-          <dd>{admin ? document.employeeName : 'My Document'}</dd>
-          <dt>Generated</dt>
-          <dd>{new Date(document.generatedDate).toLocaleDateString()}</dd>
-        </dl>
-
-        <div className="small text-muted fw-semibold mb-1">Content preview</div>
-        <div className="p-2 rounded small text-break" style={{ background: 'var(--hr-surface-muted)', border: '1px solid var(--hr-border)' }}>
-          {document.contentPreview || 'No content available'}
-        </div>
-
-        <div className="item-card-actions">
+    <ItemCard
+      icon={FileCheck}
+      tone="green"
+      title={document.templateName || 'Document'}
+      subtitle={`Document ID: ${document.documentID}`}
+      badge={<StatusBadge tone={typeTone(document.documentType)}>{document.documentType || 'Unknown'}</StatusBadge>}
+      actions={(
+        <>
           <Button
-            variant="outline-primary"
-            size="sm"
-            className="btn-icon"
+            variant="ghost"
+            size="icon-sm"
             aria-label="View document"
             onClick={() => handleViewDocument(document)}
           >
-            <i className="bi bi-eye" aria-hidden="true"></i>
+            <Eye aria-hidden="true" />
           </Button>
-          {admin && <Button
-            variant="outline-danger"
-            size="sm"
-            className="btn-icon"
-            aria-label="Delete document"
-            onClick={() => onDelete(document)}
-          >
-            <i className="bi bi-trash" aria-hidden="true"></i>
-          </Button>}
-        </div>
-      </Card.Body>
-    </Card>
+          {admin && (
+            <Button
+              variant="ghost"
+              size="icon-sm"
+              className="text-destructive hover:bg-destructive/10 hover:text-destructive"
+              aria-label="Delete document"
+              onClick={() => onDelete(document)}
+            >
+              <Trash2 aria-hidden="true" />
+            </Button>
+          )}
+        </>
+      )}
+    >
+      <MetaList
+        items={[
+          { label: 'Employee', value: admin ? document.employeeName : 'My Document', fallback: '—' },
+          { label: 'Generated', value: new Date(document.generatedDate).toLocaleDateString() },
+        ]}
+      />
+
+      <div className="mt-4 mb-1 text-xs font-semibold text-muted-foreground">Content preview</div>
+      <div className="rounded-md border bg-muted/50 p-2 text-xs wrap-break-word">
+        {document.contentPreview || 'No content available'}
+      </div>
+    </ItemCard>
   );
 
   const handleViewDocument = async (document) => {
@@ -104,7 +112,7 @@ const GeneratedDocumentsPage = () => {
         subtitle={admin
           ? 'Documents produced from templates for your employees.'
           : 'Documents issued to you. Some you can generate yourself with Get a document.'}
-        emptyIcon="bi-file-earmark-check"
+        emptyIcon={FileCheck}
         apiEndpoint={apiEndpoint}
         searchFields={admin ? ['templateName', 'employeeName', 'documentType'] : ['templateName', 'documentType']}
         dateFilter={{ label: 'Generated', field: 'generatedDate' }}
@@ -132,46 +140,45 @@ const GeneratedDocumentsPage = () => {
       )}
 
       {/* Document View Modal */}
-      <Modal
-        show={showViewModal}
-        onHide={() => setShowViewModal(false)}
-        size="xl"
-      >
-        <Modal.Header closeButton>
-          <Modal.Title>
-            {viewingDocument?.templateName} - {viewingDocument?.employeeName}
-          </Modal.Title>
-        </Modal.Header>
-        <Modal.Body className="bg-body-tertiary">
-          {viewingDocument?.fullContent && (
-            <div className="doc-preview" style={{ maxHeight: '65vh' }} dangerouslySetInnerHTML={{ __html: viewingDocument.fullContent }} />
-          )}
-        </Modal.Body>
-        <Modal.Footer>
-          <Button variant="secondary" onClick={() => setShowViewModal(false)}>
-            Close
-          </Button>
-          <Button
-            variant="primary"
-            onClick={() => {
-              const printWindow = window.open('', '_blank');
-              printWindow.document.write(`
-                <html>
-                  <head>
-                    <title>${viewingDocument?.templateName} - ${viewingDocument?.employeeName}</title>
-                    <style>body { font-family: Arial, sans-serif; margin: 20px; }</style>
-                  </head>
-                  <body>${viewingDocument?.fullContent}</body>
-                </html>
-              `);
-              printWindow.document.close();
-              printWindow.print();
-            }}
-          >
-            <i className="bi bi-printer me-1" aria-hidden="true"></i>Print
-          </Button>
-        </Modal.Footer>
-      </Modal>
+      <Dialog open={showViewModal} onOpenChange={(open) => { if (!open) setShowViewModal(false); }}>
+        <DialogContent className="max-h-[90vh] overflow-y-auto sm:max-w-5xl">
+          <DialogHeader>
+            <DialogTitle>
+              {viewingDocument?.templateName} - {viewingDocument?.employeeName}
+            </DialogTitle>
+            <DialogDescription>Read-only copy of the generated document. Print it for a paper copy.</DialogDescription>
+          </DialogHeader>
+          <div className="rounded-lg bg-muted p-4">
+            {viewingDocument?.fullContent && (
+              <DocPreview html={viewingDocument.fullContent} className="max-h-[65vh]" />
+            )}
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setShowViewModal(false)}>
+              Close
+            </Button>
+            <Button
+              onClick={() => {
+                const printWindow = window.open('', '_blank');
+                printWindow.document.write(`
+                  <html>
+                    <head>
+                      <title>${viewingDocument?.templateName} - ${viewingDocument?.employeeName}</title>
+                      <style>body { font-family: Arial, sans-serif; margin: 20px; }</style>
+                    </head>
+                    <body>${viewingDocument?.fullContent}</body>
+                  </html>
+                `);
+                printWindow.document.close();
+                printWindow.print();
+              }}
+            >
+              <Printer aria-hidden="true" />
+              Print
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </>
   );
 };

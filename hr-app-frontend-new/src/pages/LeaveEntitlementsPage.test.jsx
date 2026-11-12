@@ -31,7 +31,7 @@ test('wires allowance create, edit, delete, and refresh through DataPage', async
     });
   });
 
-  const { container } = render(<LeaveEntitlementsPage />);
+  render(<LeaveEntitlementsPage />);
   expect(await screen.findByText('Ada Lovelace')).toBeInTheDocument();
 
   fireEvent.click(screen.getByRole('button', { name: 'New Allowance' }));
@@ -39,11 +39,10 @@ test('wires allowance create, edit, delete, and refresh through DataPage', async
   fireEvent.click(screen.getByRole('button', { name: 'Save allowance' }));
 
   await waitFor(() => expect(authenticatedFetch).toHaveBeenCalledTimes(3));
-  await waitFor(() => expect(container.querySelector('.btn-outline-primary')).not.toBeNull());
-  fireEvent.click(container.querySelector('.btn-outline-primary'));
+  fireEvent.click(await screen.findByRole('button', { name: "Edit Ada Lovelace's Vacation allowance" }));
   expect(screen.getByTestId('allowance-modal')).toHaveTextContent('edit:allowance-1');
 
-  fireEvent.click(container.querySelector('.btn-outline-danger'));
+  fireEvent.click(screen.getByRole('button', { name: "Delete Ada Lovelace's Vacation allowance" }));
   fireEvent.click(screen.getByRole('button', { name: 'Delete' }));
   await waitFor(() => expect(authenticatedFetch).toHaveBeenCalledWith(
     expect.any(String),

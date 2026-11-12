@@ -1,5 +1,30 @@
-import React, { useState, useEffect } from 'react';
-import { Modal, Button, Form, Alert, Tabs, Tab } from 'react-bootstrap';
+import { useEffect, useState } from 'react';
+import { AlertCircle, Eye } from 'lucide-react';
+import { Alert, AlertDescription } from '@/components/ui/alert';
+import { Button } from '@/components/ui/button';
+import { Checkbox } from '@/components/ui/checkbox';
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+} from '@/components/ui/dialog';
+import {
+  Field,
+  FieldContent,
+  FieldDescription,
+  FieldGroup,
+  FieldLabel,
+  FieldLegend,
+  FieldSet,
+} from '@/components/ui/field';
+import { Input } from '@/components/ui/input';
+import { NativeSelect, NativeSelectOption } from '@/components/ui/native-select';
+import { Switch } from '@/components/ui/switch';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { Textarea } from '@/components/ui/textarea';
+import DocPreview from './app/DocPreview';
 import { API_URLS } from '../config/api';
 
 const DocumentTemplateModal = ({ show, onHide, onSave, editingTemplate }) => {
@@ -86,6 +111,11 @@ const DocumentTemplateModal = ({ show, onHide, onSave, editingTemplate }) => {
     setError('');
   };
 
+  // A checkbox list replaces the old Ctrl/Cmd-click multi-select; the state is the same
+  // array of asset ids.
+  const toggleAsset = (id) =>
+    setSelectedAssets((prev) => (prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id]));
+
   const handlePreview = async () => {
     if (!selectedEmployee || !templateData.templateContent) {
       setError('Please select an employee and add template content to preview');
@@ -94,7 +124,7 @@ const DocumentTemplateModal = ({ show, onHide, onSave, editingTemplate }) => {
 
     try {
       const token = localStorage.getItem('token');
-      
+
       // Use the new direct preview endpoint that doesn't require saving templates
       const response = await fetch(API_URLS.DOCUMENT_TEMPLATES.PREVIEW(), {
         method: 'POST',
@@ -124,7 +154,7 @@ const DocumentTemplateModal = ({ show, onHide, onSave, editingTemplate }) => {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-    
+
     if (!templateData.templateName.trim() || !templateData.templateContent.trim()) {
       setError('Template name and content are required');
       return;
@@ -132,12 +162,12 @@ const DocumentTemplateModal = ({ show, onHide, onSave, editingTemplate }) => {
 
     try {
       const token = localStorage.getItem('token');
-      const url = editingTemplate 
+      const url = editingTemplate
         ? API_URLS.DOCUMENT_TEMPLATES.UPDATE(editingTemplate.templateID)
         : API_URLS.DOCUMENT_TEMPLATES.CREATE();
-      
+
       const method = editingTemplate ? 'PUT' : 'POST';
-      
+
       const response = await fetch(url, {
         method,
         headers: {
@@ -166,7 +196,7 @@ const DocumentTemplateModal = ({ show, onHide, onSave, editingTemplate }) => {
   <p><strong>Position:</strong> {{employee.position}}</p>
   <p><strong>Department:</strong> {{employee.department}}</p>
   <p><strong>Hire Date:</strong> {{employee.hireDate}}</p>
-  
+
   <h3>Asset Assignment</h3>
   {{#assetList}}
   <div style="border: 1px solid #ccc; padding: 10px; margin: 5px 0;">
@@ -175,156 +205,186 @@ const DocumentTemplateModal = ({ show, onHide, onSave, editingTemplate }) => {
     <p><strong>Assigned:</strong> {{asset.assignmentDate}}</p>
   </div>
   {{/assetList}}
-  
+
   <p>Generated on: {{system.currentDate}}</p>
 </div>`;
 
   return (
-    <Modal show={show} onHide={onHide} size="xl">
-      <Modal.Header closeButton>
-        <Modal.Title>
-          {editingTemplate ? 'Edit Template' : 'Create New Template'}
-        </Modal.Title>
-      </Modal.Header>
-      <Modal.Body>
-        {error && <Alert variant="danger">{error}</Alert>}
-        
-        <Tabs defaultActiveKey="editor" className="mb-3">
-          <Tab eventKey="editor" title="Template Editor">
-            <Form onSubmit={handleSubmit}>
-              <Form.Group className="mb-3">
-                <Form.Label>Template Name *</Form.Label>
-                <Form.Control
-                  type="text"
-                  name="templateName"
-                  value={templateData.templateName}
-                  onChange={handleInputChange}
-                  required
-                />
-              </Form.Group>
+    <Dialog open={show} onOpenChange={(open) => { if (!open) onHide(); }}>
+      <DialogContent className="max-h-[90vh] overflow-y-auto sm:max-w-5xl">
+        <DialogHeader>
+          <DialogTitle>
+            {editingTemplate ? 'Edit Template' : 'Create New Template'}
+          </DialogTitle>
+          <DialogDescription>
+            Write the template as HTML with placeholders, then preview it with an employee’s data.
+          </DialogDescription>
+        </DialogHeader>
 
-              <Form.Group className="mb-3">
-                <Form.Label>Description</Form.Label>
-                <Form.Control
-                  as="textarea"
-                  rows={2}
-                  name="description"
-                  value={templateData.description}
-                  onChange={handleInputChange}
-                />
-              </Form.Group>
+        {error && (
+          <Alert variant="destructive">
+            <AlertCircle aria-hidden="true" />
+            <AlertDescription>{error}</AlertDescription>
+          </Alert>
+        )}
 
-              <Form.Group className="mb-3">
-                <Form.Label>Template Type</Form.Label>
-                <Form.Select
-                  name="templateType"
-                  value={templateData.templateType}
-                  onChange={handleInputChange}
-                >
-                  <option value="Asset">Asset</option>
-                  <option value="Employment">Employment</option>
-                  <option value="Salary">Salary</option>
-                </Form.Select>
-              </Form.Group>
+        <Tabs defaultValue="editor" className="min-w-0 gap-4">
+          <TabsList>
+            <TabsTrigger value="editor">Template Editor</TabsTrigger>
+            <TabsTrigger value="preview">Preview</TabsTrigger>
+          </TabsList>
 
-              <Form.Group className="mb-3" controlId="template-self-service">
-                <Form.Check
-                  type="switch"
-                  label="Employees can generate this themselves"
-                  checked={templateData.allowSelfService}
-                  onChange={(e) => setTemplateData((prev) => ({ ...prev, allowSelfService: e.target.checked }))}
-                />
-                <Form.Text>
-                  For documents about the employee only, like an employment confirmation. They can only
-                  ever generate it for themselves, listing equipment they hold. Leave off for anything HR
-                  must issue, such as salary letters.
-                </Form.Text>
-              </Form.Group>
+          <TabsContent value="editor">
+            <form onSubmit={handleSubmit} className="grid gap-6">
+              <FieldGroup>
+                <Field>
+                  <FieldLabel htmlFor="template-name">Template Name *</FieldLabel>
+                  <Input
+                    id="template-name"
+                    type="text"
+                    name="templateName"
+                    value={templateData.templateName}
+                    onChange={handleInputChange}
+                    required
+                  />
+                </Field>
 
-              <Form.Group className="mb-3">
-                <Form.Label>Template Content (HTML) *</Form.Label>
-                <Form.Control
-                  as="textarea"
-                  rows={12}
-                  name="templateContent"
-                  value={templateData.templateContent}
-                  onChange={handleInputChange}
-                  required
-                  className="font-monospace small"
-                  placeholder={sampleTemplate}
-                />
-              </Form.Group>
+                <Field>
+                  <FieldLabel htmlFor="template-description">Description</FieldLabel>
+                  <Textarea
+                    id="template-description"
+                    rows={2}
+                    name="description"
+                    value={templateData.description}
+                    onChange={handleInputChange}
+                  />
+                </Field>
 
-              <div className="d-flex justify-content-between">
-                <Button 
-                  type="button" 
-                  variant="outline-primary"
+                <Field>
+                  <FieldLabel htmlFor="template-type">Template Type</FieldLabel>
+                  <NativeSelect
+                    id="template-type"
+                    name="templateType"
+                    value={templateData.templateType}
+                    onChange={handleInputChange}
+                    className="w-full"
+                  >
+                    <NativeSelectOption value="Asset">Asset</NativeSelectOption>
+                    <NativeSelectOption value="Employment">Employment</NativeSelectOption>
+                    <NativeSelectOption value="Salary">Salary</NativeSelectOption>
+                  </NativeSelect>
+                </Field>
+
+                <Field orientation="horizontal">
+                  <Switch
+                    id="template-self-service"
+                    checked={templateData.allowSelfService}
+                    onCheckedChange={(checked) => setTemplateData((prev) => ({ ...prev, allowSelfService: checked }))}
+                  />
+                  <FieldContent>
+                    <FieldLabel htmlFor="template-self-service">Employees can generate this themselves</FieldLabel>
+                    <FieldDescription>
+                      For documents about the employee only, like an employment confirmation. They can only
+                      ever generate it for themselves, listing equipment they hold. Leave off for anything HR
+                      must issue, such as salary letters.
+                    </FieldDescription>
+                  </FieldContent>
+                </Field>
+
+                <Field>
+                  <FieldLabel htmlFor="template-content">Template Content (HTML) *</FieldLabel>
+                  <Textarea
+                    id="template-content"
+                    rows={12}
+                    name="templateContent"
+                    value={templateData.templateContent}
+                    onChange={handleInputChange}
+                    required
+                    className="field-sizing-fixed font-mono text-xs md:text-xs"
+                    placeholder={sampleTemplate}
+                  />
+                </Field>
+              </FieldGroup>
+
+              <div className="flex flex-col-reverse gap-2 sm:flex-row sm:items-center sm:justify-between">
+                <Button
+                  type="button"
+                  variant="outline"
                   onClick={() => setTemplateData(prev => ({ ...prev, templateContent: sampleTemplate }))}
                 >
                   Load Sample Template
                 </Button>
-                <div>
-                  <Button variant="secondary" onClick={onHide} className="me-2">
+                <div className="flex flex-col-reverse gap-2 sm:flex-row">
+                  <Button type="button" variant="outline" onClick={onHide}>
                     Cancel
                   </Button>
-                  <Button type="submit" variant="primary">
+                  <Button type="submit">
                     {editingTemplate ? 'Update Template' : 'Create Template'}
                   </Button>
                 </div>
               </div>
-            </Form>
-          </Tab>
+            </form>
+          </TabsContent>
 
-          <Tab eventKey="preview" title="Preview">
-            <div className="mb-3">
-              <Form.Group className="mb-2">
-                <Form.Label>Select Employee for Preview</Form.Label>
-                <Form.Select
+          <TabsContent value="preview" className="grid gap-6">
+            <FieldGroup className="gap-6">
+              <Field>
+                <FieldLabel htmlFor="template-preview-employee">Select Employee for Preview</FieldLabel>
+                <NativeSelect
+                  id="template-preview-employee"
                   value={selectedEmployee}
                   onChange={(e) => setSelectedEmployee(e.target.value)}
+                  className="w-full"
                 >
                   {employees.map(emp => (
-                    <option key={emp.employeeID} value={emp.employeeID}>
+                    <NativeSelectOption key={emp.employeeID} value={emp.employeeID}>
                       {emp.firstName} {emp.lastName} - {emp.position}
-                    </option>
+                    </NativeSelectOption>
                   ))}
-                </Form.Select>
-              </Form.Group>
+                </NativeSelect>
+              </Field>
 
-              <Form.Group className="mb-2">
-                <Form.Label>Select Assets (optional)</Form.Label>
-                <Form.Select
-                  multiple
-                  value={selectedAssets}
-                  onChange={(e) => setSelectedAssets(Array.from(e.target.selectedOptions, option => option.value))}
-                >
-                  {assets.map(asset => (
-                    <option key={asset.assetID} value={asset.assetID}>
-                      {asset.name} - {asset.serialNumber}
-                    </option>
-                  ))}
-                </Form.Select>
-                <Form.Text>
-                  Hold Ctrl/Cmd to select multiple assets
-                </Form.Text>
-              </Form.Group>
+              <FieldSet className="gap-2">
+                <FieldLegend variant="label" className="mb-1">Select Assets (optional)</FieldLegend>
+                <div className="max-h-48 overflow-y-auto rounded-md border p-3">
+                  {assets.length === 0 ? (
+                    <p className="text-sm text-muted-foreground">No assets to choose from.</p>
+                  ) : (
+                    <div className="grid gap-3">
+                      {assets.map((asset) => {
+                        const id = `template-preview-asset-${asset.assetID}`;
+                        return (
+                          <Field key={asset.assetID} orientation="horizontal">
+                            <Checkbox
+                              id={id}
+                              checked={selectedAssets.includes(asset.assetID)}
+                              onCheckedChange={() => toggleAsset(asset.assetID)}
+                            />
+                            <FieldLabel htmlFor={id} className="font-normal">
+                              {asset.name}{asset.serialNumber ? ` - ${asset.serialNumber}` : ''}
+                            </FieldLabel>
+                          </Field>
+                        );
+                      })}
+                    </div>
+                  )}
+                </div>
+                <FieldDescription>Ticked assets fill the asset placeholders in the preview.</FieldDescription>
+              </FieldSet>
+            </FieldGroup>
 
-              <Button variant="outline-primary" onClick={handlePreview} className="mb-3">
+            <div>
+              <Button type="button" variant="outline" onClick={handlePreview}>
+                <Eye aria-hidden="true" />
                 Generate Preview
               </Button>
             </div>
 
-            {previewContent && (
-              <div
-                className="doc-preview"
-                style={{ maxHeight: '400px' }}
-                dangerouslySetInnerHTML={{ __html: previewContent }}
-              />
-            )}
-          </Tab>
+            {previewContent && <DocPreview html={previewContent} className="max-h-100" />}
+          </TabsContent>
         </Tabs>
-      </Modal.Body>
-    </Modal>
+      </DialogContent>
+    </Dialog>
   );
 };
 

@@ -1,5 +1,20 @@
-import React, { useState, useEffect } from 'react';
-import { Modal, Button, Form, Row, Col, Alert } from 'react-bootstrap';
+import { useState, useEffect } from 'react';
+import { AlertCircle } from 'lucide-react';
+import { Alert, AlertDescription } from '@/components/ui/alert';
+import { Button } from '@/components/ui/button';
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from '@/components/ui/dialog';
+import { Field, FieldDescription, FieldGroup, FieldLabel } from '@/components/ui/field';
+import { Input } from '@/components/ui/input';
+import { NativeSelect, NativeSelectOption } from '@/components/ui/native-select';
+import { Spinner } from '@/components/ui/spinner';
+import { Textarea } from '@/components/ui/textarea';
 import { authenticatedFetch } from '../services/authService';
 import { API_URLS } from '../config/api';
 
@@ -44,12 +59,12 @@ const EmployeeDossierModal = ({ show, onHide, dossier = null, onSave, employees 
     setError('');
 
     try {
-      const url = isEditing 
+      const url = isEditing
         ? API_URLS.EMPLOYEE_DOSSIERS.UPDATE(dossier.dossierID)
         : API_URLS.EMPLOYEE_DOSSIERS.CREATE();
-      
+
       const method = isEditing ? 'PUT' : 'POST';
-      
+
       const response = await authenticatedFetch(url, {
         method,
         body: JSON.stringify(formData)
@@ -78,105 +93,110 @@ const EmployeeDossierModal = ({ show, onHide, dossier = null, onSave, employees 
   };
 
   return (
-    <Modal show={show} onHide={onHide} size="lg" centered>
-      <Modal.Header closeButton>
-        <Modal.Title>{isEditing ? 'Edit Employee Dossier' : 'Create Employee Dossier'}</Modal.Title>
-      </Modal.Header>
-      <Modal.Body>
-        {error && <Alert variant="danger">{error}</Alert>}
-        
-        <Form onSubmit={handleSubmit}>
-          <Row>
-            <Col md={6}>
-              <Form.Group className="mb-3">
-                <Form.Label>Employee *</Form.Label>
-                <Form.Select
+    <Dialog open={show} onOpenChange={(open) => { if (!open) onHide(); }}>
+      <DialogContent className="sm:max-w-2xl">
+        <form onSubmit={handleSubmit} className="grid gap-6">
+          <DialogHeader>
+            <DialogTitle>{isEditing ? 'Edit Employee Dossier' : 'Create Employee Dossier'}</DialogTitle>
+            <DialogDescription>
+              Personal and employment details HR keeps on file for this employee.
+            </DialogDescription>
+          </DialogHeader>
+
+          {error && (
+            <Alert variant="destructive">
+              <AlertCircle aria-hidden="true" />
+              <AlertDescription>{error}</AlertDescription>
+            </Alert>
+          )}
+
+          <FieldGroup>
+            <div className="grid gap-4 sm:grid-cols-2">
+              <Field>
+                <FieldLabel htmlFor="dossier-employee">Employee *</FieldLabel>
+                <NativeSelect
+                  id="dossier-employee"
                   name="employeeID"
                   value={formData.employeeID}
                   onChange={handleChange}
                   required
                   disabled={isEditing}
+                  className="w-full"
                 >
-                  <option value="">Select Employee</option>
+                  <NativeSelectOption value="">Select Employee</NativeSelectOption>
                   {employees.map(emp => (
-                    <option key={emp.employeeID} value={emp.employeeID}>
+                    <NativeSelectOption key={emp.employeeID} value={emp.employeeID}>
                       {emp.firstName} {emp.lastName}
-                    </option>
+                    </NativeSelectOption>
                   ))}
-                </Form.Select>
-              </Form.Group>
-            </Col>
-            <Col md={6}>
-              <Form.Group className="mb-3">
-                <Form.Label>Employment Type *</Form.Label>
-                <Form.Select
+                </NativeSelect>
+              </Field>
+              <Field>
+                <FieldLabel htmlFor="dossier-employment-type">Employment Type *</FieldLabel>
+                <NativeSelect
+                  id="dossier-employment-type"
                   name="employmentType"
                   value={formData.employmentType}
                   onChange={handleChange}
                   required
+                  className="w-full"
                 >
-                  <option value="">Select Type</option>
+                  <NativeSelectOption value="">Select Type</NativeSelectOption>
                   {employmentTypes.map(type => (
-                    <option key={type} value={type}>{type}</option>
+                    <NativeSelectOption key={type} value={type}>{type}</NativeSelectOption>
                   ))}
-                </Form.Select>
-              </Form.Group>
-            </Col>
-          </Row>
+                </NativeSelect>
+              </Field>
 
-          <Row>
-            <Col md={6}>
-              <Form.Group className="mb-3">
-                <Form.Label>Birth Date</Form.Label>
-                <Form.Control
+              <Field>
+                <FieldLabel htmlFor="dossier-birth-date">Birth Date</FieldLabel>
+                <Input
+                  id="dossier-birth-date"
                   type="date"
                   name="birthDate"
                   value={formData.birthDate}
                   onChange={handleChange}
                 />
-              </Form.Group>
-            </Col>
-            <Col md={6}>
-              <Form.Group className="mb-3">
-                <Form.Label>Emergency Contact</Form.Label>
-                <Form.Control
+              </Field>
+              <Field>
+                <FieldLabel htmlFor="dossier-emergency-contact">Emergency Contact</FieldLabel>
+                <Input
+                  id="dossier-emergency-contact"
                   type="text"
                   name="emergencyContact"
                   value={formData.emergencyContact}
                   onChange={handleChange}
                   placeholder="Name and phone number"
                 />
-                <Form.Text>Who we should call in an emergency.</Form.Text>
-              </Form.Group>
-            </Col>
-          </Row>
+                <FieldDescription>Who we should call in an emergency.</FieldDescription>
+              </Field>
 
-          <Form.Group className="mb-3">
-            <Form.Label>Address</Form.Label>
-            <Form.Control
-              as="textarea"
-              rows={3}
-              name="address"
-              value={formData.address}
-              onChange={handleChange}
-              placeholder="Full address"
-            />
-          </Form.Group>
-        </Form>
-      </Modal.Body>
-      <Modal.Footer>
-        <Button variant="secondary" onClick={onHide}>
-          Cancel
-        </Button>
-        <Button
-          variant="primary"
-          onClick={handleSubmit}
-          disabled={loading}
-        >
-          {loading ? 'Saving...' : (isEditing ? 'Update' : 'Create')}
-        </Button>
-      </Modal.Footer>
-    </Modal>
+              <Field className="sm:col-span-2">
+                <FieldLabel htmlFor="dossier-address">Address</FieldLabel>
+                <Textarea
+                  id="dossier-address"
+                  rows={3}
+                  name="address"
+                  value={formData.address}
+                  onChange={handleChange}
+                  placeholder="Full address"
+                />
+              </Field>
+            </div>
+          </FieldGroup>
+
+          <DialogFooter>
+            <Button type="button" variant="outline" onClick={onHide}>
+              Cancel
+            </Button>
+            <Button type="submit" disabled={loading}>
+              {loading && <Spinner />}
+              {loading ? 'Saving...' : (isEditing ? 'Update' : 'Create')}
+            </Button>
+          </DialogFooter>
+        </form>
+      </DialogContent>
+    </Dialog>
   );
 };
 

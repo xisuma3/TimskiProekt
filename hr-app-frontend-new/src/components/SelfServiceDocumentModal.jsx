@@ -1,5 +1,30 @@
-import React, { useEffect, useState } from 'react';
-import { Alert, Button, Form, Modal } from 'react-bootstrap';
+import { useEffect, useState } from 'react';
+import { AlertCircle, FileLock, FileText } from 'lucide-react';
+import { Alert, AlertDescription } from '@/components/ui/alert';
+import { Button } from '@/components/ui/button';
+import { Checkbox } from '@/components/ui/checkbox';
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from '@/components/ui/dialog';
+import {
+  Field,
+  FieldContent,
+  FieldDescription,
+  FieldGroup,
+  FieldLabel,
+  FieldLegend,
+  FieldSet,
+  FieldTitle,
+} from '@/components/ui/field';
+import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
+import { Spinner } from '@/components/ui/spinner';
+import EmptyState from './app/EmptyState';
+import IconTile from './app/IconTile';
 import { authenticatedFetch } from '../services/authService';
 import { API_URLS } from '../config/api';
 
@@ -76,80 +101,98 @@ const SelfServiceDocumentModal = ({ show, onHide, onGenerated }) => {
   };
 
   return (
-    <Modal show={show} onHide={onHide} centered size="lg">
-      <Modal.Header closeButton>
-        <Modal.Title>Get a document</Modal.Title>
-      </Modal.Header>
-      <Modal.Body>
-        {error && <Alert variant="danger">{error}</Alert>}
+    <Dialog open={show} onOpenChange={(open) => { if (!open) onHide(); }}>
+      <DialogContent className="max-h-[90vh] overflow-y-auto sm:max-w-2xl">
+        {/* No <form>: there is nothing to type, and Radix radios/checkboxes inside a form
+            render hidden bubble inputs that need ResizeObserver, which jsdom lacks. */}
+        <DialogHeader>
+          <DialogTitle>Get a document</DialogTitle>
+          <DialogDescription>
+            These documents are filled in with your own details. For anything else, ask HR.
+          </DialogDescription>
+        </DialogHeader>
+
+        {error && (
+          <Alert variant="destructive">
+            <AlertCircle aria-hidden="true" />
+            <AlertDescription>{error}</AlertDescription>
+          </Alert>
+        )}
 
         {templates === null && (
-          <p className="text-muted mb-0" role="status">
-            <span className="spinner-border spinner-border-sm me-2" aria-hidden="true" />Loading available documents…
+          <p className="flex items-center gap-2 text-sm text-muted-foreground" role="status">
+            <Spinner aria-hidden="true" />
+            Loading available documents…
           </p>
         )}
 
         {templates?.length === 0 && !error && (
-          <div className="empty-state">
-            <i className="bi bi-file-earmark-lock" aria-hidden="true" />
-            <h3>Nothing available yet</h3>
-            <p className="mb-0">HR hasn't made any documents available for self-service. Ask HR if you need one.</p>
-          </div>
+          <EmptyState
+            icon={FileLock}
+            title="Nothing available yet"
+            description="HR hasn't made any documents available for self-service. Ask HR if you need one."
+            className="p-8"
+          />
         )}
 
         {templates?.length > 0 && (
-          <>
-            <p className="text-muted">
-              These documents are filled in with your own details. For anything else, ask HR.
-            </p>
-            <div className="ss-options" role="radiogroup" aria-label="Document">
-              {templates.map((t) => (
-                <label key={t.templateID} className={`ss-option ${templateId === t.templateID ? 'is-selected' : ''}`}>
-                  <input
-                    type="radio"
-                    name="ss-template"
-                    className="form-check-input"
-                    checked={templateId === t.templateID}
-                    onChange={() => setTemplateId(t.templateID)}
-                  />
-                  <span className="item-card-icon tone-indigo" aria-hidden="true"><i className="bi bi-file-earmark-text" /></span>
-                  <span className="flex-grow-1 min-w-0">
-                    <span className="d-block fw-semibold">{t.templateName}</span>
-                    <span className="d-block small text-muted">{t.description || `${t.templateType} document`}</span>
-                  </span>
-                </label>
-              ))}
-            </div>
+          <div className="grid gap-6">
+            <RadioGroup value={templateId} onValueChange={setTemplateId} aria-label="Document">
+              {templates.map((t) => {
+                const id = `ss-template-${t.templateID}`;
+                return (
+                  <FieldLabel key={t.templateID} htmlFor={id}>
+                    <Field orientation="horizontal">
+                      <IconTile icon={FileText} tone="indigo" size="sm" />
+                      <FieldContent className="min-w-0">
+                        <FieldTitle>{t.templateName}</FieldTitle>
+                        <FieldDescription>{t.description || `${t.templateType} document`}</FieldDescription>
+                      </FieldContent>
+                      <RadioGroupItem value={t.templateID} id={id} />
+                    </Field>
+                  </FieldLabel>
+                );
+              })}
+            </RadioGroup>
 
             {needsAssets && (
-              <fieldset className="mt-4">
-                <legend className="form-label">Equipment to list</legend>
+              <FieldSet className="gap-3">
+                <FieldLegend variant="label" className="mb-0">Equipment to list</FieldLegend>
                 {assets.length === 0 ? (
-                  <p className="text-muted small mb-0">You don't have any equipment assigned, so none will be listed.</p>
+                  <p className="text-sm text-muted-foreground">You don't have any equipment assigned, so none will be listed.</p>
                 ) : (
-                  assets.map((a) => (
-                    <Form.Check
-                      key={a.assetID}
-                      id={`ss-asset-${a.assetID}`}
-                      type="checkbox"
-                      label={`${a.name}${a.serialNumber ? ` · ${a.serialNumber}` : ''}`}
-                      checked={assetIds.includes(a.assetID)}
-                      onChange={() => toggleAsset(a.assetID)}
-                    />
-                  ))
+                  <FieldGroup data-slot="checkbox-group" className="gap-3">
+                    {assets.map((a) => {
+                      const id = `ss-asset-${a.assetID}`;
+                      return (
+                        <Field key={a.assetID} orientation="horizontal">
+                          <Checkbox
+                            id={id}
+                            checked={assetIds.includes(a.assetID)}
+                            onCheckedChange={() => toggleAsset(a.assetID)}
+                          />
+                          <FieldLabel htmlFor={id} className="font-normal">
+                            {`${a.name}${a.serialNumber ? ` · ${a.serialNumber}` : ''}`}
+                          </FieldLabel>
+                        </Field>
+                      );
+                    })}
+                  </FieldGroup>
                 )}
-              </fieldset>
+              </FieldSet>
             )}
-          </>
+          </div>
         )}
-      </Modal.Body>
-      <Modal.Footer>
-        <Button variant="secondary" onClick={onHide}>Cancel</Button>
-        <Button variant="primary" onClick={generate} disabled={!selected || submitting}>
-          {submitting ? 'Generating…' : 'Generate'}
-        </Button>
-      </Modal.Footer>
-    </Modal>
+
+        <DialogFooter>
+          <Button type="button" variant="outline" onClick={onHide}>Cancel</Button>
+          <Button type="button" onClick={generate} disabled={!selected || submitting}>
+            {submitting && <Spinner />}
+            {submitting ? 'Generating…' : 'Generate'}
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
   );
 };
 

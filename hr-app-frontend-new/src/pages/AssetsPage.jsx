@@ -1,5 +1,9 @@
-import React, { useState, useEffect } from 'react';
-import { Card, Button, Modal, Badge } from 'react-bootstrap';
+import { useEffect, useState } from 'react';
+import { ArrowLeftRight, Laptop, Pencil, Trash2 } from 'lucide-react';
+import { Button } from '@/components/ui/button';
+import ConfirmDialog from '../components/app/ConfirmDialog';
+import ItemCard, { MetaList } from '../components/app/ItemCard';
+import StatusBadge from '../components/app/StatusBadge';
 import DataPage from '../components/DataPage';
 import AssetModal from '../components/AssetModal';
 import AssetCustodyModal from '../components/AssetCustodyModal';
@@ -46,7 +50,7 @@ const AssetsPage = () => {
         API_URLS.ASSETS.DELETE(assetToDelete.assetID),
         { method: 'DELETE' }
       );
-      
+
       if (response.ok) {
         window.location.reload();
       } else {
@@ -62,66 +66,57 @@ const AssetsPage = () => {
   };
 
   const renderAssetCard = (asset) => (
-    <Card className="item-card">
-      <Card.Body>
-        <div className="item-card-head">
-          <span className="item-card-icon" aria-hidden="true"><i className="bi bi-laptop" /></span>
-          <div className="flex-grow-1 min-w-0">
-            <Card.Title>{asset.name}</Card.Title>
-            <Card.Subtitle>{asset.serialNumber || 'No serial number'}</Card.Subtitle>
-          </div>
-          <span className={`status-chip ${asset.isActive ? 'is-success' : ''}`}>
-            {asset.isActive ? 'Active' : 'Inactive'}
-          </span>
-        </div>
-
-        <dl className="meta-list">
-          <dt>Description</dt>
-          <dd>{asset.description || 'Not specified'}</dd>
-          <dt>Held by</dt>
-          <dd>
-            {asset.isAssigned ? asset.employeeName : <Badge bg="secondary">In stock</Badge>}
-          </dd>
-          {asset.isAssigned && (
-            <>
-              <dt>Since</dt>
-              <dd>{asset.assignmentDate ? new Date(asset.assignmentDate).toLocaleDateString() : '—'}</dd>
-            </>
-          )}
-        </dl>
-
-        <RoleBasedContent allowedRoles={['Admin']}>
-          <div className="item-card-actions">
-            <Button
-              size="sm"
-              variant="outline-info"
-              onClick={() => setCustodyAsset(asset)}
-              title="Assign, return, and custody history"
-            >
-              <i className="bi bi-arrow-left-right me-1" aria-hidden="true"></i> Custody
-            </Button>
-            <Button
-              size="sm"
-              variant="outline-primary"
-              className="btn-icon"
-              onClick={() => handleEditClick(asset)}
-              aria-label={`Edit ${asset.name}`}
-            >
-              <i className="bi bi-pencil" aria-hidden="true"></i>
-            </Button>
-            <Button
-              size="sm"
-              variant="outline-danger"
-              className="btn-icon"
-              onClick={() => handleDeleteClick(asset)}
-              aria-label={`Delete ${asset.name}`}
-            >
-              <i className="bi bi-trash" aria-hidden="true"></i>
-            </Button>
-          </div>
-        </RoleBasedContent>
-      </Card.Body>
-    </Card>
+    <ItemCard
+      icon={Laptop}
+      tone="indigo"
+      title={asset.name}
+      subtitle={asset.serialNumber || 'No serial number'}
+      badge={(
+        <StatusBadge tone={asset.isActive ? 'success' : 'muted'}>
+          {asset.isActive ? 'Active' : 'Inactive'}
+        </StatusBadge>
+      )}
+      actions={isAdmin() ? (
+        <>
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => setCustodyAsset(asset)}
+            title="Assign, return, and custody history"
+          >
+            <ArrowLeftRight aria-hidden="true" />
+            Custody
+          </Button>
+          <Button variant="ghost" size="icon-sm" onClick={() => handleEditClick(asset)} aria-label={`Edit ${asset.name}`}>
+            <Pencil aria-hidden="true" />
+          </Button>
+          <Button
+            variant="ghost"
+            size="icon-sm"
+            className="text-destructive hover:bg-destructive/10 hover:text-destructive"
+            onClick={() => handleDeleteClick(asset)}
+            aria-label={`Delete ${asset.name}`}
+          >
+            <Trash2 aria-hidden="true" />
+          </Button>
+        </>
+      ) : null}
+    >
+      <MetaList
+        items={[
+          { label: 'Description', value: asset.description, fallback: 'Not specified' },
+          {
+            label: 'Held by',
+            value: asset.isAssigned ? asset.employeeName : <StatusBadge tone="muted">In stock</StatusBadge>,
+            fallback: '—',
+          },
+          asset.isAssigned && {
+            label: 'Since',
+            value: asset.assignmentDate ? new Date(asset.assignmentDate).toLocaleDateString() : '—',
+          },
+        ]}
+      />
+    </ItemCard>
   );
 
   return (
@@ -134,7 +129,7 @@ const AssetsPage = () => {
         personFilter={{ label: 'Held by', field: 'employeeName', emptyLabel: 'In stock' }}
         renderCard={renderAssetCard}
         subtitle={isAdmin() ? 'Company equipment and who currently holds it.' : 'Equipment currently assigned to you.'}
-        emptyIcon="bi-laptop"
+        emptyIcon={Laptop}
         searchPlaceholder="Search assets..."
         showAddButton={isAdmin()}
         onAddClick={handleAddClick}
@@ -160,29 +155,15 @@ const AssetsPage = () => {
         />
       </RoleBasedContent>
 
-      <Modal show={showDeleteModal} onHide={() => setShowDeleteModal(false)} centered>
-        <Modal.Header closeButton>
-
-          <Modal.Title>Confirm Delete</Modal.Title>
-        </Modal.Header>
-        <Modal.Body>
-
-          Are you sure you want to delete asset "{assetToDelete?.name}"?
-          <br />
-          <small className="text-muted">This action cannot be undone.</small>
-        </Modal.Body>
-        <Modal.Footer>
-
-          <Button variant="secondary" onClick={() => setShowDeleteModal(false)}>
-            Cancel
-          </Button>
-          <Button variant="danger" onClick={handleDeleteConfirm}>
-            Delete
-          </Button>
-        </Modal.Footer>
-      </Modal>
+      <ConfirmDialog
+        open={showDeleteModal}
+        onOpenChange={setShowDeleteModal}
+        title="Confirm Delete"
+        description={`Are you sure you want to delete asset "${assetToDelete?.name}"? This action cannot be undone.`}
+        onConfirm={handleDeleteConfirm}
+      />
     </>
   );
 };
 
-export default AssetsPage; 
+export default AssetsPage;

@@ -4,10 +4,11 @@ import { BADGE_TONE, STATUS_TONE } from './tones';
 
 // A coloured pill. Pass `tone` (primary | success | warning | danger | info | violet | muted)
 // or `status` (a leave status: Approved / Pending / Rejected) to pick the colour.
-const StatusBadge = ({ tone, status, className, children }) => {
+// Other props (title, aria-label, …) pass through to the badge.
+const StatusBadge = ({ tone, status, className, children, ...props }) => {
   const resolved = tone || STATUS_TONE[status] || 'muted';
   return (
-    <Badge variant="outline" className={cn('font-medium', BADGE_TONE[resolved] || BADGE_TONE.muted, className)}>
+    <Badge variant="outline" className={cn('font-medium', BADGE_TONE[resolved] || BADGE_TONE.muted, className)} {...props}>
       {children ?? status}
     </Badge>
   );

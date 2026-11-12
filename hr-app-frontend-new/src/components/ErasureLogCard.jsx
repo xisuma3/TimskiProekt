@@ -1,5 +1,9 @@
 import React, { useEffect, useState } from 'react';
-import { Card } from 'react-bootstrap';
+import { ShieldCheck } from 'lucide-react';
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { Skeleton } from '@/components/ui/skeleton';
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
+import EmptyState from './app/EmptyState';
 import { authenticatedFetch } from '../services/authService';
 import { parseInstant } from '../services/notificationService';
 import { API_URLS } from '../config/api';
@@ -44,61 +48,62 @@ const ErasureLogCard = ({ refreshKey }) => {
   }, [refreshKey]);
 
   return (
-    <Card className="mt-4">
-      <Card.Header className="py-3">
-        Erasure log
-        <small className="d-block text-muted fw-normal">
+    <Card className="pb-0">
+      <CardHeader>
+        <CardTitle>Erasure log</CardTitle>
+        <CardDescription>
           Every GDPR erasure: who performed it, who requested it and why. Entries can't be changed or removed.
-        </small>
-      </Card.Header>
+        </CardDescription>
+      </CardHeader>
 
       {records === null && (
-        <Card.Body aria-busy="true" aria-label="Loading erasure log">
-          <div className="skeleton" style={{ height: 72 }} />
-        </Card.Body>
+        <CardContent className="pb-6" aria-busy="true" aria-label="Loading erasure log">
+          <Skeleton className="h-18" />
+        </CardContent>
       )}
 
       {records !== null && error && (
-        <Card.Body><div className="chart-muted">Erasure log unavailable</div></Card.Body>
+        <CardContent className="pb-6">
+          <p className="py-6 text-center text-sm text-muted-foreground">Erasure log unavailable</p>
+        </CardContent>
       )}
 
       {records !== null && !error && records.length === 0 && (
-        <Card.Body>
-          <div className="empty-state py-4">
-            <i className="bi bi-shield-check" aria-hidden="true" />
-            <p className="mb-0">No erasures have been performed.</p>
-          </div>
-        </Card.Body>
+        <CardContent className="pb-6">
+          <EmptyState icon={ShieldCheck} title="No erasures have been performed." className="border-0 p-6" />
+        </CardContent>
       )}
 
       {records !== null && !error && records.length > 0 && (
-        <div className="table-responsive">
-          <table className="table mb-0 align-middle">
-            <thead>
-              <tr>
-                <th scope="col" className="ps-4">Performed</th>
-                <th scope="col">Performed by</th>
-                <th scope="col">Requested by</th>
-                <th scope="col">Request received</th>
-                <th scope="col">Reason</th>
-                <th scope="col" className="pe-4">Erased record</th>
-              </tr>
-            </thead>
-            <tbody>
+        <div className="border-t">
+          <Table className="[&_tr>*:first-child]:pl-6 [&_tr>*:last-child]:pr-6">
+            <TableHeader>
+              <TableRow className="hover:bg-transparent">
+                <TableHead scope="col">Performed</TableHead>
+                <TableHead scope="col">Performed by</TableHead>
+                <TableHead scope="col">Requested by</TableHead>
+                <TableHead scope="col">Request received</TableHead>
+                <TableHead scope="col">Reason</TableHead>
+                <TableHead scope="col">Erased record</TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
               {records.map((r) => (
-                <tr key={r.erasureRecordID}>
-                  <td className="ps-4 text-nowrap">{fmtDateTime(r.performedAt)}</td>
-                  <td>{r.performedByName || '—'}</td>
-                  <td>{r.requestedBy}</td>
-                  <td className="text-nowrap">{fmtDate(r.requestReceivedAt)}</td>
-                  <td style={{ minWidth: 200 }}>{r.reason}</td>
-                  <td className="pe-4">
-                    <code title={r.employeeID}>{String(r.employeeID || '').slice(0, 8)}…</code>
-                  </td>
-                </tr>
+                <TableRow key={r.erasureRecordID}>
+                  <TableCell className="py-3">{fmtDateTime(r.performedAt)}</TableCell>
+                  <TableCell className="py-3 whitespace-normal">{r.performedByName || '—'}</TableCell>
+                  <TableCell className="py-3 whitespace-normal">{r.requestedBy}</TableCell>
+                  <TableCell className="py-3">{fmtDate(r.requestReceivedAt)}</TableCell>
+                  <TableCell className="min-w-[200px] py-3 whitespace-normal">{r.reason}</TableCell>
+                  <TableCell className="py-3">
+                    <code className="rounded bg-muted px-1.5 py-0.5 font-mono text-xs" title={r.employeeID}>
+                      {String(r.employeeID || '').slice(0, 8)}…
+                    </code>
+                  </TableCell>
+                </TableRow>
               ))}
-            </tbody>
-          </table>
+            </TableBody>
+          </Table>
         </div>
       )}
     </Card>

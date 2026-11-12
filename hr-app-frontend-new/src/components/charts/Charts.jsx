@@ -2,12 +2,19 @@
 // Follows the dataviz rules: one hue per single-series chart (no legend box),
 // thin marks with a 4px rounded data end, 1px recessive gridlines, text in text
 // tokens (never the data colour), hover + keyboard-focus tooltips, and a table
-// view for every chart.
+// view for every chart. Series colours come from the theme's chart tokens
+// (--chart-1 … --chart-5), so they follow light and dark mode.
 import React, { useLayoutEffect, useRef, useState } from 'react';
-import { Button, Card, Table } from 'react-bootstrap';
+import { BarChart3, CloudOff, Table as TableIcon } from 'lucide-react';
+import { Button } from '@/components/ui/button';
+import { Card, CardAction, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { niceTicks } from '../../pages/analytics/analyticsData';
 
 const fmtNumber = (v) => (typeof v === 'number' ? v.toLocaleString() : v);
+
+// Hover/focus feedback shared by every interactive mark.
+const MARK = 'outline-none transition-opacity hover:opacity-80 focus-visible:opacity-80 focus-visible:ring-3 focus-visible:ring-ring/50 motion-reduce:transition-none';
 
 // Measured container width, so SVG text renders at real pixel size.
 const useWidth = (fallback = 600) => {
@@ -55,34 +62,42 @@ const useTooltip = () => {
     onBlur: hide,
   });
   const node = tip ? (
-    <div className="chart-tooltip" role="presentation" style={{ left: tip.x, top: tip.y }}>
-      <strong>{tip.value}</strong>
-      <span>{tip.label}</span>
+    <div
+      className="pointer-events-none absolute z-10 flex -translate-x-1/2 -translate-y-[calc(100%_+_10px)] flex-col gap-px whitespace-nowrap rounded-md border bg-popover px-2.5 py-1.5 text-xs text-popover-foreground shadow-md"
+      role="presentation"
+      style={{ left: tip.x, top: tip.y }}
+    >
+      <strong className="text-sm font-semibold tabular-nums">{tip.value}</strong>
+      <span className="text-muted-foreground">{tip.label}</span>
     </div>
   ) : null;
   return { containerRef, markProps, node };
 };
 
 export const DataTable = ({ columns, rows }) => (
-  <div className="table-responsive">
-    <Table size="sm" className="mb-0 chart-table">
-      <thead>
-        <tr>
-          {columns.map((c) => (
-            <th key={c} scope="col">{c}</th>
-          ))}
-        </tr>
-      </thead>
-      <tbody>
-        {rows.map((row, i) => (
-          <tr key={i}>
-            {row.map((cell, j) => (
-              <td key={j}>{fmtNumber(cell)}</td>
-            ))}
-          </tr>
+  <Table className="[&_tr>*:last-child]:text-right [&_tr>*:last-child]:tabular-nums">
+    <TableHeader>
+      <TableRow className="hover:bg-transparent">
+        {columns.map((c) => (
+          <TableHead key={c} scope="col" className="h-9 text-xs text-muted-foreground">{c}</TableHead>
         ))}
-      </tbody>
-    </Table>
+      </TableRow>
+    </TableHeader>
+    <TableBody>
+      {rows.map((row, i) => (
+        <TableRow key={i}>
+          {row.map((cell, j) => (
+            <TableCell key={j}>{fmtNumber(cell)}</TableCell>
+          ))}
+        </TableRow>
+      ))}
+    </TableBody>
+  </Table>
+);
+
+const ChartMessage = ({ icon: Icon, children }) => (
+  <div className="flex items-center justify-center gap-2 py-6 text-sm text-muted-foreground">
+    <Icon className="size-4" aria-hidden="true" /> {children}
   </div>
 );
 
@@ -91,37 +106,31 @@ export const ChartCard = ({ title, subtitle, table, unavailable = false, empty =
   const [showTable, setShowTable] = useState(false);
   const canToggle = !unavailable && !empty && table;
   return (
-    <Card className="h-100 chart-card">
-      <Card.Header className="d-flex justify-content-between align-items-start gap-3 py-3">
-        <div className="min-w-0">
-          <div>{title}</div>
-          {subtitle && <small className="text-muted fw-normal">{subtitle}</small>}
-        </div>
+    // overflow-visible: tooltips near the top of a chart may extend past the card edge.
+    <Card className="h-full overflow-visible">
+      <CardHeader>
+        <CardTitle>{title}</CardTitle>
+        {subtitle && <CardDescription>{subtitle}</CardDescription>}
         {canToggle && (
-          <Button
-            size="sm"
-            variant="light"
-            onClick={() => setShowTable((v) => !v)}
-            aria-pressed={showTable}
-          >
-            <i className={`bi ${showTable ? 'bi-bar-chart' : 'bi-table'} me-1`} aria-hidden="true" />
-            {showTable ? 'Chart' : 'Table'}
-          </Button>
+          <CardAction>
+            <Button
+              size="sm"
+              variant="ghost"
+              className="text-muted-foreground"
+              onClick={() => setShowTable((v) => !v)}
+              aria-pressed={showTable}
+            >
+              {showTable ? <BarChart3 aria-hidden="true" /> : <TableIcon aria-hidden="true" />}
+              {showTable ? 'Chart' : 'Table'}
+            </Button>
+          </CardAction>
         )}
-      </Card.Header>
-      <Card.Body>
-        {unavailable && (
-          <div className="chart-muted">
-            <i className="bi bi-cloud-slash" aria-hidden="true" /> Data unavailable
-          </div>
-        )}
-        {!unavailable && empty && (
-          <div className="chart-muted">
-            <i className="bi bi-bar-chart" aria-hidden="true" /> No data for this period
-          </div>
-        )}
+      </CardHeader>
+      <CardContent className="flex-1">
+        {unavailable && <ChartMessage icon={CloudOff}>Data unavailable</ChartMessage>}
+        {!unavailable && empty && <ChartMessage icon={BarChart3}>No data for this period</ChartMessage>}
         {!unavailable && !empty && (showTable ? <DataTable {...table} /> : children)}
-      </Card.Body>
+      </CardContent>
     </Card>
   );
 };
@@ -131,20 +140,23 @@ export const BarList = ({ data, unit = '' }) => {
   const { containerRef, markProps, node } = useTooltip();
   const max = Math.max(1, ...data.map((d) => d.value));
   return (
-    <div className="chart-wrap" ref={containerRef}>
-      <ul className="bar-list" aria-label="Bar chart">
+    <div className="relative" ref={containerRef}>
+      <ul className="m-0 list-none space-y-1.5 p-0" aria-label="Bar chart">
         {data.map((d) => {
           const valueText = `${fmtNumber(d.value)}${unit}`;
           return (
-            <li key={d.label} className="bar-list-row">
-              <span className="bar-list-label" title={d.label}>{d.label}</span>
-              <span className="bar-list-track">
+            <li
+              key={d.label}
+              className="grid min-h-[30px] grid-cols-[minmax(70px,38%)_1fr] items-center gap-3 sm:grid-cols-[minmax(80px,34%)_1fr]"
+            >
+              <span className="truncate text-sm" title={d.label}>{d.label}</span>
+              <span className="flex min-w-0 items-center gap-2">
                 <span
-                  className="bar-list-bar chart-mark"
+                  className={`block h-3.5 min-w-0 cursor-default rounded-r-[4px] bg-chart-1 ${MARK}`}
                   style={{ width: `${Math.max((d.value / max) * 100, d.value > 0 ? 2 : 0)}%` }}
                   {...markProps(valueText, d.label)}
                 />
-                <span className="bar-list-value">{valueText}</span>
+                <span className="shrink-0 text-sm font-semibold tabular-nums">{valueText}</span>
               </span>
             </li>
           );
@@ -185,9 +197,9 @@ export const ColumnChart = ({ data, height = 220, unit = '' }) => {
   const yOf = (v) => pad.top + innerH - (v / top) * innerH;
 
   return (
-    <div className="chart-wrap" ref={setRefs}>
+    <div className="relative" ref={setRefs}>
       <svg
-        className="column-chart"
+        className="block overflow-visible"
         width="100%"
         height={height}
         viewBox={`0 0 ${width} ${height}`}
@@ -196,8 +208,16 @@ export const ColumnChart = ({ data, height = 220, unit = '' }) => {
       >
         {ticks.map((t) => (
           <g key={t}>
-            <line className="chart-grid" x1={pad.left} x2={width - pad.right} y1={yOf(t)} y2={yOf(t)} />
-            <text className="chart-axis" x={pad.left - 6} y={yOf(t)} dy="0.32em" textAnchor="end">
+            <line
+              className="stroke-border"
+              strokeWidth={1}
+              shapeRendering="crispEdges"
+              x1={pad.left}
+              x2={width - pad.right}
+              y1={yOf(t)}
+              y2={yOf(t)}
+            />
+            <text className="fill-muted-foreground text-[11px] tabular-nums" x={pad.left - 6} y={yOf(t)} dy="0.32em" textAnchor="end">
               {fmtNumber(t)}
             </text>
           </g>
@@ -207,11 +227,14 @@ export const ColumnChart = ({ data, height = 220, unit = '' }) => {
           const h = (d.value / top) * innerH;
           const valueText = `${fmtNumber(d.value)}${unit}`;
           return (
-            <g key={d.fullLabel || d.label}>
-              <path className="chart-mark chart-column" d={columnPath(cx - colW / 2, yOf(d.value), colW, h)} />
+            <g key={d.fullLabel || d.label} className="group/col">
+              <path
+                className="pointer-events-none fill-chart-1 transition-opacity group-hover/col:opacity-80 motion-reduce:transition-none"
+                d={columnPath(cx - colW / 2, yOf(d.value), colW, h)}
+              />
               {/* Hit target: the whole band, bigger than the painted mark. */}
               <rect
-                className="chart-hit"
+                className="cursor-default fill-transparent outline-none focus-visible:stroke-ring focus-visible:stroke-3"
                 x={pad.left + band * i}
                 y={pad.top}
                 width={band}
@@ -219,12 +242,12 @@ export const ColumnChart = ({ data, height = 220, unit = '' }) => {
                 {...markProps(valueText, d.fullLabel || d.label)}
               />
               {i === maxIndex && (
-                <text className="chart-value" x={cx} y={yOf(d.value) - 6} textAnchor="middle">
+                <text className="fill-foreground text-[11px] font-bold" x={cx} y={yOf(d.value) - 6} textAnchor="middle">
                   {valueText}
                 </text>
               )}
               {i % labelEvery === 0 && (
-                <text className="chart-axis" x={cx} y={height - 8} textAnchor="middle">
+                <text className="fill-muted-foreground text-[11px] tabular-nums" x={cx} y={height - 8} textAnchor="middle">
                   {d.label}
                 </text>
               )}
@@ -239,37 +262,38 @@ export const ColumnChart = ({ data, height = 220, unit = '' }) => {
 
 // One horizontal bar split into segments (e.g. request outcomes), with a
 // legend and direct labels. Segments are separated by a 2px surface gap.
+// `colorVar` names a CSS custom property, e.g. '--chart-2'.
 export const StackedBar = ({ segments }) => {
   const { containerRef, markProps, node } = useTooltip();
   const total = segments.reduce((s, x) => s + x.value, 0);
   const pct = (v) => (total ? Math.round((v / total) * 100) : 0);
   const visible = segments.filter((s) => s.value > 0);
   return (
-    <div className="chart-wrap" ref={containerRef}>
-      <div className="stacked-labels" aria-hidden="true">
+    <div className="relative" ref={containerRef}>
+      <div className="flex min-h-5 gap-0.5 text-sm font-bold tabular-nums" aria-hidden="true">
         {visible.map((s) => (
-          <span key={s.key} style={{ flexGrow: s.value }}>
+          <span key={s.key} className="min-w-0 basis-0 whitespace-nowrap text-center" style={{ flexGrow: s.value }}>
             {pct(s.value) >= 12 ? `${fmtNumber(s.value)}` : ''}
           </span>
         ))}
       </div>
-      <div className="stacked-bar" role="list" aria-label="Stacked bar">
+      <div className="flex h-5 gap-0.5" role="list" aria-label="Stacked bar">
         {visible.map((s) => (
           <span
             key={s.key}
             role="listitem"
-            className="stacked-seg chart-mark"
+            className={`h-full min-w-1 basis-0 cursor-default first:rounded-l-[4px] last:rounded-r-[4px] ${MARK}`}
             style={{ flexGrow: s.value, background: `var(${s.colorVar})` }}
             {...markProps(`${fmtNumber(s.value)} (${pct(s.value)}%)`, s.label)}
           />
         ))}
       </div>
-      <ul className="chart-legend">
+      <ul className="mt-3.5 flex list-none flex-wrap gap-x-4.5 gap-y-2 p-0 text-sm">
         {segments.map((s) => (
-          <li key={s.key}>
-            <span className="chart-swatch" style={{ background: `var(${s.colorVar})` }} aria-hidden="true" />
-            <span className="fw-semibold">{s.label}</span>
-            <span className="text-muted">
+          <li key={s.key} className="inline-flex items-center gap-1.5">
+            <span className="size-3 shrink-0 rounded-[3px]" style={{ background: `var(${s.colorVar})` }} aria-hidden="true" />
+            <span className="font-medium">{s.label}</span>
+            <span className="text-muted-foreground tabular-nums">
               {fmtNumber(s.value)} · {pct(s.value)}%
             </span>
           </li>

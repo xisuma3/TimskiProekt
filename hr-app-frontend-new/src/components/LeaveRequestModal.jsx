@@ -1,5 +1,19 @@
-import React, { useState, useEffect } from 'react';
-import { Modal, Button, Form, Row, Col, Alert } from 'react-bootstrap';
+import { useState, useEffect } from 'react';
+import { AlertCircle, CircleCheck, TriangleAlert } from 'lucide-react';
+import { Alert, AlertDescription } from '@/components/ui/alert';
+import { Button } from '@/components/ui/button';
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from '@/components/ui/dialog';
+import { Field, FieldGroup, FieldLabel, FieldTitle } from '@/components/ui/field';
+import { NativeSelect, NativeSelectOption } from '@/components/ui/native-select';
+import { Spinner } from '@/components/ui/spinner';
+import { cn } from '@/lib/utils';
 import { authenticatedFetch, getUserInfo, isAdmin } from '../services/authService';
 import { API_URLS } from '../config/api';
 import { asOfForYear, checkAllowance, yearsSpanned } from '../services/leaveBalance';
@@ -97,7 +111,8 @@ const LeaveRequestModal = ({ show, onHide, employees = [], onSave }) => {
     setLoading(true);
     setError('');
 
-    // Submit lives in the modal footer, outside the <form>, so `required` never fires — check here.
+    // The form is noValidate, so the browser's `required` check never fires: check here,
+    // naming everything that's missing in one message.
     const missing = [
       isAdmin() && !formData.employeeID && 'an employee',
       !formData.leaveType && 'a leave type',
@@ -159,101 +174,112 @@ const LeaveRequestModal = ({ show, onHide, employees = [], onSave }) => {
     }));
   };
 
+  // Allowance result: green when it fits, amber when there's no allowance at all, red otherwise.
+  const allowanceTone = !allowance ? null
+    : allowance.ok ? 'border-success/40 bg-success/10 text-success'
+    : allowance.reason === 'none' ? 'border-warning/40 bg-warning/10 text-warning'
+    : null;
+
   return (
-    <Modal show={show} onHide={onHide} size="lg" centered>
-      <Modal.Header closeButton>
-        <Modal.Title>Submit Leave Request</Modal.Title>
-      </Modal.Header>
-      <Modal.Body>
-        {error && <Alert variant="danger">{error}</Alert>}
-        
-        <Form onSubmit={handleSubmit}>
-          <Row>
-            {isAdmin() && (
-              <Col md={6}>
-                <Form.Group className="mb-3">
-                  <Form.Label>Employee *</Form.Label>
-                  <Form.Select
+    <Dialog open={show} onOpenChange={(open) => { if (!open) onHide(); }}>
+      <DialogContent className="sm:max-w-2xl">
+        <form onSubmit={handleSubmit} noValidate className="grid gap-6">
+          <DialogHeader>
+            <DialogTitle>Submit Leave Request</DialogTitle>
+            <DialogDescription>Choose the type of leave and the days you'll be away.</DialogDescription>
+          </DialogHeader>
+
+          {error && (
+            <Alert variant="destructive">
+              <AlertCircle aria-hidden="true" />
+              <AlertDescription>{error}</AlertDescription>
+            </Alert>
+          )}
+
+          <FieldGroup>
+            <div className={cn('grid gap-4', isAdmin() && 'sm:grid-cols-2')}>
+              {isAdmin() && (
+                <Field>
+                  <FieldLabel htmlFor="leave-employee">Employee *</FieldLabel>
+                  <NativeSelect
+                    id="leave-employee"
+                    className="w-full"
                     name="employeeID"
                     value={formData.employeeID}
                     onChange={handleChange}
                     required
                   >
-                    <option value="">Select Employee</option>
+                    <NativeSelectOption value="">Select Employee</NativeSelectOption>
                     {employees.map(emp => (
-                      <option key={emp.employeeID} value={emp.employeeID}>
+                      <NativeSelectOption key={emp.employeeID} value={emp.employeeID}>
                         {emp.firstName} {emp.lastName}
-                      </option>
+                      </NativeSelectOption>
                     ))}
-                  </Form.Select>
-                </Form.Group>
-              </Col>
-            )}
-            <Col md={isAdmin() ? 6 : 12}>
-              <Form.Group className="mb-3">
-                <Form.Label>Leave Type *</Form.Label>
-                <Form.Select
+                  </NativeSelect>
+                </Field>
+              )}
+              <Field>
+                <FieldLabel htmlFor="leave-type">Leave Type *</FieldLabel>
+                <NativeSelect
+                  id="leave-type"
+                  className="w-full"
                   name="leaveType"
                   value={formData.leaveType}
                   onChange={handleChange}
                   required
                 >
-                  <option value="">Select Leave Type</option>
+                  <NativeSelectOption value="">Select Leave Type</NativeSelectOption>
                   {leaveTypes.map(type => (
-                    <option key={type} value={type}>{type}</option>
+                    <NativeSelectOption key={type} value={type}>{type}</NativeSelectOption>
                   ))}
-                </Form.Select>
-              </Form.Group>
-            </Col>
-          </Row>
+                </NativeSelect>
+              </Field>
+            </div>
 
-          <Form.Group className="mb-3">
-            <Form.Label as="div" id="leave-dates-label">Dates *</Form.Label>
-            <div role="group" aria-labelledby="leave-dates-label">
+            <Field aria-labelledby="leave-dates-label">
+              <FieldTitle id="leave-dates-label">Dates *</FieldTitle>
               <DateRangePicker
                 start={formData.startDate}
                 end={formData.endDate}
                 booked={booked}
                 onChange={({ start, end }) => setFormData((prev) => ({ ...prev, startDate: start, endDate: end }))}
               />
-            </div>
-          </Form.Group>
+            </Field>
+          </FieldGroup>
 
           {checking && !allowance && (
-            <p className="text-muted small mb-0" role="status">
-              <span className="spinner-border spinner-border-sm me-2" aria-hidden="true" />
+            <p className="flex items-center gap-2 text-sm text-muted-foreground" role="status">
+              <Spinner aria-hidden="true" />
               Checking your allowance…
             </p>
           )}
           {allowance && (
             <Alert
-              variant={allowance.ok ? 'success' : allowance.reason === 'none' ? 'warning' : 'danger'}
-              className="d-flex gap-2 align-items-start mb-0"
+              variant={allowanceTone ? 'default' : 'destructive'}
+              className={allowanceTone ?? undefined}
               role={allowance.ok ? 'status' : 'alert'}
             >
-              <i
-                className={`bi ${allowance.ok ? 'bi-check-circle' : 'bi-exclamation-triangle'} mt-1`}
-                aria-hidden="true"
-              />
-              <span>{allowance.message}</span>
+              {allowance.ok ? <CircleCheck aria-hidden="true" /> : <TriangleAlert aria-hidden="true" />}
+              <AlertDescription className={allowanceTone ? 'text-foreground' : undefined}>{allowance.message}</AlertDescription>
             </Alert>
           )}
-        </Form>
-      </Modal.Body>
-      <Modal.Footer>
-        <Button variant="secondary" onClick={onHide}>
-          Cancel
-        </Button>
-        <Button
-          variant="primary"
-          onClick={handleSubmit}
-          disabled={loading || blocked}
-          title={blocked ? allowance.message : undefined}
-        >
-          {loading ? 'Submitting...' : 'Submit Request'}
-        </Button>
-      </Modal.Footer>
-    </Modal>
+
+          <DialogFooter>
+            <Button type="button" variant="outline" onClick={onHide}>
+              Cancel
+            </Button>
+            <Button
+              type="submit"
+              disabled={loading || blocked}
+              title={blocked ? allowance.message : undefined}
+            >
+              {loading && <Spinner />}
+              {loading ? 'Submitting...' : 'Submit Request'}
+            </Button>
+          </DialogFooter>
+        </form>
+      </DialogContent>
+    </Dialog>
   );
 };
 

@@ -1,9 +1,46 @@
-import React, { useState, useEffect } from 'react';
-import { Card, Button, Modal, Form, Alert } from 'react-bootstrap';
+import { useState, useEffect } from 'react';
+import { AlertCircle, LogOut, Pencil, Trash2, TriangleAlert, Users } from 'lucide-react';
+import { Alert, AlertDescription } from '@/components/ui/alert';
+import { Button } from '@/components/ui/button';
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from '@/components/ui/dialog';
+import { Field, FieldDescription, FieldGroup, FieldLabel } from '@/components/ui/field';
+import { Input } from '@/components/ui/input';
+import { Spinner } from '@/components/ui/spinner';
+import { Textarea } from '@/components/ui/textarea';
+import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
+import ConfirmDialog from '../components/app/ConfirmDialog';
+import ItemCard, { MetaList } from '../components/app/ItemCard';
 import DataPage from '../components/DataPage';
 import EmployeeModal from '../components/EmployeeModal';
 import { authenticatedFetch } from '../services/authService';
 import { API_URLS } from '../config/api';
+
+// ItemCard's tile takes an icon component; a person gets their initials instead. One
+// component per set of letters, cached so a re-render doesn't remount the tile.
+const initialsIcons = new Map();
+const initialsIcon = (emp) => {
+  const letters = `${(emp.firstName || '?').charAt(0)}${(emp.lastName || '').charAt(0)}`.toUpperCase();
+  if (!initialsIcons.has(letters)) {
+    const Initials = () => <span className="text-sm font-semibold">{letters}</span>;
+    initialsIcons.set(letters, Initials);
+  }
+  return initialsIcons.get(letters);
+};
+
+// An icon-only card action whose meaning needs a word of explanation.
+const ExplainedAction = ({ tip, children }) => (
+  <Tooltip>
+    <TooltipTrigger asChild>{children}</TooltipTrigger>
+    <TooltipContent>{tip}</TooltipContent>
+  </Tooltip>
+);
 
 const EmployeesPage = () => {
   const [showModal, setShowModal] = useState(false);
@@ -136,71 +173,58 @@ const EmployeesPage = () => {
   };
 
   const renderEmployeeCard = (emp) => (
-    <Card className="item-card">
-      <Card.Body>
-        <div className="item-card-head">
-          <span className="item-card-icon" aria-hidden="true">
-            {(emp.firstName || '?').charAt(0).toUpperCase()}{(emp.lastName || '').charAt(0).toUpperCase()}
-          </span>
-          <div className="flex-grow-1 min-w-0">
-            <Card.Title>{emp.firstName} {emp.lastName}</Card.Title>
-            <Card.Subtitle>{emp.position} · {emp.departmentName || emp.name || 'No Department'}</Card.Subtitle>
-          </div>
-        </div>
-
-        <dl className="meta-list">
-          <dt>Email</dt>
-          <dd>{emp.email}</dd>
-          <dt>Hire Date</dt>
-          <dd>{new Date(emp.hireDate).toLocaleDateString()}</dd>
-          {emp.managerName && (
-            <>
-              <dt>Manager</dt>
-              <dd>{emp.managerName}</dd>
-            </>
-          )}
-          {emp.mentorName && (
-            <>
-              <dt>Mentor</dt>
-              <dd>{emp.mentorName}</dd>
-            </>
-          )}
-        </dl>
-
-        <div className="item-card-actions">
+    <ItemCard
+      icon={initialsIcon(emp)}
+      tone="indigo"
+      title={`${emp.firstName} ${emp.lastName}`}
+      subtitle={`${emp.position} · ${emp.departmentName || emp.name || 'No Department'}`}
+      actions={(
+        <>
           <Button
-            size="sm"
-            variant="outline-primary"
-            className="btn-icon"
+            variant="ghost"
+            size="icon-sm"
             onClick={() => handleEditClick(emp)}
             aria-label={`Edit ${emp.firstName} ${emp.lastName}`}
           >
-            <i className="bi bi-pencil" aria-hidden="true"></i>
+            <Pencil aria-hidden="true" />
           </Button>
-          <Button
-            size="sm"
-            variant="outline-warning"
-            className="btn-icon"
-            onClick={() => handleDeleteClick(emp)}
-            title="Retire — hides them but keeps their records"
-            aria-label={`Retire ${emp.firstName} ${emp.lastName}`}
-          >
-            <i className="bi bi-box-arrow-right" aria-hidden="true"></i>
-          </Button>
-          <Button
-            size="sm"
-            variant="outline-danger"
-            className="btn-icon"
-            onClick={() => openErase(emp)}
-            title="Erase personal data — irreversible"
-            aria-label={`Erase personal data of ${emp.firstName} ${emp.lastName}`}
-          >
-            <i className="bi bi-trash" aria-hidden="true"></i>
-          </Button>
-        </div>
-      </Card.Body>
-    </Card>
+          <ExplainedAction tip="Retire — hides them but keeps their records">
+            <Button
+              variant="ghost"
+              size="icon-sm"
+              className="text-warning hover:bg-warning/10 hover:text-warning"
+              onClick={() => handleDeleteClick(emp)}
+              aria-label={`Retire ${emp.firstName} ${emp.lastName}`}
+            >
+              <LogOut aria-hidden="true" />
+            </Button>
+          </ExplainedAction>
+          <ExplainedAction tip="Erase personal data — irreversible">
+            <Button
+              variant="ghost"
+              size="icon-sm"
+              className="text-destructive hover:bg-destructive/10 hover:text-destructive"
+              onClick={() => openErase(emp)}
+              aria-label={`Erase personal data of ${emp.firstName} ${emp.lastName}`}
+            >
+              <Trash2 aria-hidden="true" />
+            </Button>
+          </ExplainedAction>
+        </>
+      )}
+    >
+      <MetaList
+        items={[
+          { label: 'Email', value: emp.email },
+          { label: 'Hire Date', value: new Date(emp.hireDate).toLocaleDateString() },
+          { label: 'Manager', value: emp.managerName },
+          { label: 'Mentor', value: emp.mentorName },
+        ]}
+      />
+    </ItemCard>
   );
+
+  const eraseName = `${employeeToErase?.firstName ?? ''} ${employeeToErase?.lastName ?? ''}`.trim();
 
   return (
     <>
@@ -212,7 +236,7 @@ const EmployeesPage = () => {
         personFilter={{ label: 'Manager', field: 'managerName', emptyLabel: 'No manager' }}
         renderCard={renderEmployeeCard}
         subtitle="Everyone currently employed, with their team and reporting line."
-        emptyIcon="bi-people"
+        emptyIcon={Users}
         searchPlaceholder="Search employees..."
         showAddButton={true}
         onAddClick={handleAddClick}
@@ -227,101 +251,124 @@ const EmployeesPage = () => {
         departments={departments}
       />
 
-      {/* Delete Confirmation Modal */}
-      <Modal show={showDeleteModal} onHide={() => setShowDeleteModal(false)} centered>
-        <Modal.Header closeButton>
-          <Modal.Title>Retire Employee</Modal.Title>
-        </Modal.Header>
-        <Modal.Body>
-          Retire {employeeToDelete?.firstName} {employeeToDelete?.lastName}?
-          <br />
-          <small className="text-muted">
-            They are removed from listings, but their leave decisions, asset custody and
-            generated documents are kept. This can be undone.
-          </small>
-        </Modal.Body>
-        <Modal.Footer>
-          <Button variant="secondary" onClick={() => setShowDeleteModal(false)}>
-            Cancel
-          </Button>
-          <Button variant="warning" onClick={handleDeleteConfirm}>
-            Retire
-          </Button>
-        </Modal.Footer>
-      </Modal>
+      {/* Retire confirmation */}
+      <ConfirmDialog
+        open={showDeleteModal}
+        onOpenChange={setShowDeleteModal}
+        title="Retire Employee"
+        description={`Retire ${employeeToDelete?.firstName} ${employeeToDelete?.lastName}?`}
+        confirmLabel="Retire"
+        destructive={false}
+        onConfirm={handleDeleteConfirm}
+      >
+        <p className="text-sm text-muted-foreground">
+          They are removed from listings, but their leave decisions, asset custody and
+          generated documents are kept. This can be undone.
+        </p>
+      </ConfirmDialog>
 
       {/* GDPR erasure — deliberately harder to trigger than retiring */}
-      <Modal show={Boolean(employeeToErase)} onHide={() => setEmployeeToErase(null)} centered>
-        <Modal.Header closeButton>
-          <Modal.Title>Erase Personal Data</Modal.Title>
-        </Modal.Header>
-        <Modal.Body>
-          {eraseError && <Alert variant="danger">{eraseError}</Alert>}
+      <Dialog open={Boolean(employeeToErase)} onOpenChange={(open) => { if (!open) setEmployeeToErase(null); }}>
+        <DialogContent className="sm:max-w-lg">
+          <form
+            className="grid gap-6"
+            onSubmit={(e) => {
+              e.preventDefault();
+              handleEraseConfirm();
+            }}
+          >
+            <DialogHeader>
+              <DialogTitle>Erase Personal Data</DialogTitle>
+              <DialogDescription>
+                This permanently destroys the personal data of{' '}
+                <strong className="font-semibold text-foreground">{eraseName}</strong>:
+                their name, email, login, dossier, and the body of every document generated
+                for them.
+              </DialogDescription>
+            </DialogHeader>
 
-          <p>
-            This permanently destroys the personal data of{' '}
-            <strong>{employeeToErase?.firstName} {employeeToErase?.lastName}</strong>:
-            their name, email, login, dossier, and the body of every document generated
-            for them.
-          </p>
-          <p className="text-muted">
-            Their leave decisions and asset custody are <strong>kept</strong> in anonymised
-            form — those record what the company did and what happened to company property.
-          </p>
-          <p className="text-danger"><strong>This cannot be undone.</strong></p>
+            {eraseError && (
+              <Alert variant="destructive">
+                <AlertCircle aria-hidden="true" />
+                <AlertDescription>{eraseError}</AlertDescription>
+              </Alert>
+            )}
 
-          <Form.Group className="mb-3" controlId="erase-requested-by">
-            <Form.Label>Requested by *</Form.Label>
-            <Form.Control
-              value={eraseRequestedBy}
-              maxLength={200}
-              onChange={(e) => setEraseRequestedBy(e.target.value)}
-            />
-            <Form.Text>Who asked — e.g. the employee by email, their solicitor.</Form.Text>
-          </Form.Group>
+            <div className="space-y-3 text-sm">
+              <p className="text-muted-foreground">
+                Their leave decisions and asset custody are <strong className="font-semibold text-foreground">kept</strong> in
+                anonymised form — those record what the company did and what happened to company property.
+              </p>
+              <p className="flex items-center gap-2 font-semibold text-destructive">
+                <TriangleAlert className="size-4 shrink-0" aria-hidden="true" />
+                This cannot be undone.
+              </p>
+            </div>
 
-          <Form.Group className="mb-3" controlId="erase-received-at">
-            <Form.Label>Request received</Form.Label>
-            <Form.Control
-              type="date"
-              max={today}
-              value={eraseReceivedAt}
-              onChange={(e) => setEraseReceivedAt(e.target.value)}
-            />
-          </Form.Group>
+            <FieldGroup className="gap-4">
+              <Field>
+                <FieldLabel htmlFor="erase-requested-by">Requested by *</FieldLabel>
+                <Input
+                  id="erase-requested-by"
+                  value={eraseRequestedBy}
+                  maxLength={200}
+                  onChange={(e) => setEraseRequestedBy(e.target.value)}
+                />
+                <FieldDescription>Who asked — e.g. the employee by email, their solicitor.</FieldDescription>
+              </Field>
 
-          <Form.Group className="mb-3" controlId="erase-reason">
-            <Form.Label>Reason *</Form.Label>
-            <Form.Control
-              as="textarea"
-              rows={2}
-              maxLength={1000}
-              value={eraseReason}
-              onChange={(e) => setEraseReason(e.target.value)}
-            />
-          </Form.Group>
+              <Field>
+                <FieldLabel htmlFor="erase-received-at">Request received</FieldLabel>
+                <Input
+                  id="erase-received-at"
+                  type="date"
+                  max={today}
+                  value={eraseReceivedAt}
+                  onChange={(e) => setEraseReceivedAt(e.target.value)}
+                />
+              </Field>
 
-          <Form.Group controlId="erase-confirm-name">
-            <Form.Label>
-              Type <code>{employeeToErase?.firstName} {employeeToErase?.lastName}</code> to confirm
-            </Form.Label>
-            <Form.Control
-              value={eraseConfirmText}
-              onChange={(e) => setEraseConfirmText(e.target.value)}
-            />
-          </Form.Group>
+              <Field>
+                <FieldLabel htmlFor="erase-reason">Reason *</FieldLabel>
+                <Textarea
+                  id="erase-reason"
+                  rows={2}
+                  maxLength={1000}
+                  value={eraseReason}
+                  onChange={(e) => setEraseReason(e.target.value)}
+                />
+              </Field>
 
-          <p className="text-muted small mt-3 mb-0">
-            This creates a permanent audit record naming you as the person who performed the erasure.
-          </p>
-        </Modal.Body>
-        <Modal.Footer>
-          <Button variant="secondary" onClick={() => setEmployeeToErase(null)}>Cancel</Button>
-          <Button variant="danger" onClick={handleEraseConfirm} disabled={!eraseReady || erasing}>
-            {erasing ? 'Erasing…' : 'Erase permanently'}
-          </Button>
-        </Modal.Footer>
-      </Modal>
+              <Field>
+                <FieldLabel htmlFor="erase-confirm-name">
+                  <span>
+                    Type{' '}
+                    <code className="rounded bg-muted px-1 py-0.5 font-mono text-xs">{eraseName}</code>
+                    {' '}to confirm
+                  </span>
+                </FieldLabel>
+                <Input
+                  id="erase-confirm-name"
+                  value={eraseConfirmText}
+                  onChange={(e) => setEraseConfirmText(e.target.value)}
+                />
+              </Field>
+            </FieldGroup>
+
+            <p className="text-xs text-muted-foreground">
+              This creates a permanent audit record naming you as the person who performed the erasure.
+            </p>
+
+            <DialogFooter>
+              <Button type="button" variant="outline" onClick={() => setEmployeeToErase(null)}>Cancel</Button>
+              <Button type="submit" variant="destructive" disabled={!eraseReady || erasing}>
+                {erasing && <Spinner />}
+                {erasing ? 'Erasing…' : 'Erase permanently'}
+              </Button>
+            </DialogFooter>
+          </form>
+        </DialogContent>
+      </Dialog>
     </>
   );
 };

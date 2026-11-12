@@ -1,73 +1,74 @@
-import React from 'react';
-import { Card, Button, Row, Col } from 'react-bootstrap';
+import { FileText, Info, Pencil, Trash2 } from 'lucide-react';
+import { Button } from '@/components/ui/button';
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import IconTile from '../components/app/IconTile';
+import ItemCard, { MetaList } from '../components/app/ItemCard';
+import StatusBadge from '../components/app/StatusBadge';
 import DataPage from '../components/DataPage';
 import DocumentTemplateModal from '../components/DocumentTemplateModal';
 import { API_URLS } from '../config/api';
 import { isAdmin } from '../services/authService';
 
-const typeChip = (type) =>
-  type === 'Asset' ? 'is-primary' : type === 'Employment' ? 'is-success' : 'is-pending';
+const typeTone = (type) =>
+  type === 'Asset' ? 'primary' : type === 'Employment' ? 'success' : 'warning';
+
+const PlaceholderBlock = ({ title, children }) => (
+  <div>
+    <div className="mb-2 text-sm font-semibold">{title}</div>
+    <code className="block rounded-md border bg-muted/50 p-4 font-mono text-sm leading-relaxed wrap-anywhere">
+      {children}
+    </code>
+  </div>
+);
 
 const DocumentTemplatesPage = () => {
   const admin = isAdmin();
   const renderTemplateCard = (template, onEdit, onDelete) => (
-    <Card className="item-card">
-      <Card.Body>
-        <div className="item-card-head">
-          <span className="item-card-icon" aria-hidden="true"><i className="bi bi-file-earmark-text" /></span>
-          <div className="flex-grow-1 min-w-0">
-            <Card.Title>{template.templateName}</Card.Title>
-            <Card.Subtitle className="text-truncate">
-              {template.allowSelfService ? 'Employees can generate this themselves' : 'Issued by HR only'}
-            </Card.Subtitle>
-          </div>
-          {template.allowSelfService && (
-            <span className="status-chip is-info" title="Employees can generate this themselves">Self-service</span>
-          )}
-          <span className={`status-chip ${typeChip(template.templateType)}`}>{template.templateType}</span>
+    <ItemCard
+      icon={FileText}
+      tone="indigo"
+      title={template.templateName}
+      subtitle={template.allowSelfService ? 'Employees can generate this themselves' : 'Issued by HR only'}
+      badge={(
+        <div className="flex flex-col items-end gap-1">
+          {template.allowSelfService && <StatusBadge tone="info">Self-service</StatusBadge>}
+          <StatusBadge tone={typeTone(template.templateType)}>{template.templateType}</StatusBadge>
         </div>
+      )}
+      actions={admin ? (
+        <>
+          <Button variant="ghost" size="icon-sm" aria-label="Edit template" onClick={() => onEdit(template)}>
+            <Pencil aria-hidden="true" />
+          </Button>
+          <Button
+            variant="ghost"
+            size="icon-sm"
+            className="text-destructive hover:bg-destructive/10 hover:text-destructive"
+            aria-label="Delete template"
+            onClick={() => onDelete(template)}
+          >
+            <Trash2 aria-hidden="true" />
+          </Button>
+        </>
+      ) : null}
+    >
+      <MetaList
+        items={[
+          { label: 'Description', value: template.description, fallback: 'No description available' },
+          { label: 'Documents', value: `${template.generatedDocumentsCount || 0} generated` },
+        ]}
+      />
 
-        <dl className="meta-list mb-3">
-          <dt>Description</dt>
-          <dd>{template.description || 'No description available'}</dd>
-          <dt>Documents</dt>
-          <dd>{template.generatedDocumentsCount || 0} generated</dd>
-        </dl>
-
-        <div className="small text-muted fw-semibold mb-1">Content preview</div>
-        <div className="p-2 rounded small font-monospace text-break" style={{ background: 'var(--hr-surface-muted)', border: '1px solid var(--hr-border)' }}>
-          {template.templateContent ?
-            template.templateContent.length > 100
-              ? template.templateContent.substring(0, 100) + '...'
-              : template.templateContent
-            : 'No content available'
-          }
-        </div>
-
-        {admin && (
-          <div className="item-card-actions">
-            <Button
-              variant="outline-primary"
-              size="sm"
-              className="btn-icon"
-              aria-label="Edit template"
-              onClick={() => onEdit(template)}
-            >
-              <i className="bi bi-pencil" aria-hidden="true"></i>
-            </Button>
-            <Button
-              variant="outline-danger"
-              size="sm"
-              className="btn-icon"
-              aria-label="Delete template"
-              onClick={() => onDelete(template)}
-            >
-              <i className="bi bi-trash" aria-hidden="true"></i>
-            </Button>
-          </div>
-        )}
-      </Card.Body>
-    </Card>
+      <div className="mt-4 mb-1 text-xs font-semibold text-muted-foreground">Content preview</div>
+      <div className="rounded-md border bg-muted/50 p-2 font-mono text-xs wrap-anywhere">
+        {template.templateContent ?
+          template.templateContent.length > 100
+            ? template.templateContent.substring(0, 100) + '...'
+            : template.templateContent
+          : 'No content available'
+        }
+      </div>
+    </ItemCard>
   );
 
   const handleDelete = async (template, token) => {
@@ -93,7 +94,7 @@ const DocumentTemplatesPage = () => {
       <DataPage
         title="Document Templates"
         subtitle="Reusable templates for contracts, handover forms and letters."
-        emptyIcon="bi-file-earmark-text"
+        emptyIcon={FileText}
         apiEndpoint={apiEndpoint}
         searchFields={['templateName', 'templateType', 'description']}
         renderCard={renderTemplateCard}
@@ -105,38 +106,32 @@ const DocumentTemplatesPage = () => {
       />
 
       {/* Template Placeholder Guide */}
-      <Card className="mt-4">
-        <Card.Body>
-          <div className="item-card-head mb-3">
-            <span className="item-card-icon tone-amber" aria-hidden="true"><i className="bi bi-info-circle" /></span>
-            <div>
-              <Card.Title>Template Placeholder Guide</Card.Title>
-              <Card.Subtitle>Available placeholders for template content</Card.Subtitle>
+      <Card className="mt-6">
+        <CardHeader>
+          <div className="flex items-start gap-3">
+            <IconTile icon={Info} tone="amber" />
+            <div className="min-w-0">
+              <CardTitle>Template Placeholder Guide</CardTitle>
+              <CardDescription>Available placeholders for template content</CardDescription>
             </div>
           </div>
-          <Row className="g-3">
-            <Col md={6}>
-              <div className="fw-semibold mb-2">Employee Data</div>
-              <code className="d-block p-3 rounded" style={{ background: 'var(--hr-surface-muted)', border: '1px solid var(--hr-border)' }}>
-                {'{{employee.firstName}}'}<br />
-                {'{{employee.lastName}}'}<br />
-                {'{{employee.email}}'}<br />
-                {'{{employee.position}}'}<br />
-                {'{{employee.department}}'}<br />
-                {'{{employee.hireDate}}'}
-              </code>
-            </Col>
-            <Col md={6}>
-              <div className="fw-semibold mb-2">System & Assets</div>
-              <code className="d-block p-3 rounded" style={{ background: 'var(--hr-surface-muted)', border: '1px solid var(--hr-border)' }}>
-                {'{{system.currentDate}}'}<br />
-                {'{{asset.name}}'}<br />
-                {'{{asset.serialNumber}}'}<br />
-                {'{{#assetList}}...{{/assetList}}'}
-              </code>
-            </Col>
-          </Row>
-        </Card.Body>
+        </CardHeader>
+        <CardContent className="grid gap-4 md:grid-cols-2">
+          <PlaceholderBlock title="Employee Data">
+            {'{{employee.firstName}}'}<br />
+            {'{{employee.lastName}}'}<br />
+            {'{{employee.email}}'}<br />
+            {'{{employee.position}}'}<br />
+            {'{{employee.department}}'}<br />
+            {'{{employee.hireDate}}'}
+          </PlaceholderBlock>
+          <PlaceholderBlock title="System & Assets">
+            {'{{system.currentDate}}'}<br />
+            {'{{asset.name}}'}<br />
+            {'{{asset.serialNumber}}'}<br />
+            {'{{#assetList}}...{{/assetList}}'}
+          </PlaceholderBlock>
+        </CardContent>
       </Card>
     </>
   );

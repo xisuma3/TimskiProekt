@@ -1,5 +1,21 @@
-import React, { useState, useEffect } from 'react';
-import { Card, Button, Modal, Form } from 'react-bootstrap';
+import { useState, useEffect } from 'react';
+import { Calendar, CalendarRange, Check, Hourglass, Users, X } from 'lucide-react';
+import { Button } from '@/components/ui/button';
+import { Card, CardContent } from '@/components/ui/card';
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from '@/components/ui/dialog';
+import { Field, FieldLabel } from '@/components/ui/field';
+import { Textarea } from '@/components/ui/textarea';
+import IconTile from '../components/app/IconTile';
+import ItemCard, { MetaList } from '../components/app/ItemCard';
+import { SectionTitle } from '../components/app/PageHeader';
+import StatusBadge from '../components/app/StatusBadge';
 import DataPage from '../components/DataPage';
 import LeaveRequestModal from '../components/LeaveRequestModal';
 import LeaveCalendar from '../components/LeaveCalendar';
@@ -98,88 +114,73 @@ Reason (optional):`
     }
   };
 
-  const getStatusChip = (status) => {
-    const tone = status === 'Approved' ? 'is-approved' :
-                 status === 'Rejected' ? 'is-rejected' : 'is-pending';
-    return <span className={`status-chip ${tone}`}>{status}</span>;
+  const closeApprove = () => {
+    setShowApproveModal(false);
+    setDecisionReason('');
   };
 
   const makeRenderCard = (canDecide) => (request) => (
-    <Card className="item-card">
-      <Card.Body>
-        <div className="item-card-head">
-          <span className="item-card-icon" aria-hidden="true"><i className="bi bi-calendar2-week" /></span>
-          <div className="flex-grow-1 min-w-0">
-            <Card.Title>
-              {isAdmin() || canDecide ? request.employeeName : 'My Leave Request'}
-            </Card.Title>
-            <Card.Subtitle>{request.leaveType} Leave</Card.Subtitle>
-          </div>
-          {getStatusChip(request.status)}
+    <ItemCard
+      icon={CalendarRange}
+      tone="indigo"
+      title={isAdmin() || canDecide ? request.employeeName : 'My Leave Request'}
+      subtitle={`${request.leaveType} Leave`}
+      badge={<StatusBadge status={request.status} />}
+      // Admin can approve/reject, employees can only view
+      actions={canDecide && request.status === 'Pending' ? (
+        <>
+          <Button
+            size="sm"
+            variant="outline"
+            className="text-success hover:bg-success/10 hover:text-success"
+            onClick={() => {
+              setRequestToProcess(request);
+              setShowApproveModal(true);
+            }}
+          >
+            <Check aria-hidden="true" />
+            Approve
+          </Button>
+          <Button
+            size="sm"
+            variant="outline"
+            className="text-destructive hover:bg-destructive/10 hover:text-destructive"
+            onClick={() => handleReject(request)}
+          >
+            <X aria-hidden="true" />
+            Reject
+          </Button>
+        </>
+      ) : null}
+    >
+      {/* Team view only: why this manager may decide it (skip-level or delegated). */}
+      {request.approvalRoute && (
+        <div className="mb-3">
+          <span title="Why you can decide this request">
+            <StatusBadge tone="info">{request.approvalRoute}</StatusBadge>
+          </span>
         </div>
+      )}
 
-        {/* Team view only: why this manager may decide it (skip-level or delegated). */}
-        {request.approvalRoute && (
-          <div className="mb-2">
-            <span className="status-chip is-info" title="Why you can decide this request">{request.approvalRoute}</span>
-          </div>
-        )}
-
-        <dl className="meta-list">
-          <dt>Start Date</dt>
-          <dd>{new Date(request.startDate).toLocaleDateString()}</dd>
-          <dt>End Date</dt>
-          <dd>{new Date(request.endDate).toLocaleDateString()}</dd>
-          <dt>Duration</dt>
-          <dd>{request.totalDays} {request.totalDays === 1 ? 'day' : 'days'}</dd>
-          <dt>Created</dt>
-          <dd>{new Date(request.createdAt).toLocaleDateString()}</dd>
-          {request.status !== 'Pending' && request.decisionAt && (
-            <>
-              <dt>{request.status} by</dt>
-              <dd>
-                {request.approvedByName || 'Unknown'}
-                {request.decidedOnBehalfOfName && ` on behalf of ${request.decidedOnBehalfOfName}`}
-                {' '}on {new Date(request.decisionAt).toLocaleDateString()}
-              </dd>
-              {request.decisionReason && (
-                <>
-                  <dt>Reason</dt>
-                  <dd>{request.decisionReason}</dd>
-                </>
-              )}
-            </>
-          )}
-        </dl>
-
-        {/* Admin can approve/reject, employees can only view */}
-        {canDecide && (
-          request.status === 'Pending' && (
-            <div className="item-card-actions">
-              <Button
-                size="sm"
-                variant="outline-success"
-                onClick={() => {
-                  setRequestToProcess(request);
-                  setShowApproveModal(true);
-                }}
-              >
-                <i className="bi bi-check-lg me-1" aria-hidden="true" />
-                Approve
-              </Button>
-              <Button
-                size="sm"
-                variant="outline-danger"
-                onClick={() => handleReject(request)}
-              >
-                <i className="bi bi-x-lg me-1" aria-hidden="true" />
-                Reject
-              </Button>
-            </div>
-          )
-        )}
-      </Card.Body>
-    </Card>
+      <MetaList
+        items={[
+          { label: 'Start Date', value: new Date(request.startDate).toLocaleDateString() },
+          { label: 'End Date', value: new Date(request.endDate).toLocaleDateString() },
+          { label: 'Duration', value: `${request.totalDays} ${request.totalDays === 1 ? 'day' : 'days'}` },
+          { label: 'Created', value: new Date(request.createdAt).toLocaleDateString() },
+          request.status !== 'Pending' && request.decisionAt && {
+            label: `${request.status} by`,
+            value: `${request.approvedByName || 'Unknown'}`
+              + `${request.decidedOnBehalfOfName ? ` on behalf of ${request.decidedOnBehalfOfName}` : ''}`
+              + ` on ${new Date(request.decisionAt).toLocaleDateString()}`,
+          },
+          request.status !== 'Pending' && request.decisionAt && request.decisionReason && {
+            label: 'Reason',
+            value: request.decisionReason,
+          },
+        ]}
+      />
+    </ItemCard>
   );
 
   // Admins decide anything; a manager decides only their own reports, which the API
@@ -190,43 +191,42 @@ Reason (optional):`
   return (
     <>
       {!isAdmin() && balances.length > 0 && (
-        <div className="mb-4">
-          <h2 className="section-title">My Balance ({new Date().getFullYear()})</h2>
+        <div className="mb-6">
+          <SectionTitle>My Balance ({new Date().getFullYear()})</SectionTitle>
           <LeaveBalanceCards balances={balances} compact />
         </div>
       )}
 
       {!isAdmin() && teamCount > 0 && (
-        <Card className="mb-4">
-          <Card.Body className="d-flex flex-wrap align-items-center gap-3">
-            <span className="item-card-icon tone-amber" aria-hidden="true">
-              <i className="bi bi-hourglass-split" />
-            </span>
-            <div className="flex-grow-1">
-              <div className="fw-semibold">
+        <Card className="mb-6 gap-0 py-0">
+          <CardContent className="flex flex-wrap items-center gap-4 p-4">
+            <IconTile icon={Hourglass} tone="amber" />
+            <div className="min-w-0 flex-1">
+              <p className="font-semibold">
                 <strong>{teamCount}</strong> leave request{teamCount === 1 ? '' : 's'}
                 {teamCount === 1 ? ' is' : ' are'} waiting on you.
-              </div>
-              <small className="text-muted">
+              </p>
+              <p className="text-sm text-muted-foreground">
                 From people in your reporting line, including indirect reports, and anyone whose approvals you're covering.
-              </small>
+              </p>
             </div>
             <Button
               size="sm"
-              variant={showTeam ? 'secondary' : 'primary'}
+              variant={showTeam ? 'secondary' : 'default'}
               onClick={() => setShowTeam(!showTeam)}
               aria-expanded={showTeam}
             >
               {showTeam ? 'Hide' : 'Review'}
             </Button>
-          </Card.Body>
+          </CardContent>
         </Card>
       )}
 
       {!isAdmin() && showTeam && (
-        <div className="mb-5">
+        <div className="mb-12">
           <DataPage
             title="My Team's Requests"
+            headingLevel={2}
             subtitle="Requests you can decide: direct and indirect reports, and anyone whose approvals you're covering."
             apiEndpoint={API_URLS.LEAVE_REQUESTS.GET_MY_TEAM(false)}
             searchFields={['employeeName', 'leaveType', 'status']}
@@ -235,7 +235,7 @@ Reason (optional):`
             renderCard={renderTeamRequestCard}
             searchPlaceholder="Search team requests..."
             showAddButton={false}
-            emptyIcon="bi-people"
+            emptyIcon={Users}
             renderCalendar={(items) => (
               <LeaveCalendar requests={items} renderDetails={renderTeamRequestCard} showNames />
             )}
@@ -257,7 +257,7 @@ Reason (optional):`
         showAddButton={true}
         onAddClick={handleAddClick}
         createButtonText="New Request"
-        emptyIcon="bi-calendar2"
+        emptyIcon={Calendar}
         renderCalendar={(items) => (
           <LeaveCalendar requests={items} renderDetails={renderLeaveRequestCard} showNames={isAdmin()} />
         )}
@@ -270,35 +270,38 @@ Reason (optional):`
         onSave={() => window.location.reload()}
       />
 
-      <Modal show={showApproveModal} onHide={() => { setShowApproveModal(false); setDecisionReason(''); }} centered>
-        <Modal.Header closeButton>
-          <Modal.Title>Approve Leave Request</Modal.Title>
-        </Modal.Header>
-        <Modal.Body>
-          <p>
-            Approve {requestToProcess?.totalDays}-day {requestToProcess?.leaveType?.toLowerCase()} leave
-            for {requestToProcess?.employeeName}?
-          </p>
-          <Form.Group controlId="approve-reason">
-            <Form.Label>Reason (optional)</Form.Label>
-            <Form.Control
-              as="textarea"
-              rows={2}
-              value={decisionReason}
-              onChange={(e) => setDecisionReason(e.target.value)}
-              placeholder="Recorded against this decision"
-            />
-          </Form.Group>
-        </Modal.Body>
-        <Modal.Footer>
-          <Button variant="secondary" onClick={() => { setShowApproveModal(false); setDecisionReason(''); }}>
-            Cancel
-          </Button>
-          <Button variant="success" onClick={handleApprove}>
-            Approve
-          </Button>
-        </Modal.Footer>
-      </Modal>
+      <Dialog open={showApproveModal} onOpenChange={(open) => { if (!open) closeApprove(); }}>
+        <DialogContent className="sm:max-w-lg">
+          <form onSubmit={(e) => { e.preventDefault(); handleApprove(); }} className="grid gap-6">
+            <DialogHeader>
+              <DialogTitle>Approve Leave Request</DialogTitle>
+              <DialogDescription>
+                Approve {requestToProcess?.totalDays}-day {requestToProcess?.leaveType?.toLowerCase()} leave
+                for {requestToProcess?.employeeName}?
+              </DialogDescription>
+            </DialogHeader>
+            <Field>
+              <FieldLabel htmlFor="approve-reason">Reason (optional)</FieldLabel>
+              <Textarea
+                id="approve-reason"
+                rows={2}
+                value={decisionReason}
+                onChange={(e) => setDecisionReason(e.target.value)}
+                placeholder="Recorded against this decision"
+              />
+            </Field>
+            <DialogFooter>
+              <Button type="button" variant="outline" onClick={closeApprove}>
+                Cancel
+              </Button>
+              <Button type="submit" className="bg-success text-success-foreground hover:bg-success/85">
+                <Check aria-hidden="true" />
+                Approve
+              </Button>
+            </DialogFooter>
+          </form>
+        </DialogContent>
+      </Dialog>
     </>
   );
 };

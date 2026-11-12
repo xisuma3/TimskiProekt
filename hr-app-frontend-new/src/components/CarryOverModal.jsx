@@ -1,15 +1,33 @@
-import React, { useEffect, useState } from 'react';
-import { Alert, Button, Col, Form, Modal, Row, Table } from 'react-bootstrap';
+import { useEffect, useState } from 'react';
+import { AlertCircle, CalendarX, CircleCheck, Info } from 'lucide-react';
+import { Alert, AlertDescription } from '@/components/ui/alert';
+import { Button } from '@/components/ui/button';
+import { Checkbox } from '@/components/ui/checkbox';
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from '@/components/ui/dialog';
+import { Field, FieldDescription, FieldLabel, FieldLegend, FieldSet } from '@/components/ui/field';
+import { Input } from '@/components/ui/input';
+import { Spinner } from '@/components/ui/spinner';
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
+import ConfirmDialog from './app/ConfirmDialog';
+import EmptyState from './app/EmptyState';
+import StatusBadge from './app/StatusBadge';
 import { authenticatedFetch } from '../services/authService';
 import { API_URLS } from '../config/api';
 
 const LEAVE_TYPES = ['Vacation', 'Sick', 'Parental', 'Unpaid'];
 
-const ACTION_CHIP = {
-  Created: 'is-success',
-  Updated: 'is-info',
-  Unchanged: '',
-  Skipped: 'is-pending',
+const ACTION_TONE = {
+  Created: 'success',
+  Updated: 'info',
+  Unchanged: 'muted',
+  Skipped: 'warning',
 };
 
 // Year-end carry-over: preview what moves into next year, then apply it. Applying is
@@ -23,6 +41,7 @@ const CarryOverModal = ({ show, onHide, onApplied }) => {
   const [applied, setApplied] = useState(false);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState('');
+  const [confirming, setConfirming] = useState(false);
 
   useEffect(() => {
     if (!show) return;
@@ -75,11 +94,12 @@ const CarryOverModal = ({ show, onHide, onApplied }) => {
     }
   };
 
-  const apply = () => {
-    const toYear = Number(fromYear) + 1;
-    if (window.confirm(`Apply carry-over from ${fromYear} into ${toYear}? Next year's allowances will be created or updated.`)) {
-      run(false);
-    }
+  // Applying asks first; the confirmation runs the real (non-preview) call.
+  const toYear = Number(fromYear) + 1;
+  const apply = () => setConfirming(true);
+  const confirmApply = () => {
+    setConfirming(false);
+    run(false);
   };
 
   const counts = (results || []).reduce((acc, r) => ({ ...acc, [r.action]: (acc[r.action] || 0) + 1 }), {});
@@ -91,35 +111,41 @@ const CarryOverModal = ({ show, onHide, onApplied }) => {
   ].join(' · ');
 
   return (
-    <Modal show={show} onHide={onHide} size="lg" centered>
-      <Modal.Header closeButton>
-        <Modal.Title>Year-end carry-over</Modal.Title>
-      </Modal.Header>
-      <Modal.Body>
-        <p className="text-muted">
-          Unused days (the full year's allowance minus approved and pending leave) move into next year's
-          allowance, up to the cap. Missing next-year allowances are created with the same allocation and accrual.
-        </p>
-        {error && <Alert variant="danger">{error}</Alert>}
+    <>
+      <Dialog open={show} onOpenChange={(open) => { if (!open) onHide(); }}>
+        <DialogContent className="sm:max-w-2xl">
+          <DialogHeader>
+            <DialogTitle>Year-end carry-over</DialogTitle>
+            <DialogDescription>
+              Unused days (the full year's allowance minus approved and pending leave) move into next year's
+              allowance, up to the cap. Missing next-year allowances are created with the same allocation and accrual.
+            </DialogDescription>
+          </DialogHeader>
 
-        <Row className="g-3 mb-3">
-          <Col sm={4}>
-            <Form.Group controlId="carry-from-year">
-              <Form.Label>From year</Form.Label>
-              <Form.Control
+          {error && (
+            <Alert variant="destructive">
+              <AlertCircle aria-hidden="true" />
+              <AlertDescription>{error}</AlertDescription>
+            </Alert>
+          )}
+
+          <div className="grid gap-4 sm:grid-cols-3">
+            <Field>
+              <FieldLabel htmlFor="carry-from-year">From year</FieldLabel>
+              <Input
+                id="carry-from-year"
                 type="number"
                 min={2000}
                 max={2099}
                 value={fromYear}
                 onChange={(e) => changed(setFromYear)(e.target.value)}
               />
-              <Form.Text>Into {Number(fromYear) + 1}</Form.Text>
-            </Form.Group>
-          </Col>
-          <Col sm={4}>
-            <Form.Group controlId="carry-max-days">
-              <Form.Label>Max days to carry</Form.Label>
-              <Form.Control
+              <FieldDescription>Into {Number(fromYear) + 1}</FieldDescription>
+            </Field>
+            <Field>
+              <FieldLabel htmlFor="carry-max-days">Max days to carry</FieldLabel>
+              <Input
+                id="carry-max-days"
                 type="number"
                 min={0}
                 max={366}
@@ -127,83 +153,101 @@ const CarryOverModal = ({ show, onHide, onApplied }) => {
                 value={maxDays}
                 onChange={(e) => changed(setMaxDays)(e.target.value)}
               />
-              <Form.Text>Per employee, per leave type</Form.Text>
-            </Form.Group>
-          </Col>
-          <Col sm={4}>
-            <fieldset>
-              <legend className="form-label">Leave types</legend>
+              <FieldDescription>Per employee, per leave type</FieldDescription>
+            </Field>
+            <FieldSet className="gap-2.5">
+              <FieldLegend variant="label" className="mb-1">Leave types</FieldLegend>
               {LEAVE_TYPES.map((t) => (
-                <Form.Check
-                  key={t}
-                  id={`carry-type-${t}`}
-                  type="checkbox"
-                  label={t}
-                  checked={types.includes(t)}
-                  onChange={() => toggleType(t)}
-                />
+                <Field key={t} orientation="horizontal" className="gap-2">
+                  <Checkbox
+                    id={`carry-type-${t}`}
+                    checked={types.includes(t)}
+                    onCheckedChange={() => toggleType(t)}
+                  />
+                  <FieldLabel htmlFor={`carry-type-${t}`} className="font-normal">{t}</FieldLabel>
+                </Field>
               ))}
-            </fieldset>
-          </Col>
-        </Row>
+            </FieldSet>
+          </div>
 
-        {results && (
-          <>
-            <Alert variant={applied ? 'success' : 'info'} className="mb-3" role="status">
-              {applied ? 'Applied. ' : 'Preview — nothing has been saved yet. '}
-              {summary}
-            </Alert>
-            {results.length === 0 ? (
-              <div className="empty-state">
-                <i className="bi bi-calendar-x" aria-hidden="true" />
-                <h3>Nothing to carry over</h3>
-                <p className="mb-0">No {types.join(', ').toLowerCase()} allowances exist for {fromYear}.</p>
-              </div>
-            ) : (
-              <div className="table-responsive" style={{ maxHeight: '45vh' }}>
-                <Table size="sm" className="align-middle mb-0">
-                  <thead>
-                    <tr>
-                      <th scope="col">Employee</th>
-                      <th scope="col">Type</th>
-                      <th scope="col" className="text-end">Unused</th>
-                      <th scope="col" className="text-end">Carried</th>
-                      <th scope="col">Action</th>
-                      <th scope="col">Note</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {results.map((r) => (
-                      <tr key={`${r.employeeID}-${r.leaveType}`}>
-                        <td>{r.employeeName}</td>
-                        <td>{r.leaveType}</td>
-                        <td className="text-end">{r.unusedDays}</td>
-                        <td className="text-end fw-semibold">{r.carriedDays}</td>
-                        <td><span className={`status-chip ${ACTION_CHIP[r.action] ?? ''}`}>{r.action}</span></td>
-                        <td className="small text-muted">{r.note || '—'}</td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </Table>
-              </div>
+          {results && (
+            <div className="grid gap-4">
+              <Alert
+                className={applied ? 'border-success/40 bg-success/10 text-success' : 'border-sky-500/30 bg-sky-500/5 text-sky-600 dark:text-sky-400'}
+                role="status"
+              >
+                {applied ? <CircleCheck aria-hidden="true" /> : <Info aria-hidden="true" />}
+                <AlertDescription className="text-foreground">
+                  {applied ? 'Applied. ' : 'Preview — nothing has been saved yet. '}
+                  {summary}
+                </AlertDescription>
+              </Alert>
+              {results.length === 0 ? (
+                <EmptyState
+                  icon={CalendarX}
+                  title="Nothing to carry over"
+                  description={`No ${types.join(', ').toLowerCase()} allowances exist for ${fromYear}.`}
+                  className="p-8"
+                />
+              ) : (
+                <div className="max-h-[45vh] overflow-y-auto rounded-lg border">
+                  <Table>
+                    <TableHeader>
+                      <TableRow>
+                        <TableHead scope="col">Employee</TableHead>
+                        <TableHead scope="col">Type</TableHead>
+                        <TableHead scope="col" className="text-right">Unused</TableHead>
+                        <TableHead scope="col" className="text-right">Carried</TableHead>
+                        <TableHead scope="col">Action</TableHead>
+                        <TableHead scope="col">Note</TableHead>
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                      {results.map((r) => (
+                        <TableRow key={`${r.employeeID}-${r.leaveType}`}>
+                          <TableCell>{r.employeeName}</TableCell>
+                          <TableCell>{r.leaveType}</TableCell>
+                          <TableCell className="text-right tabular-nums">{r.unusedDays}</TableCell>
+                          <TableCell className="text-right font-semibold tabular-nums">{r.carriedDays}</TableCell>
+                          <TableCell><StatusBadge tone={ACTION_TONE[r.action] ?? 'muted'}>{r.action}</StatusBadge></TableCell>
+                          <TableCell className="min-w-48 whitespace-normal text-xs text-muted-foreground">{r.note || '—'}</TableCell>
+                        </TableRow>
+                      ))}
+                    </TableBody>
+                  </Table>
+                </div>
+              )}
+            </div>
+          )}
+
+          <DialogFooter>
+            <Button variant="outline" onClick={onHide} disabled={busy}>{applied ? 'Close' : 'Cancel'}</Button>
+            {!applied && (
+              <>
+                <Button variant="outline" onClick={() => run(true)} disabled={busy}>
+                  {busy && !results && <Spinner />}
+                  {busy && !results ? 'Working…' : 'Preview'}
+                </Button>
+                <Button onClick={apply} disabled={busy || !results || results.length === 0}>
+                  {busy && results && <Spinner />}
+                  {busy && results ? 'Applying…' : 'Apply carry-over'}
+                </Button>
+              </>
             )}
-          </>
-        )}
-      </Modal.Body>
-      <Modal.Footer>
-        <Button variant="secondary" onClick={onHide} disabled={busy}>{applied ? 'Close' : 'Cancel'}</Button>
-        {!applied && (
-          <>
-            <Button variant="outline-primary" onClick={() => run(true)} disabled={busy}>
-              {busy && !results ? 'Working…' : 'Preview'}
-            </Button>
-            <Button variant="primary" onClick={apply} disabled={busy || !results || results.length === 0}>
-              {busy && results ? 'Applying…' : 'Apply carry-over'}
-            </Button>
-          </>
-        )}
-      </Modal.Footer>
-    </Modal>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      <ConfirmDialog
+        open={confirming}
+        onOpenChange={setConfirming}
+        title="Apply carry-over?"
+        description={`Apply carry-over from ${fromYear} into ${toYear}? Next year's allowances will be created or updated.`}
+        confirmLabel="Apply"
+        destructive={false}
+        onConfirm={confirmApply}
+      />
+    </>
   );
 };
 

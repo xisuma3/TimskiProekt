@@ -1,11 +1,13 @@
-import React from 'react';
-import { Row, Col, Card, Button } from 'react-bootstrap';
+import { ArrowRight, FileCheck, FileText } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
+import { Button } from '@/components/ui/button';
+import ItemCard from '../components/app/ItemCard';
+import PageHeader from '../components/app/PageHeader';
 
 const SECTIONS = [
   {
     to: '/document-templates',
-    icon: 'bi-file-earmark-text',
+    icon: FileText,
     tone: 'indigo',
     title: 'Document Templates',
     text: 'Create and manage HTML templates with placeholders for employee, asset and system data.',
@@ -13,7 +15,7 @@ const SECTIONS = [
   },
   {
     to: '/generated-documents',
-    icon: 'bi-file-earmark-check',
+    icon: FileCheck,
     tone: 'green',
     title: 'Generated Documents',
     text: 'View and print documents generated from templates, filled with each employee’s data.',
@@ -26,41 +28,37 @@ const DocumentsPage = () => {
 
   return (
     <div>
-      <div className="page-header">
-        <div>
-          <h1>Document Management</h1>
-          <p>Manage document templates and generate personalized documents for employees.</p>
-        </div>
-      </div>
+      <PageHeader
+        title="Document Management"
+        description="Manage document templates and generate personalized documents for employees."
+      />
 
-      <Row className="g-4">
+      {/* Each whole card is the click target: the button's ::after stretches over it. The
+          button's press nudge (translate) is switched off, because a translated button
+          would become the ::after's containing block mid-click and shrink it. */}
+      <div className="grid gap-4 md:grid-cols-2">
         {SECTIONS.map((s) => (
-          <Col md={6} key={s.to}>
-            <Card className="item-card">
-              <Card.Body>
-                <div className="item-card-head">
-                  <span className={`item-card-icon tone-${s.tone}`} aria-hidden="true">
-                    <i className={`bi ${s.icon}`} />
-                  </span>
-                  <div className="flex-grow-1 min-w-0">
-                    <Card.Title>{s.title}</Card.Title>
-                    <Card.Text className="text-muted mb-0">{s.text}</Card.Text>
-                  </div>
-                </div>
-                <div className="item-card-actions">
-                  <Button
-                    variant="outline-primary"
-                    className="stretched-link"
-                    onClick={() => navigate(s.to)}
-                  >
-                    {s.action} <i className="bi bi-arrow-right ms-1" aria-hidden="true" />
-                  </Button>
-                </div>
-              </Card.Body>
-            </Card>
-          </Col>
+          <ItemCard
+            key={s.to}
+            icon={s.icon}
+            tone={s.tone}
+            title={s.title}
+            className="relative"
+            actions={(
+              <Button
+                variant="outline"
+                className="after:absolute after:inset-0 active:not-aria-[haspopup]:translate-none"
+                onClick={() => navigate(s.to)}
+              >
+                {s.action}
+                <ArrowRight aria-hidden="true" />
+              </Button>
+            )}
+          >
+            <p className="text-sm text-muted-foreground">{s.text}</p>
+          </ItemCard>
         ))}
-      </Row>
+      </div>
     </div>
   );
 };

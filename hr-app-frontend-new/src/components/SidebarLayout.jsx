@@ -28,6 +28,7 @@ import {
   SidebarRail,
   useSidebar,
 } from '@/components/ui/sidebar';
+import BrandMark from './app/BrandMark';
 import TopBar from './TopBar';
 import UserMenu from './UserMenu';
 import { isAdmin } from '../services/authService';
@@ -81,12 +82,6 @@ export const pageTitleFor = (pathname) => {
   if (pathname.startsWith('/generated-documents')) return 'Generated Documents';
   return 'HR Management';
 };
-
-export const BrandMark = ({ className = 'size-8' }) => (
-  <span className={`flex aspect-square items-center justify-center rounded-lg bg-primary text-primary-foreground ${className}`}>
-    <Users className="size-4" aria-hidden="true" />
-  </span>
-);
 
 const AppSidebar = () => {
   const admin = isAdmin();

@@ -1,4 +1,4 @@
-import { useCallback, useDeferredValue, useEffect, useState } from 'react';
+import { useCallback, useDeferredValue, useEffect, useId, useState } from 'react';
 import { AlertCircle, CalendarDays, Inbox, LayoutGrid, List, Plus, Search, SearchX, X } from 'lucide-react';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Badge } from '@/components/ui/badge';
@@ -54,7 +54,11 @@ const DataPage = ({
   // Optional filters (see listFilters.js for the config shapes).
   dateFilter = null,
   personFilter = null,
+  // 2 when the page is a section of a larger page (e.g. the team list above My Leave).
+  headingLevel = 1,
 }) => {
+  const headingId = useId();
+  const Heading = headingLevel === 2 ? 'h2' : 'h1';
   const [data, setData] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
@@ -197,10 +201,10 @@ const DataPage = ({
   const cardGrid = view === 'list' ? 'grid gap-3' : 'grid gap-4 md:grid-cols-2 xl:grid-cols-3';
 
   return (
-    <section aria-labelledby="data-page-title" className="space-y-5">
+    <section aria-labelledby={headingId} className="space-y-5">
       <div className="flex flex-wrap items-end justify-between gap-4">
         <div className="min-w-0">
-          <h1 id="data-page-title" className="text-2xl font-semibold tracking-tight">{title}</h1>
+          <Heading id={headingId} className={headingLevel === 2 ? 'text-xl font-semibold tracking-tight' : 'text-2xl font-semibold tracking-tight'}>{title}</Heading>
           {subtitle && <p className="mt-1 text-sm text-muted-foreground">{subtitle}</p>}
           {!subtitle && !loading && !error && (
             <p className="mt-1 text-sm text-muted-foreground">{`${data.length} ${data.length === 1 ? 'item' : 'items'}`}</p>
@@ -232,11 +236,12 @@ const DataPage = ({
         )}
 
         {dateFilter && !error && (
-          <div className="flex items-center gap-1.5" role="group" aria-labelledby={`${idBase}-date-caption`}>
+          // On a phone the two dates share the row; from sm up they take a fixed width.
+          <div className="flex w-full items-center gap-1.5 sm:w-auto" role="group" aria-labelledby={`${idBase}-date-caption`}>
             <span id={`${idBase}-date-caption`} className="text-sm text-muted-foreground">{dateFilter.label}</span>
             <Input
               type="date"
-              className="w-[9.5rem]"
+              className="min-w-0 flex-1 sm:w-[9.5rem] sm:flex-none"
               aria-label={`${dateFilter.label} from`}
               value={dateFrom}
               max={dateTo || undefined}
@@ -245,7 +250,7 @@ const DataPage = ({
             <span className="text-muted-foreground" aria-hidden="true">–</span>
             <Input
               type="date"
-              className="w-[9.5rem]"
+              className="min-w-0 flex-1 sm:w-[9.5rem] sm:flex-none"
               aria-label={`${dateFilter.label} to`}
               value={dateTo}
               min={dateFrom || undefined}
@@ -347,7 +352,7 @@ const DataPage = ({
             // repeats across one person's leave requests, allowances and dossier, so those
             // own ids come first; departmentID repeats across an employee list, so
             // employeeID has to come before it.
-            <div key={item.id || item.requestID || item.entitlementID || item.dossierID || item.assetID || item.documentID || item.templateID || item.employeeID || item.departmentID || index}>
+            <div key={item.id || item.requestID || item.entitlementID || item.dossierID || item.assetID || item.documentID || item.templateID || item.employeeID || item.departmentID || index} className="min-w-0">
               {usesManagedModal
                 ? renderCard(item, handleEdit, handleDeleteClick) // DataPage owns edit/delete
                 : renderCard(item) // The page handles its own edit/delete

@@ -120,7 +120,7 @@ test('revoking asks for confirmation, then calls the API', async () => {
   render(<ApprovalCoverPage />);
 
   fireEvent.click(await screen.findByRole('button', { name: /Revoke/ }));
-  const dialog = await screen.findByRole('dialog');
+  const dialog = await screen.findByRole('alertdialog');
   expect(dialog).toHaveTextContent("End Pat Peer's cover of Mia Manager's approvals now?");
   fireEvent.click(within(dialog).getByRole('button', { name: 'Revoke' }));
   await waitFor(() => expect(onRevoke).toHaveBeenCalledWith(expect.stringContaining('/Revoke/given')));

@@ -1,5 +1,30 @@
-import React, { useState, useEffect } from 'react';
-import { Modal, Button, Form, Alert, Card, Badge } from 'react-bootstrap';
+import { useEffect, useState } from 'react';
+import { AlertCircle, Eye, FileText } from 'lucide-react';
+import { Alert, AlertDescription } from '@/components/ui/alert';
+import { Badge } from '@/components/ui/badge';
+import { Button } from '@/components/ui/button';
+import { Checkbox } from '@/components/ui/checkbox';
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from '@/components/ui/dialog';
+import {
+  Field,
+  FieldDescription,
+  FieldGroup,
+  FieldLabel,
+  FieldLegend,
+  FieldSet,
+} from '@/components/ui/field';
+import { NativeSelect, NativeSelectOption } from '@/components/ui/native-select';
+import { Spinner } from '@/components/ui/spinner';
+import DocPreview from './app/DocPreview';
+import { MetaList } from './app/ItemCard';
+import StatusBadge from './app/StatusBadge';
 import { API_URLS } from '../config/api';
 
 const DocumentGenerationModal = ({ show, onHide, onGenerate }) => {
@@ -76,6 +101,11 @@ const DocumentGenerationModal = ({ show, onHide, onGenerate }) => {
     }
   };
 
+  // A checkbox list replaces the old Ctrl/Cmd-click multi-select; the state is the same
+  // array of asset ids.
+  const toggleAsset = (id) =>
+    setSelectedAssets((prev) => (prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id]));
+
   const handlePreview = async () => {
     if (!selectedTemplate || !selectedEmployee) {
       setError('Please select both a template and an employee');
@@ -84,14 +114,14 @@ const DocumentGenerationModal = ({ show, onHide, onGenerate }) => {
 
     try {
       const token = localStorage.getItem('token');
-      
+
       // Get the selected template content
       const selectedTemplateData = templates.find(t => t.templateID === selectedTemplate);
       if (!selectedTemplateData) {
         setError('Selected template not found');
         return;
       }
-      
+
       // Use the new direct preview endpoint
       const response = await fetch(API_URLS.DOCUMENT_TEMPLATES.PREVIEW(), {
         method: 'POST',
@@ -172,145 +202,173 @@ const DocumentGenerationModal = ({ show, onHide, onGenerate }) => {
   };
 
   return (
-    <Modal show={show} onHide={onHide} size="xl">
-      <Modal.Header closeButton>
-        <Modal.Title>Generate Document</Modal.Title>
-      </Modal.Header>
-      <Modal.Body>
-        {error && <Alert variant="danger">{error}</Alert>}
-        
-        <div className="row">
-          <div className="col-md-6">
-            <Form.Group className="mb-3">
-              <Form.Label>Select Template *</Form.Label>
-              <Form.Select
-                value={selectedTemplate}
-                onChange={(e) => setSelectedTemplate(e.target.value)}
-                required
-              >
-                <option value="">Choose a template...</option>
-                {templates.map(template => (
-                  <option key={template.templateID} value={template.templateID}>
-                    {template.templateName} ({template.templateType})
-                  </option>
-                ))}
-              </Form.Select>
-            </Form.Group>
+    <Dialog open={show} onOpenChange={(open) => { if (!open) onHide(); }}>
+      <DialogContent className="max-h-[90vh] overflow-y-auto sm:max-w-5xl">
+        <form
+          onSubmit={(e) => { e.preventDefault(); handleGenerate(); }}
+          className="grid gap-6"
+        >
+          <DialogHeader>
+            <DialogTitle>Generate Document</DialogTitle>
+            <DialogDescription>
+              Fill a template with an employee’s details, preview it, then save it as a document.
+            </DialogDescription>
+          </DialogHeader>
 
-            {getSelectedTemplate() && (
-              <Card className="mb-3 bg-body-tertiary shadow-none">
-                <Card.Body>
-                  <Card.Title style={{ fontSize: '1rem' }}>
-                    {getSelectedTemplate().templateName}
-                    <Badge bg="primary" className="ms-2">{getSelectedTemplate().templateType}</Badge>
-                  </Card.Title>
-                  <Card.Text className="text-muted small">
-                    {getSelectedTemplate().description || 'No description available'}
-                  </Card.Text>
-                </Card.Body>
-              </Card>
-            )}
+          {error && (
+            <Alert variant="destructive">
+              <AlertCircle aria-hidden="true" />
+              <AlertDescription>{error}</AlertDescription>
+            </Alert>
+          )}
 
-            <Form.Group className="mb-3">
-              <Form.Label>Select Employee *</Form.Label>
-              <Form.Select
-                value={selectedEmployee}
-                onChange={(e) => setSelectedEmployee(e.target.value)}
-                required
-              >
-                <option value="">Choose an employee...</option>
-                {employees.map(employee => (
-                  <option key={employee.employeeID} value={employee.employeeID}>
-                    {employee.firstName} {employee.lastName} - {employee.position}
-                  </option>
-                ))}
-              </Form.Select>
-            </Form.Group>
+          <div className="grid gap-6 md:grid-cols-2">
+            <FieldGroup className="min-w-0 gap-6">
+              <Field>
+                <FieldLabel htmlFor="generate-template">Select Template *</FieldLabel>
+                <NativeSelect
+                  id="generate-template"
+                  value={selectedTemplate}
+                  onChange={(e) => setSelectedTemplate(e.target.value)}
+                  required
+                  className="w-full"
+                >
+                  <NativeSelectOption value="">Choose a template...</NativeSelectOption>
+                  {templates.map(template => (
+                    <NativeSelectOption key={template.templateID} value={template.templateID}>
+                      {template.templateName} ({template.templateType})
+                    </NativeSelectOption>
+                  ))}
+                </NativeSelect>
+                {getSelectedTemplate() && (
+                  <div className="rounded-lg border bg-muted/50 p-4">
+                    <div className="flex flex-wrap items-center gap-2 font-medium">
+                      {getSelectedTemplate().templateName}
+                      <StatusBadge tone="primary">{getSelectedTemplate().templateType}</StatusBadge>
+                    </div>
+                    <p className="mt-1 text-sm text-muted-foreground">
+                      {getSelectedTemplate().description || 'No description available'}
+                    </p>
+                  </div>
+                )}
+              </Field>
 
-            {getSelectedEmployee() && (
-              <Card className="mb-3 bg-body-tertiary shadow-none">
-                <Card.Body>
-                  <Card.Title style={{ fontSize: '1rem' }}>
-                    {getSelectedEmployee().firstName} {getSelectedEmployee().lastName}
-                  </Card.Title>
-                  <Card.Text className="text-muted small">
-                    <strong>Position:</strong> {getSelectedEmployee().position}<br />
-                    <strong>Email:</strong> {getSelectedEmployee().email}<br />
-                    <strong>Hire Date:</strong> {new Date(getSelectedEmployee().hireDate).toLocaleDateString()}
-                  </Card.Text>
-                </Card.Body>
-              </Card>
-            )}
+              <Field>
+                <FieldLabel htmlFor="generate-employee">Select Employee *</FieldLabel>
+                <NativeSelect
+                  id="generate-employee"
+                  value={selectedEmployee}
+                  onChange={(e) => setSelectedEmployee(e.target.value)}
+                  required
+                  className="w-full"
+                >
+                  <NativeSelectOption value="">Choose an employee...</NativeSelectOption>
+                  {employees.map(employee => (
+                    <NativeSelectOption key={employee.employeeID} value={employee.employeeID}>
+                      {employee.firstName} {employee.lastName} - {employee.position}
+                    </NativeSelectOption>
+                  ))}
+                </NativeSelect>
+                {getSelectedEmployee() && (
+                  <div className="rounded-lg border bg-muted/50 p-4">
+                    <div className="mb-2 font-medium">
+                      {getSelectedEmployee().firstName} {getSelectedEmployee().lastName}
+                    </div>
+                    <MetaList
+                      items={[
+                        { label: 'Position', value: getSelectedEmployee().position, fallback: '—' },
+                        { label: 'Email', value: getSelectedEmployee().email, fallback: '—' },
+                        { label: 'Hire Date', value: new Date(getSelectedEmployee().hireDate).toLocaleDateString() },
+                      ]}
+                    />
+                  </div>
+                )}
+              </Field>
 
-            <Form.Group className="mb-3">
-              <Form.Label>Select Assets (Optional)</Form.Label>
-              <Form.Select
-                multiple
-                value={selectedAssets}
-                onChange={(e) => setSelectedAssets(Array.from(e.target.selectedOptions, option => option.value))}
-                size={4}
-              >
-                {assets.map(asset => (
-                  <option key={asset.assetID} value={asset.assetID}>
-                    {asset.name} - {asset.serialNumber}
-                  </option>
-                ))}
-              </Form.Select>
-              <Form.Text>
-                Hold Ctrl/Cmd to select multiple assets. These will be available for asset placeholders in the template.
-              </Form.Text>
-            </Form.Group>
+              <FieldSet className="gap-2">
+                <FieldLegend variant="label" className="mb-1">Select Assets (Optional)</FieldLegend>
+                <div className="max-h-48 overflow-y-auto rounded-md border p-3">
+                  {assets.length === 0 ? (
+                    <p className="text-sm text-muted-foreground">No assets to choose from.</p>
+                  ) : (
+                    <div className="grid gap-3">
+                      {assets.map((asset) => {
+                        const id = `generate-asset-${asset.assetID}`;
+                        return (
+                          <Field key={asset.assetID} orientation="horizontal">
+                            <Checkbox
+                              id={id}
+                              checked={selectedAssets.includes(asset.assetID)}
+                              onCheckedChange={() => toggleAsset(asset.assetID)}
+                            />
+                            <FieldLabel htmlFor={id} className="font-normal">
+                              {asset.name}{asset.serialNumber ? ` - ${asset.serialNumber}` : ''}
+                            </FieldLabel>
+                          </Field>
+                        );
+                      })}
+                    </div>
+                  )}
+                </div>
+                <FieldDescription>
+                  These will be available for asset placeholders in the template.
+                </FieldDescription>
+                {getSelectedAssetsData().length > 0 && (
+                  <div className="flex flex-wrap items-center gap-1.5 text-sm">
+                    <span className="font-medium">Selected Assets:</span>
+                    {getSelectedAssetsData().map(asset => (
+                      <Badge key={asset.assetID} variant="secondary">
+                        {asset.name}
+                      </Badge>
+                    ))}
+                  </div>
+                )}
+              </FieldSet>
+            </FieldGroup>
 
-            {getSelectedAssetsData().length > 0 && (
-              <div className="mb-3">
-                <strong>Selected Assets:</strong>
-                {getSelectedAssetsData().map(asset => (
-                  <Badge key={asset.assetID} bg="secondary" className="me-1 mt-1">
-                    {asset.name}
-                  </Badge>
-                ))}
+            <div className="flex min-w-0 flex-col gap-3">
+              <div className="flex items-center justify-between gap-2">
+                <h3 className="font-medium">Document Preview</h3>
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  onClick={handlePreview}
+                  disabled={!selectedTemplate || !selectedEmployee}
+                >
+                  <Eye aria-hidden="true" />
+                  Generate Preview
+                </Button>
               </div>
-            )}
-          </div>
 
-          <div className="col-md-6">
-            <div className="d-flex justify-content-between align-items-center mb-3">
-              <h6>Document Preview</h6>
-              <Button 
-                variant="outline-primary"
-                size="sm" 
-                onClick={handlePreview}
-                disabled={!selectedTemplate || !selectedEmployee}
-              >
-                Generate Preview
-              </Button>
-            </div>
-            
-            <div className="doc-preview" style={{ height: '400px' }}>
               {previewContent ? (
-                <div dangerouslySetInnerHTML={{ __html: previewContent }} />
+                <DocPreview html={previewContent} className="h-100" />
               ) : (
-                <div className="text-center text-muted" style={{ marginTop: '150px' }}>
-                  Select template and employee, then click "Generate Preview" to see the document
+                <div className="flex h-100 flex-col items-center justify-center gap-3 rounded-lg border border-dashed p-6 text-center text-sm text-muted-foreground">
+                  <FileText className="size-8" aria-hidden="true" />
+                  <p className="max-w-xs">
+                    Select template and employee, then click "Generate Preview" to see the document
+                  </p>
                 </div>
               )}
             </div>
           </div>
-        </div>
-      </Modal.Body>
-      <Modal.Footer>
-        <Button variant="secondary" onClick={onHide}>
-          Cancel
-        </Button>
-        <Button 
-          variant="primary"
-          onClick={handleGenerate}
-          disabled={!selectedTemplate || !selectedEmployee || isGenerating}
-        >
-          {isGenerating ? 'Generating...' : 'Generate Document'}
-        </Button>
-      </Modal.Footer>
-    </Modal>
+
+          <DialogFooter>
+            <Button type="button" variant="outline" onClick={onHide}>
+              Cancel
+            </Button>
+            <Button
+              type="submit"
+              disabled={!selectedTemplate || !selectedEmployee || isGenerating}
+            >
+              {isGenerating && <Spinner />}
+              {isGenerating ? 'Generating...' : 'Generate Document'}
+            </Button>
+          </DialogFooter>
+        </form>
+      </DialogContent>
+    </Dialog>
   );
 };
 

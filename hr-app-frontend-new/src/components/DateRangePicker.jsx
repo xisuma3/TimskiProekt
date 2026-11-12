@@ -1,4 +1,8 @@
-import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { AlertCircle, ChevronLeft, ChevronRight } from 'lucide-react';
+import { Button } from '@/components/ui/button';
+import { cn } from '@/lib/utils';
+import StatusBadge from './app/StatusBadge';
 
 // Two-month range picker for leave. Values are "YYYY-MM-DD" strings, the same shape the
 // date inputs used, so the form and API payload are unchanged. All maths is in whole UTC
@@ -6,6 +10,9 @@ import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 const DAY = 24 * 60 * 60 * 1000;
 const WEEKDAYS = ['M', 'T', 'W', 'T', 'F', 'S', 'S'];
 const WEEKDAY_NAMES = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'];
+
+// Diagonal hatching for days that are already requested (and the legend swatch for them).
+const HATCH = 'bg-[image:repeating-linear-gradient(135deg,transparent_0_4px,var(--color-border)_4px_8px)]';
 
 export const toDayNum = (s) => Math.floor(Date.UTC(+s.slice(0, 4), +s.slice(5, 7) - 1, +s.slice(8, 10)) / DAY);
 export const toIso = (n) => new Date(n * DAY).toISOString().slice(0, 10);
@@ -118,25 +125,57 @@ const DateRangePicker = ({
   const dayCount = startNum !== null && endNum !== null ? endNum - startNum + 1 : null;
 
   return (
-    <div className="drp">
-      <div className="drp-nav">
-        <button type="button" className="drp-nav-btn" onClick={() => shift(-1)} disabled={!canGoBack} aria-label="Previous month">
-          <i className="bi bi-chevron-left" aria-hidden="true" />
-        </button>
-        <button type="button" className="drp-nav-btn" onClick={() => shift(1)} aria-label="Next month">
-          <i className="bi bi-chevron-right" aria-hidden="true" />
-        </button>
+    <div className="relative rounded-xl border bg-card px-2.5 pt-3 pb-2.5 sm:px-4 sm:pt-3.5 sm:pb-3">
+      <div className="pointer-events-none absolute inset-x-3 top-2.5 flex justify-between">
+        <Button
+          type="button"
+          variant="outline"
+          size="icon-sm"
+          className="pointer-events-auto"
+          onClick={() => shift(-1)}
+          disabled={!canGoBack}
+          aria-label="Previous month"
+        >
+          <ChevronLeft aria-hidden="true" />
+        </Button>
+        <Button
+          type="button"
+          variant="outline"
+          size="icon-sm"
+          className="pointer-events-auto"
+          onClick={() => shift(1)}
+          aria-label="Next month"
+        >
+          <ChevronRight aria-hidden="true" />
+        </Button>
       </div>
 
-      <div className="drp-months" ref={gridRef} onKeyDown={onKeyDown} onMouseLeave={() => setHover(null)}>
+      <div className="grid gap-7 md:grid-cols-2" ref={gridRef} onKeyDown={onKeyDown} onMouseLeave={() => setHover(null)}>
         {months.map(({ year, month }, idx) => (
-          <div key={`${year}-${month}`} className={`drp-month${idx === 1 ? ' drp-second' : ''}`}>
-            <div className="drp-month-title" aria-live={idx === 0 ? 'polite' : undefined}>
+          // Narrow screens show one month; the second returns from md up.
+          <div key={`${year}-${month}`} className={cn(idx === 1 && 'hidden md:block')}>
+            <div
+              className="mb-1.5 flex h-8 items-center justify-center text-sm font-semibold uppercase tracking-wide text-muted-foreground"
+              aria-live={idx === 0 ? 'polite' : undefined}
+            >
               {fmt(Math.floor(Date.UTC(year, month, 1) / DAY), { month: 'long', year: 'numeric' })}
             </div>
-            <div className="drp-grid" role="group" aria-label={fmt(Math.floor(Date.UTC(year, month, 1) / DAY), { month: 'long', year: 'numeric' })}>
+            <div
+              className="grid grid-cols-7 gap-y-1"
+              role="group"
+              aria-label={fmt(Math.floor(Date.UTC(year, month, 1) / DAY), { month: 'long', year: 'numeric' })}
+            >
               {WEEKDAYS.map((w, i) => (
-                <abbr key={i} title={WEEKDAY_NAMES[i]} className={`drp-weekday${i >= 5 ? ' is-weekend' : ''}`}>{w}</abbr>
+                <abbr
+                  key={i}
+                  title={WEEKDAY_NAMES[i]}
+                  className={cn(
+                    'cursor-default pb-1.5 text-center text-xs font-semibold no-underline',
+                    i >= 5 ? 'text-muted-foreground/60' : 'text-muted-foreground',
+                  )}
+                >
+                  {w}
+                </abbr>
               ))}
               {monthCells(year, month).map((d, i) => {
                 if (d === null) return <span key={`pad-${i}`} aria-hidden="true" />;
@@ -144,32 +183,40 @@ const DateRangePicker = ({
                 const isEnd = d === rangeEnd && rangeEnd !== null;
                 const between = inRange(d);
                 const disabled = isDisabled(d);
+                const booked = isBooked(d);
                 const weekday = (i % 7);
-                const classes = [
-                  'drp-day',
-                  weekday >= 5 && 'is-weekend',
-                  d === today && 'is-today',
-                  between && 'in-range',
-                  (isStart || isEnd) && 'is-edge',
-                  isStart && rangeEnd !== null && rangeEnd > d && 'is-range-start',
-                  isEnd && startNum !== null && d > startNum && 'is-range-end',
-                  isEnd && previewEnd !== null && endNum === null && 'is-preview',
-                  isBooked(d) && 'is-booked',
-                ].filter(Boolean).join(' ');
+                const edge = isStart || isEnd;
+                const preview = isEnd && previewEnd !== null && endNum === null;
                 const label = fmt(d, { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' })
-                  + (isBooked(d) ? ', already requested' : '')
+                  + (booked ? ', already requested' : '')
                   + (d < min ? ', unavailable' : '');
                 return (
                   <button
                     key={d}
                     type="button"
                     data-day={d}
-                    className={classes}
+                    className={cn(
+                      'relative h-9 rounded-lg text-sm font-medium outline-none transition-colors sm:h-[38px]',
+                      'focus-visible:z-20 focus-visible:ring-3 focus-visible:ring-ring/50',
+                      weekday >= 5 ? 'text-muted-foreground' : 'text-foreground',
+                      !disabled && !edge && 'cursor-pointer hover:bg-primary/10',
+                      disabled && 'cursor-not-allowed text-muted-foreground/50',
+                      booked && cn('line-through', HATCH),
+                      // The range: a continuous band between the two ends, square where it joins them.
+                      between && 'rounded-none bg-primary/15 text-primary',
+                      edge && 'z-10 bg-primary font-bold text-primary-foreground',
+                      preview && 'bg-primary/35 font-medium text-foreground',
+                      isStart && rangeEnd !== null && rangeEnd > d && 'rounded-r-none',
+                      isEnd && startNum !== null && d > startNum && 'rounded-l-none',
+                      // Today: a dot under the date, light on a filled edge.
+                      d === today && 'after:absolute after:bottom-[5px] after:left-1/2 after:size-1 after:-translate-x-1/2 after:rounded-full',
+                      d === today && (edge && !preview ? 'after:bg-primary-foreground' : 'after:bg-primary'),
+                    )}
                     disabled={disabled}
                     tabIndex={d === focusDay ? 0 : -1}
                     aria-pressed={isStart || (endNum !== null && d === endNum)}
                     aria-label={label}
-                    title={isBooked(d) ? 'Already requested' : undefined}
+                    title={booked ? 'Already requested' : undefined}
                     onClick={() => pick(d)}
                     onMouseEnter={() => setHover(d)}
                     onFocus={() => { setFocusDay(d); setHover(d); }}
@@ -183,13 +230,13 @@ const DateRangePicker = ({
         ))}
       </div>
 
-      <div className="drp-footer">
-        <div className="drp-summary" aria-live="polite">
-          {startNum === null && <span className="text-muted">{startPrompt}</span>}
+      <div className="mt-3 flex flex-wrap items-center justify-between gap-2.5 border-t pt-3 text-sm">
+        <div aria-live="polite">
+          {startNum === null && <span className="text-muted-foreground">{startPrompt}</span>}
           {startNum !== null && endNum === null && (
             <span>
               <strong>{fmt(startNum, { weekday: 'short', day: 'numeric', month: 'short' })}</strong>
-              <span className="text-muted"> → {endPrompt}</span>
+              <span className="text-muted-foreground"> → {endPrompt}</span>
             </span>
           )}
           {dayCount !== null && (
@@ -197,20 +244,36 @@ const DateRangePicker = ({
               <strong>{fmt(startNum, { weekday: 'short', day: 'numeric', month: 'short' })}</strong>
               {' → '}
               <strong>{fmt(endNum, { weekday: 'short', day: 'numeric', month: 'short', year: 'numeric' })}</strong>
-              <span className="status-chip is-primary ms-2">{dayCount} {dayCount === 1 ? 'day' : 'days'}</span>
+              <StatusBadge tone="primary" className="ml-2">{dayCount} {dayCount === 1 ? 'day' : 'days'}</StatusBadge>
             </span>
           )}
         </div>
-        <div className="d-flex align-items-center gap-3">
-          {bookedDays.size > 0 && <span className="drp-key">Already requested</span>}
+        <div className="flex items-center gap-3">
+          {bookedDays.size > 0 && (
+            <span className="inline-flex items-center gap-1.5 text-xs text-muted-foreground">
+              <span className={cn('size-3.5 rounded-sm border', HATCH)} aria-hidden="true" />
+              Already requested
+            </span>
+          )}
           {startNum !== null && (
-            <button type="button" className="drp-clear" onClick={() => { setNotice(''); onChange({ start: '', end: '' }); }}>
+            <Button
+              type="button"
+              variant="ghost"
+              size="sm"
+              className="font-semibold text-primary hover:bg-primary/10 hover:text-primary"
+              onClick={() => { setNotice(''); onChange({ start: '', end: '' }); }}
+            >
               Clear
-            </button>
+            </Button>
           )}
         </div>
       </div>
-      {notice && <div className="drp-notice" role="alert"><i className="bi bi-exclamation-circle me-2" aria-hidden="true" />{notice}</div>}
+      {notice && (
+        <div className="mt-2.5 flex items-center gap-2 text-sm text-destructive" role="alert">
+          <AlertCircle className="size-4 shrink-0" aria-hidden="true" />
+          {notice}
+        </div>
+      )}
     </div>
   );
 };

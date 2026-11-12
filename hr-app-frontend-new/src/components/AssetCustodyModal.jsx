@@ -1,5 +1,25 @@
-import React, { useState, useEffect, useCallback } from 'react';
-import { Modal, Button, Form, Alert, Badge, Spinner } from 'react-bootstrap';
+import { useCallback, useEffect, useState } from 'react';
+import { AlertCircle, ArrowLeftRight, Download, History, Package, UserCheck } from 'lucide-react';
+import { Alert, AlertDescription } from '@/components/ui/alert';
+import { Avatar, AvatarFallback } from '@/components/ui/avatar';
+import { Button } from '@/components/ui/button';
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from '@/components/ui/dialog';
+import { Field, FieldDescription, FieldGroup, FieldLabel } from '@/components/ui/field';
+import { Input } from '@/components/ui/input';
+import { NativeSelect, NativeSelectOption } from '@/components/ui/native-select';
+import { Spinner } from '@/components/ui/spinner';
+import { cn } from '@/lib/utils';
+import EmptyState from './app/EmptyState';
+import IconTile from './app/IconTile';
+import { SectionTitle } from './app/PageHeader';
+import StatusBadge from './app/StatusBadge';
 import { authenticatedFetch } from '../services/authService';
 import { API_URLS } from '../config/api';
 
@@ -85,141 +105,181 @@ const AssetCustodyModal = ({ show, onHide, asset, employees = [], onChanged }) =
     });
 
   return (
-    <Modal show={show} onHide={onHide} centered size="lg">
-      <Modal.Header closeButton>
-        <Modal.Title>
-          Custody — {asset?.name}
-          {asset?.serialNumber && (
-            <small className="text-muted fw-normal"> · {asset.serialNumber}</small>
-          )}
-        </Modal.Title>
-      </Modal.Header>
-
-      <Modal.Body>
-        {error && <Alert variant="danger">{error}</Alert>}
-
-        <div className="d-flex align-items-center gap-3 p-3 mb-4 rounded-3 border bg-body-tertiary">
-          <span className="item-card-icon" aria-hidden="true">
-            <i className={`bi ${currentHolder ? 'bi-person-check' : 'bi-box-seam'}`} />
-          </span>
-          <div>
-            {currentHolder ? (
-              <>Currently held by <strong>{currentHolder.employeeName}</strong> since{' '}
-                {new Date(currentHolder.assignedDate).toLocaleDateString()}{' '}
-                ({currentHolder.daysHeld} days)</>
-            ) : (
-              <Badge bg="secondary">In stock — nobody holds this</Badge>
+    <Dialog open={show} onOpenChange={(open) => { if (!open) onHide(); }}>
+      <DialogContent className="max-h-[90vh] overflow-y-auto sm:max-w-2xl">
+        <DialogHeader>
+          <DialogTitle>
+            Custody — {asset?.name}
+            {asset?.serialNumber && (
+              <span className="font-normal text-muted-foreground"> · {asset.serialNumber}</span>
             )}
-          </div>
-        </div>
+          </DialogTitle>
+          <DialogDescription>
+            Assign, transfer or return this asset. Every handover is kept in the history below.
+          </DialogDescription>
+        </DialogHeader>
 
-        {currentHolder ? (
-          <div className="mb-4">
-            <h6 className="section-title">Hand over or take back</h6>
-            <Form.Group className="mb-3" controlId="custody-transfer-to">
-              <Form.Label>Transfer to</Form.Label>
-              <Form.Select value={assignTo} onChange={(e) => setAssignTo(e.target.value)}>
-                <option value="">Select an employee…</option>
-                {employees
-                  .filter((e) => e.employeeID !== currentHolder.employeeID)
-                  .map((e) => (
-                    <option key={e.employeeID} value={e.employeeID}>{e.firstName} {e.lastName}</option>
-                  ))}
-              </Form.Select>
-            </Form.Group>
-            <Form.Group className="mb-3" controlId="custody-return-condition">
-              <Form.Label>Condition on return (optional)</Form.Label>
-              <Form.Control
-                value={returnCondition}
-                onChange={(e) => setReturnCondition(e.target.value)}
-                placeholder="Good, minor scuffs…"
-              />
-              <Form.Text>Recorded on the current holder's period when it closes.</Form.Text>
-            </Form.Group>
-            <Form.Group className="mb-3" controlId="custody-notes">
-              <Form.Label>Notes (optional)</Form.Label>
-              <Form.Control value={notes} onChange={(e) => setNotes(e.target.value)} />
-            </Form.Group>
-            <div className="d-flex flex-wrap gap-2">
-              <Button variant="primary" disabled={!assignTo || busy} onClick={handleAssign}>
-                <i className="bi bi-arrow-left-right me-2" aria-hidden="true" />
-                Transfer
-              </Button>
-              <Button variant="outline-danger" disabled={busy} onClick={handleReturn}>
-                <i className="bi bi-box-arrow-in-down me-2" aria-hidden="true" />
-                Return to stock
-              </Button>
+        <div className="grid gap-6">
+          {error && (
+            <Alert variant="destructive">
+              <AlertCircle aria-hidden="true" />
+              <AlertDescription>{error}</AlertDescription>
+            </Alert>
+          )}
+
+          <div className="flex items-center gap-3 rounded-lg border bg-muted/50 p-4">
+            <IconTile icon={currentHolder ? UserCheck : Package} tone={currentHolder ? 'indigo' : 'muted'} />
+            <div className="min-w-0 text-sm">
+              {currentHolder ? (
+                <>Currently held by <strong className="font-semibold">{currentHolder.employeeName}</strong> since{' '}
+                  {new Date(currentHolder.assignedDate).toLocaleDateString()}{' '}
+                  <span className="text-muted-foreground">({currentHolder.daysHeld} days)</span></>
+              ) : (
+                <StatusBadge tone="muted">In stock — nobody holds this</StatusBadge>
+              )}
             </div>
           </div>
-        ) : (
-          <div className="mb-4">
-            <h6 className="section-title">Assign</h6>
-            <Form.Group className="mb-3" controlId="custody-assign-to">
-              <Form.Label>Assign to</Form.Label>
-              <Form.Select value={assignTo} onChange={(e) => setAssignTo(e.target.value)}>
-                <option value="">Select an employee…</option>
-                {employees.map((e) => (
-                  <option key={e.employeeID} value={e.employeeID}>{e.firstName} {e.lastName}</option>
-                ))}
-              </Form.Select>
-            </Form.Group>
-            <Form.Group className="mb-3" controlId="custody-assign-notes">
-              <Form.Label>Notes (optional)</Form.Label>
-              <Form.Control
-                value={notes}
-                onChange={(e) => setNotes(e.target.value)}
-                placeholder="Notes (optional)"
-              />
-            </Form.Group>
-            <Button variant="primary" disabled={!assignTo || busy} onClick={handleAssign}>
-              Assign
-            </Button>
-          </div>
-        )}
 
-        <h6 className="section-title">History</h6>
-        {loading ? (
-          <div className="d-flex align-items-center gap-2 text-muted">
-            <Spinner animation="border" variant="primary" size="sm" /> Loading history…
-          </div>
-        ) : history.length === 0 ? (
-          <div className="text-center text-muted py-4 border rounded-3">
-            <i className="bi bi-clock-history d-block fs-3 mb-2" aria-hidden="true" />
-            This asset has never been assigned.
-          </div>
-        ) : (
-          <ol className="list-group list-group-flush border rounded-3">
-            {history.map((h) => (
-              <li key={h.assignmentID} className="list-group-item d-flex align-items-start gap-3 py-3">
-                <span className="app-avatar" aria-hidden="true">
-                  {(h.employeeName || '?').charAt(0).toUpperCase()}
-                </span>
-                <div className="flex-grow-1 min-w-0">
-                  <div className="d-flex flex-wrap align-items-center gap-2">
-                    <span className="fw-semibold">{h.employeeName}</span>
-                    {!h.returnedDate && <span className="status-chip is-success">Current</span>}
-                  </div>
-                  <small className="text-muted d-block">
-                    {new Date(h.assignedDate).toLocaleDateString()} –{' '}
-                    {h.returnedDate ? new Date(h.returnedDate).toLocaleDateString() : 'now'}
-                    {' · '}{h.daysHeld} days
-                  </small>
-                  {(h.notes || h.returnCondition) && (
-                    <small className="text-muted d-block mt-1">
-                      {[h.notes, h.returnCondition].filter(Boolean).join(' · ')}
-                    </small>
-                  )}
+          {currentHolder ? (
+            <section>
+              <SectionTitle as="h3">Hand over or take back</SectionTitle>
+              <FieldGroup className="gap-4">
+                <Field>
+                  <FieldLabel htmlFor="custody-transfer-to">Transfer to</FieldLabel>
+                  <NativeSelect
+                    id="custody-transfer-to"
+                    value={assignTo}
+                    onChange={(e) => setAssignTo(e.target.value)}
+                    className="w-full"
+                  >
+                    <NativeSelectOption value="">Select an employee…</NativeSelectOption>
+                    {employees
+                      .filter((e) => e.employeeID !== currentHolder.employeeID)
+                      .map((e) => (
+                        <NativeSelectOption key={e.employeeID} value={e.employeeID}>{e.firstName} {e.lastName}</NativeSelectOption>
+                      ))}
+                  </NativeSelect>
+                </Field>
+                <Field>
+                  <FieldLabel htmlFor="custody-return-condition">Condition on return (optional)</FieldLabel>
+                  <Input
+                    id="custody-return-condition"
+                    value={returnCondition}
+                    onChange={(e) => setReturnCondition(e.target.value)}
+                    placeholder="Good, minor scuffs…"
+                  />
+                  <FieldDescription>Recorded on the current holder's period when it closes.</FieldDescription>
+                </Field>
+                <Field>
+                  <FieldLabel htmlFor="custody-notes">Notes (optional)</FieldLabel>
+                  <Input id="custody-notes" value={notes} onChange={(e) => setNotes(e.target.value)} />
+                </Field>
+                <div className="flex flex-wrap gap-2">
+                  <Button type="button" disabled={!assignTo || busy} onClick={handleAssign}>
+                    <ArrowLeftRight aria-hidden="true" />
+                    Transfer
+                  </Button>
+                  <Button
+                    type="button"
+                    variant="outline"
+                    className="text-destructive hover:bg-destructive/10 hover:text-destructive"
+                    disabled={busy}
+                    onClick={handleReturn}
+                  >
+                    <Download aria-hidden="true" />
+                    Return to stock
+                  </Button>
                 </div>
-              </li>
-            ))}
-          </ol>
-        )}
-      </Modal.Body>
+              </FieldGroup>
+            </section>
+          ) : (
+            <section>
+              <SectionTitle as="h3">Assign</SectionTitle>
+              <FieldGroup className="gap-4">
+                <Field>
+                  <FieldLabel htmlFor="custody-assign-to">Assign to</FieldLabel>
+                  <NativeSelect
+                    id="custody-assign-to"
+                    value={assignTo}
+                    onChange={(e) => setAssignTo(e.target.value)}
+                    className="w-full"
+                  >
+                    <NativeSelectOption value="">Select an employee…</NativeSelectOption>
+                    {employees.map((e) => (
+                      <NativeSelectOption key={e.employeeID} value={e.employeeID}>{e.firstName} {e.lastName}</NativeSelectOption>
+                    ))}
+                  </NativeSelect>
+                </Field>
+                <Field>
+                  <FieldLabel htmlFor="custody-assign-notes">Notes (optional)</FieldLabel>
+                  <Input
+                    id="custody-assign-notes"
+                    value={notes}
+                    onChange={(e) => setNotes(e.target.value)}
+                    placeholder="Notes (optional)"
+                  />
+                </Field>
+                <div>
+                  <Button type="button" disabled={!assignTo || busy} onClick={handleAssign}>
+                    Assign
+                  </Button>
+                </div>
+              </FieldGroup>
+            </section>
+          )}
 
-      <Modal.Footer>
-        <Button variant="secondary" onClick={onHide}>Close</Button>
-      </Modal.Footer>
-    </Modal>
+          <section>
+            <SectionTitle as="h3">History</SectionTitle>
+            {loading ? (
+              <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                <Spinner className="text-primary" aria-hidden="true" /> Loading history…
+              </div>
+            ) : history.length === 0 ? (
+              <EmptyState icon={History} title="No custody history" description="This asset has never been assigned." className="p-6" />
+            ) : (
+              // A vertical timeline: one entry per custody period, joined by a rail.
+              <ol className="rounded-lg border p-4">
+                {history.map((h, i) => {
+                  const current = !h.returnedDate;
+                  return (
+                    <li key={h.assignmentID} className="relative flex gap-3 pb-5 last:pb-0">
+                      {i < history.length - 1 && (
+                        <span aria-hidden="true" className="absolute top-9 bottom-1 left-4 w-px -translate-x-1/2 bg-border" />
+                      )}
+                      <Avatar aria-hidden="true">
+                        <AvatarFallback className={cn('text-xs font-semibold', current && 'bg-primary text-primary-foreground')}>
+                          {(h.employeeName || '?').charAt(0).toUpperCase()}
+                        </AvatarFallback>
+                      </Avatar>
+                      <div className="min-w-0 flex-1 pt-1">
+                        <div className="flex flex-wrap items-center gap-2">
+                          <span className="font-semibold">{h.employeeName}</span>
+                          {current && <StatusBadge tone="success">Current</StatusBadge>}
+                        </div>
+                        <p className="mt-0.5 text-xs text-muted-foreground">
+                          {new Date(h.assignedDate).toLocaleDateString()} –{' '}
+                          {h.returnedDate ? new Date(h.returnedDate).toLocaleDateString() : 'now'}
+                          {' · '}{h.daysHeld} days
+                        </p>
+                        {(h.notes || h.returnCondition) && (
+                          <p className="mt-1 text-xs text-muted-foreground">
+                            {[h.notes, h.returnCondition].filter(Boolean).join(' · ')}
+                          </p>
+                        )}
+                      </div>
+                    </li>
+                  );
+                })}
+              </ol>
+            )}
+          </section>
+        </div>
+
+        <DialogFooter>
+          <Button type="button" variant="outline" onClick={onHide}>Close</Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
   );
 };
 

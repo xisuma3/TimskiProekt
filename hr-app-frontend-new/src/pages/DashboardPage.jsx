@@ -1,9 +1,52 @@
-import React, { useState, useEffect } from 'react';
-import { Row, Col, Card, Button, ProgressBar } from 'react-bootstrap';
+import { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
+import { ArrowRight, Building2, Calendar, CalendarCheck, Hourglass, Laptop, Users } from 'lucide-react';
+import { Avatar, AvatarFallback } from '@/components/ui/avatar';
+import { Button } from '@/components/ui/button';
+import { Card, CardAction, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { Empty, EmptyDescription, EmptyHeader, EmptyMedia } from '@/components/ui/empty';
+import { Progress } from '@/components/ui/progress';
+import { Skeleton } from '@/components/ui/skeleton';
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
+import { cn } from '@/lib/utils';
+import PageHeader from '../components/app/PageHeader';
+import StatCard from '../components/app/StatCard';
+import StatusBadge from '../components/app/StatusBadge';
+import { STATUS_TONE } from '../components/app/tones';
 import EmployeeDashboard from '../components/EmployeeDashboard';
 import { authenticatedFetch, isAdmin } from '../services/authService';
 import { API_URLS } from '../config/api';
+
+// Anything that isn't Approved or Rejected reads as pending.
+const statusTone = (status) => STATUS_TONE[status] || 'warning';
+
+// Compact "nothing here" note for inside a card.
+const EmptyNote = ({ icon: Icon, children }) => (
+  <Empty className="gap-3 p-8">
+    <EmptyHeader>
+      <EmptyMedia variant="icon"><Icon aria-hidden="true" /></EmptyMedia>
+      <EmptyDescription>{children}</EmptyDescription>
+    </EmptyHeader>
+  </Empty>
+);
+
+// Progress indicator colours; the shadcn Progress paints its indicator bg-primary.
+const METER_TONE = {
+  success: '*:data-[slot=progress-indicator]:bg-success',
+  warning: '*:data-[slot=progress-indicator]:bg-warning',
+};
+
+const Meter = ({ label, percent, tone, ariaLabel, detail }) => (
+  <div>
+    <div className="mb-2 flex items-baseline justify-between gap-2 text-sm">
+      <span className="font-medium">{label}</span>
+      <span className="tabular-nums text-muted-foreground">{percent}%</span>
+    </div>
+    {/* The shadcn Progress keeps `value` off the Radix root, so state it for assistive tech. */}
+    <Progress value={percent} aria-label={ariaLabel} className={cn('h-2', METER_TONE[tone])} />
+    <p className="mt-2 text-xs text-muted-foreground">{detail}</p>
+  </div>
+);
 
 const DashboardPage = () => {
   const [stats, setStats] = useState({
@@ -58,33 +101,18 @@ const DashboardPage = () => {
     fetchStats();
   }, []);
 
-  const statusClass = (status) =>
-    status === 'Approved' ? 'is-approved' : status === 'Rejected' ? 'is-rejected' : 'is-pending';
-
   const pct = (part, whole) => (whole > 0 ? Math.round((part / whole) * 100) : 0);
-
-  const StatCard = ({ title, value, icon, tone, to }) => (
-    <Card as={Link} to={to} className="item-card text-decoration-none h-100">
-      <div className="stat-card">
-        <span className={`stat-icon tone-${tone}`} aria-hidden="true"><i className={`bi bi-${icon}`} /></span>
-        <div>
-          <div className="stat-value">{value}</div>
-          <div className="stat-label">{title}</div>
-        </div>
-      </div>
-    </Card>
-  );
 
   if (loading) {
     return (
-      <div aria-busy="true" aria-label="Loading dashboard">
-        <div className="skeleton mb-4" style={{ height: 56, maxWidth: 320 }} />
-        <Row className="g-4 mb-4">
+      <div aria-busy="true" aria-label="Loading dashboard" className="space-y-6">
+        <Skeleton className="h-14 max-w-xs" />
+        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
           {[0, 1, 2, 3].map((i) => (
-            <Col lg={3} sm={6} key={i}><div className="skeleton" style={{ height: 96 }} /></Col>
+            <Skeleton key={i} className="h-28" />
           ))}
-        </Row>
-        <div className="skeleton" style={{ height: 320 }} />
+        </div>
+        <Skeleton className="h-80" />
       </div>
     );
   }
@@ -100,98 +128,134 @@ const DashboardPage = () => {
   // Show admin dashboard for admins
   return (
     <div>
-      <div className="page-header">
-        <div>
-          <h1>HR Dashboard</h1>
-          <p>What needs your attention across the organisation today.</p>
-        </div>
-        <div className="page-header-actions">
-          <Button as={Link} to="/leave-requests" variant="primary">
-            <i className="bi bi-calendar2-check me-2" aria-hidden="true" />
-            Review leave requests
+      <PageHeader
+        title="HR Dashboard"
+        description="What needs your attention across the organisation today."
+        actions={(
+          <Button asChild>
+            <Link to="/leave-requests">
+              <CalendarCheck aria-hidden="true" />
+              Review leave requests
+            </Link>
           </Button>
+        )}
+      />
+
+      <div className="space-y-6">
+        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+          <StatCard
+            to="/employees"
+            label="Total Employees"
+            value={stats.totalEmployees}
+            hint="Currently employed"
+            icon={Users}
+            tone="indigo"
+          />
+          <StatCard
+            to="/leave-requests"
+            label="Pending Leave Requests"
+            value={stats.pendingLeaveRequests}
+            hint="Awaiting a decision"
+            icon={Hourglass}
+            tone="amber"
+          />
+          <StatCard
+            to="/assets"
+            label="Active Assets"
+            value={stats.activeAssets}
+            hint={`of ${stats.totalAssets} in inventory`}
+            icon={Laptop}
+            tone="green"
+          />
+          <StatCard
+            to="/departments"
+            label="Departments"
+            value={stats.totalDepartments}
+            hint="Teams across the organisation"
+            icon={Building2}
+            tone="violet"
+          />
+        </div>
+
+        <div className="grid gap-4 lg:grid-cols-3">
+          <Card className="lg:col-span-2">
+            <CardHeader>
+              <CardTitle>Recent Leave Requests</CardTitle>
+              <CardDescription>The latest requests, newest first.</CardDescription>
+              <CardAction>
+                <Button variant="ghost" size="sm" asChild>
+                  <Link to="/leave-requests">
+                    View all
+                    <ArrowRight aria-hidden="true" />
+                  </Link>
+                </Button>
+              </CardAction>
+            </CardHeader>
+            <CardContent className="px-0">
+              {stats.recentLeaveRequests.length === 0 ? (
+                <EmptyNote icon={Calendar}>No recent leave requests</EmptyNote>
+              ) : (
+                <Table>
+                  <TableHeader>
+                    <TableRow className="hover:bg-transparent">
+                      <TableHead className="pl-6">Employee</TableHead>
+                      <TableHead>Type</TableHead>
+                      <TableHead>Dates</TableHead>
+                      <TableHead className="pr-6 text-right">Status</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {stats.recentLeaveRequests.map((request) => (
+                      <TableRow key={request.requestID}>
+                        <TableCell className="pl-6">
+                          <div className="flex items-center gap-3">
+                            <Avatar aria-hidden="true">
+                              <AvatarFallback className="bg-primary/10 text-xs font-semibold text-primary">
+                                {(request.employeeName || '?').charAt(0).toUpperCase()}
+                              </AvatarFallback>
+                            </Avatar>
+                            <span className="font-medium">{request.employeeName}</span>
+                          </div>
+                        </TableCell>
+                        <TableCell className="text-muted-foreground">{request.leaveType}</TableCell>
+                        <TableCell className="tabular-nums text-muted-foreground">
+                          {new Date(request.startDate).toLocaleDateString()} – {new Date(request.endDate).toLocaleDateString()}
+                        </TableCell>
+                        <TableCell className="pr-6 text-right">
+                          <StatusBadge tone={statusTone(request.status)}>{request.status}</StatusBadge>
+                        </TableCell>
+                      </TableRow>
+                    ))}
+                  </TableBody>
+                </Table>
+              )}
+            </CardContent>
+          </Card>
+
+          <Card>
+            <CardHeader>
+              <CardTitle>At a glance</CardTitle>
+              <CardDescription>How equipment and approvals stand right now.</CardDescription>
+            </CardHeader>
+            <CardContent className="gap-6">
+              <Meter
+                label="Asset utilisation"
+                percent={assetUse}
+                tone="success"
+                ariaLabel="Asset utilisation"
+                detail={`${stats.activeAssets} of ${stats.totalAssets} assets active`}
+              />
+              <Meter
+                label="Requests awaiting a decision"
+                percent={pendingShare}
+                tone="warning"
+                ariaLabel="Share of leave requests pending"
+                detail={`${stats.pendingLeaveRequests} of ${stats.totalLeaveRequests} requests pending`}
+              />
+            </CardContent>
+          </Card>
         </div>
       </div>
-
-      <Row className="g-4 mb-4">
-        <Col lg={3} sm={6}>
-          <StatCard title="Total Employees" value={stats.totalEmployees} icon="people" tone="indigo" to="/employees" />
-        </Col>
-        <Col lg={3} sm={6}>
-          <StatCard title="Pending Leave Requests" value={stats.pendingLeaveRequests} icon="hourglass-split" tone="amber" to="/leave-requests" />
-        </Col>
-        <Col lg={3} sm={6}>
-          <StatCard title="Active Assets" value={stats.activeAssets} icon="laptop" tone="green" to="/assets" />
-        </Col>
-        <Col lg={3} sm={6}>
-          <StatCard title="Departments" value={stats.totalDepartments} icon="building" tone="violet" to="/departments" />
-        </Col>
-      </Row>
-
-      <Row className="g-4">
-        <Col lg={8}>
-          <Card className="h-100">
-            <Card.Header className="d-flex justify-content-between align-items-center py-3">
-              <span>Recent Leave Requests</span>
-              <Link to="/leave-requests" className="small fw-semibold text-decoration-none">View all</Link>
-            </Card.Header>
-            <Card.Body className="p-0">
-              {stats.recentLeaveRequests.length === 0 ? (
-                <div className="text-center text-muted py-5">
-                  <i className="bi bi-calendar2 d-block fs-3 mb-2" aria-hidden="true" />
-                  No recent leave requests
-                </div>
-              ) : (
-                <ul className="list-group list-group-flush">
-                  {stats.recentLeaveRequests.map((request) => (
-                    <li key={request.requestID} className="list-group-item d-flex align-items-center gap-3 px-4 py-3">
-                      <span className="app-avatar" aria-hidden="true">
-                        {(request.employeeName || '?').charAt(0).toUpperCase()}
-                      </span>
-                      <div className="flex-grow-1 min-w-0">
-                        <div className="fw-semibold">{request.employeeName}</div>
-                        <small className="text-muted">
-                          {request.leaveType} · {new Date(request.startDate).toLocaleDateString()} – {new Date(request.endDate).toLocaleDateString()}
-                        </small>
-                      </div>
-                      <span className={`status-chip ${statusClass(request.status)}`}>{request.status}</span>
-                    </li>
-                  ))}
-                </ul>
-              )}
-            </Card.Body>
-          </Card>
-        </Col>
-
-        <Col lg={4}>
-          <Card className="h-100">
-            <Card.Header className="py-3">At a glance</Card.Header>
-            <Card.Body>
-              <div className="mb-4">
-                <div className="d-flex justify-content-between small mb-2">
-                  <span className="fw-semibold">Asset utilisation</span>
-                  <span className="text-muted">{assetUse}%</span>
-                </div>
-                <ProgressBar now={assetUse} variant="success" aria-label="Asset utilisation" />
-                <small className="text-muted d-block mt-2">
-                  {stats.activeAssets} of {stats.totalAssets} assets active
-                </small>
-              </div>
-
-              <div>
-                <div className="d-flex justify-content-between small mb-2">
-                  <span className="fw-semibold">Requests awaiting a decision</span>
-                  <span className="text-muted">{pendingShare}%</span>
-                </div>
-                <ProgressBar now={pendingShare} variant="warning" aria-label="Share of leave requests pending" />
-                <small className="text-muted d-block mt-2">
-                  {stats.pendingLeaveRequests} of {stats.totalLeaveRequests} requests pending
-                </small>
-              </div>
-            </Card.Body>
-          </Card>
-        </Col>
-      </Row>
     </div>
   );
 };

@@ -1,5 +1,19 @@
-import React, { useState, useEffect } from 'react';
-import { Modal, Form, Button, Alert, Row, Col } from 'react-bootstrap';
+import { useState, useEffect } from 'react';
+import { AlertCircle } from 'lucide-react';
+import { Alert, AlertDescription } from '@/components/ui/alert';
+import { Button } from '@/components/ui/button';
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from '@/components/ui/dialog';
+import { Field, FieldDescription, FieldGroup, FieldLabel } from '@/components/ui/field';
+import { Input } from '@/components/ui/input';
+import { NativeSelect, NativeSelectOption } from '@/components/ui/native-select';
+import { Spinner } from '@/components/ui/spinner';
 import { authenticatedFetch } from '../services/authService';
 import { API_URLS } from '../config/api';
 
@@ -92,37 +106,49 @@ const LeaveEntitlementModal = ({ show, onHide, onSave, item, employees = [] }) =
   };
 
   return (
-    <Modal show={show} onHide={onHide} centered>
-      <Form onSubmit={handleSubmit}>
-        <Modal.Header closeButton>
-          <Modal.Title>{isEdit ? 'Edit Leave Allowance' : 'New Leave Allowance'}</Modal.Title>
-        </Modal.Header>
+    <Dialog open={show} onOpenChange={(open) => { if (!open) onHide(); }}>
+      <DialogContent className="sm:max-w-lg">
+        <form onSubmit={handleSubmit} className="grid gap-6">
+          <DialogHeader>
+            <DialogTitle>{isEdit ? 'Edit Leave Allowance' : 'New Leave Allowance'}</DialogTitle>
+            <DialogDescription>
+              Employees can only request leave of a type they have an allowance for, and only up to
+              the days remaining. Without an allowance for a year, that leave type can't be requested.
+            </DialogDescription>
+          </DialogHeader>
 
-        <Modal.Body>
-          {error && <Alert variant="danger">{error}</Alert>}
+          {error && (
+            <Alert variant="destructive">
+              <AlertCircle aria-hidden="true" />
+              <AlertDescription>{error}</AlertDescription>
+            </Alert>
+          )}
 
-          <Form.Group className="mb-3">
-            <Form.Label>Employee</Form.Label>
-            <Form.Select
-              value={form.employeeID}
-              onChange={update('employeeID')}
-              required
-              disabled={isEdit}
-            >
-              <option value="">Select an employee…</option>
-              {employees.map((e) => (
-                <option key={e.employeeID} value={e.employeeID}>
-                  {e.firstName} {e.lastName}
-                </option>
-              ))}
-            </Form.Select>
-          </Form.Group>
+          <FieldGroup>
+            <Field>
+              <FieldLabel htmlFor="allowance-employee">Employee</FieldLabel>
+              <NativeSelect
+                id="allowance-employee"
+                className="w-full"
+                value={form.employeeID}
+                onChange={update('employeeID')}
+                required
+                disabled={isEdit}
+              >
+                <NativeSelectOption value="">Select an employee…</NativeSelectOption>
+                {employees.map((e) => (
+                  <NativeSelectOption key={e.employeeID} value={e.employeeID}>
+                    {e.firstName} {e.lastName}
+                  </NativeSelectOption>
+                ))}
+              </NativeSelect>
+            </Field>
 
-          <Row>
-            <Col md={6}>
-              <Form.Group className="mb-3">
-                <Form.Label>Year</Form.Label>
-                <Form.Control
+            <div className="grid gap-4 sm:grid-cols-2">
+              <Field>
+                <FieldLabel htmlFor="allowance-year">Year</FieldLabel>
+                <Input
+                  id="allowance-year"
                   type="number"
                   min={2000}
                   max={2100}
@@ -130,69 +156,72 @@ const LeaveEntitlementModal = ({ show, onHide, onSave, item, employees = [] }) =
                   onChange={update('year')}
                   required
                 />
-              </Form.Group>
-            </Col>
-            <Col md={6}>
-              <Form.Group className="mb-3">
-                <Form.Label>Leave type</Form.Label>
-                <Form.Select value={form.leaveType} onChange={update('leaveType')}>
-                  {LEAVE_TYPES.map((t) => <option key={t} value={t}>{t}</option>)}
-                </Form.Select>
-              </Form.Group>
-            </Col>
-          </Row>
+              </Field>
+              <Field>
+                <FieldLabel htmlFor="allowance-leave-type">Leave type</FieldLabel>
+                <NativeSelect
+                  id="allowance-leave-type"
+                  className="w-full"
+                  value={form.leaveType}
+                  onChange={update('leaveType')}
+                >
+                  {LEAVE_TYPES.map((t) => <NativeSelectOption key={t} value={t}>{t}</NativeSelectOption>)}
+                </NativeSelect>
+              </Field>
+            </div>
 
-          <Row>
-            <Col md={6}>
-              <Form.Group className="mb-3">
-                <Form.Label>Days allocated</Form.Label>
-                <Form.Control
+            <div className="grid gap-4 sm:grid-cols-2">
+              <Field>
+                <FieldLabel htmlFor="allowance-days-allocated">Days allocated</FieldLabel>
+                <Input
+                  id="allowance-days-allocated"
                   type="number" min={0} max={366} step="0.5"
                   value={form.daysAllocated}
                   onChange={update('daysAllocated')}
                   required
                 />
-              </Form.Group>
-            </Col>
-            <Col md={6}>
-              <Form.Group className="mb-3">
-                <Form.Label>Carried over</Form.Label>
-                <Form.Control
+              </Field>
+              <Field>
+                <FieldLabel htmlFor="allowance-carried-over">Carried over</FieldLabel>
+                <Input
+                  id="allowance-carried-over"
                   type="number" min={0} max={366} step="0.5"
                   value={form.daysCarriedOver}
                   onChange={update('daysCarriedOver')}
                 />
-              </Form.Group>
-            </Col>
-          </Row>
+              </Field>
+            </div>
 
-          <Form.Group className="mb-3" controlId="allowance-accrual">
-            <Form.Label>Accrual</Form.Label>
-            <Form.Select value={form.accrualMethod} onChange={update('accrualMethod')}>
-              <option value="Upfront">Up front — all days on 1 January</option>
-              <option value="Monthly">Monthly — 1/12 at the start of each month</option>
-            </Form.Select>
-            <Form.Text>
-              {form.accrualMethod === 'Monthly'
-                ? 'The allocation builds up month by month; employees can book what will have accrued by the last day of their leave. Carried-over days are available in full from the start.'
-                : 'The whole allocation is available from the first day of the year.'}
-            </Form.Text>
-          </Form.Group>
+            <Field>
+              <FieldLabel htmlFor="allowance-accrual">Accrual</FieldLabel>
+              <NativeSelect
+                id="allowance-accrual"
+                className="w-full"
+                value={form.accrualMethod}
+                onChange={update('accrualMethod')}
+                aria-describedby="allowance-accrual-hint"
+              >
+                <NativeSelectOption value="Upfront">Up front — all days on 1 January</NativeSelectOption>
+                <NativeSelectOption value="Monthly">Monthly — 1/12 at the start of each month</NativeSelectOption>
+              </NativeSelect>
+              <FieldDescription id="allowance-accrual-hint">
+                {form.accrualMethod === 'Monthly'
+                  ? 'The allocation builds up month by month; employees can book what will have accrued by the last day of their leave. Carried-over days are available in full from the start.'
+                  : 'The whole allocation is available from the first day of the year.'}
+              </FieldDescription>
+            </Field>
+          </FieldGroup>
 
-          <Form.Text as="p" className="mb-0">
-            Employees can only request leave of a type they have an allowance for, and only up to
-            the days remaining. Without an allowance for a year, that leave type can't be requested.
-          </Form.Text>
-        </Modal.Body>
-
-        <Modal.Footer>
-          <Button variant="secondary" onClick={onHide} disabled={saving}>Cancel</Button>
-          <Button variant="primary" type="submit" disabled={saving}>
-            {saving ? 'Saving…' : isEdit ? 'Save' : 'Create'}
-          </Button>
-        </Modal.Footer>
-      </Form>
-    </Modal>
+          <DialogFooter>
+            <Button type="button" variant="outline" onClick={onHide} disabled={saving}>Cancel</Button>
+            <Button type="submit" disabled={saving}>
+              {saving && <Spinner />}
+              {saving ? 'Saving…' : isEdit ? 'Save' : 'Create'}
+            </Button>
+          </DialogFooter>
+        </form>
+      </DialogContent>
+    </Dialog>
   );
 };
 

@@ -21,12 +21,13 @@ Import with the `@/` alias: `import { Button } from '@/components/ui/button'`.
 | Component | Use for |
 |---|---|
 | `ItemCard` + `MetaList` | Every card a `DataPage` renders: icon tile, title, subtitle, badge, body, actions. |
-| `StatusBadge` | Coloured pills. `tone`: primary, success, warning, danger, info, violet, muted, or `status="Approved"`. |
+| `StatusBadge` | Coloured pills. `tone`: primary, success, warning, danger, info, violet, muted, or `status="Approved"`. Other props (`title`, …) pass through. |
 | `IconTile` | Tinted icon square. `tone`: indigo, violet, sky, green, amber, red, muted. |
 | `PageHeader`, `SectionTitle` | Title block and section headings on pages that don't use `DataPage`. |
-| `StatCard` | Headline numbers (dashboards, analytics). |
+| `StatCard` | Headline numbers (dashboards, analytics). With `to`, the whole card links there. |
 | `ConfirmDialog` | Any "are you sure?" step. Replaces `window.confirm` and Bootstrap confirm modals. |
 | `EmptyState` | "Nothing here yet" blocks. |
+| `BrandMark` | The product logo tile (shell, landing, login). |
 | `DocPreview` | Rendered document HTML: always white paper, with `prose` typography, in both themes. |
 
 ## Bootstrap → shadcn
@@ -102,7 +103,7 @@ Tailwind's. Bootstrap `mb-3` → Tailwind `mb-4`, `mb-4` → `mb-6`, `mb-5` → 
 ## Layout
 
 - Pages render inside the shell's `max-w-7xl` container. Don't add page-level padding.
-- Page title: `DataPage` renders its own. Otherwise use `PageHeader` (an `h1`). The top bar
+- Page title: `DataPage` renders its own (`headingLevel={2}` when it is a section of a larger page). Otherwise use `PageHeader` (an `h1`). The top bar
   holds the shell's `h1`-sized page name. Keep a single `h1` per page body: `PageHeader`'s.
 - Stack sections with `space-y-6`. Card grids: `grid gap-4 md:grid-cols-2 xl:grid-cols-3`.
 - Everything must work at 375px wide: wrap toolbars with `flex-wrap`, and let tables

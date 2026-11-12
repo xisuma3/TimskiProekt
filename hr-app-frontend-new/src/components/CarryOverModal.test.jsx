@@ -1,4 +1,4 @@
-import { fireEvent, render, screen, waitFor } from '@testing-library/react';
+import { fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import CarryOverModal from './CarryOverModal';
 import { authenticatedFetch } from '../services/authService';
 
@@ -11,9 +11,7 @@ const results = [
 
 beforeEach(() => {
   authenticatedFetch.mockReset();
-  vi.spyOn(window, 'confirm').mockReturnValue(true);
 });
-afterEach(() => { window.confirm.mockRestore(); });
 
 test('apply is only possible after a preview, and sends the chosen options', async () => {
   authenticatedFetch.mockResolvedValue({ ok: true, json: async () => results });
@@ -33,6 +31,11 @@ test('apply is only possible after a preview, and sends the chosen options', asy
   expect(onApplied).not.toHaveBeenCalled();
 
   fireEvent.click(screen.getByRole('button', { name: 'Apply carry-over' }));
+  // Applying asks first: nothing is sent until the confirmation is accepted.
+  const confirm = await screen.findByRole('alertdialog');
+  expect(confirm).toHaveTextContent(/into \d{4}\? Next year's allowances will be created or updated/);
+  expect(authenticatedFetch).toHaveBeenCalledTimes(1);
+  fireEvent.click(within(confirm).getByRole('button', { name: 'Apply' }));
   await waitFor(() => expect(onApplied).toHaveBeenCalled());
   expect(JSON.parse(authenticatedFetch.mock.calls[1][1].body).preview).toBe(false);
   expect(screen.getByText(/^Applied\./)).toBeInTheDocument();

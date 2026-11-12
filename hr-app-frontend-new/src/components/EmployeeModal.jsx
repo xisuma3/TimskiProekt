@@ -1,5 +1,19 @@
-import React, { useState, useEffect } from 'react';
-import { Modal, Button, Form, Row, Col, Alert } from 'react-bootstrap';
+import { useState, useEffect } from 'react';
+import { AlertCircle } from 'lucide-react';
+import { Alert, AlertDescription } from '@/components/ui/alert';
+import { Button } from '@/components/ui/button';
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from '@/components/ui/dialog';
+import { Field, FieldDescription, FieldGroup, FieldLabel } from '@/components/ui/field';
+import { Input } from '@/components/ui/input';
+import { NativeSelect, NativeSelectOption } from '@/components/ui/native-select';
+import { Spinner } from '@/components/ui/spinner';
 import { authenticatedFetch, register } from '../services/authService';
 import { API_URLS } from '../config/api';
 
@@ -42,7 +56,7 @@ const EmployeeModal = ({ show, onHide, employee = null, onSave, departments = []
       // Find department ID by matching department name
       const matchingDept = departments.find(dept => dept.name === employee.departmentName);
       const departmentID = employee.departmentID || (matchingDept ? matchingDept.departmentID : '');
-      
+
       setFormData({
         firstName: employee.firstName || '',
         lastName: employee.lastName || '',
@@ -97,7 +111,7 @@ const EmployeeModal = ({ show, onHide, employee = null, onSave, departments = []
           ManagerID: formData.managerID,
           MentorID: formData.mentorID
         };
-        
+
         const response = await authenticatedFetch(
           API_URLS.EMPLOYEES.UPDATE(employee.employeeID),
           {
@@ -108,7 +122,7 @@ const EmployeeModal = ({ show, onHide, employee = null, onSave, departments = []
 
         if (!response.ok) {
           const errorData = await response.json().catch(() => ({}));
-          const errorMessage = errorData.errors 
+          const errorMessage = errorData.errors
             ? Object.values(errorData.errors).flat().join(', ')
             : 'Failed to update employee.';
           throw new Error(errorMessage);
@@ -147,7 +161,7 @@ const EmployeeModal = ({ show, onHide, employee = null, onSave, departments = []
       };
 
       const result = await register(registerData);
-      
+
       // The register API now creates both the user and employee
       onSave(result);
       onHide();
@@ -168,175 +182,171 @@ const EmployeeModal = ({ show, onHide, employee = null, onSave, departments = []
   };
 
   return (
-    <Modal show={show} onHide={onHide} size="lg" centered>
-      <Modal.Header closeButton>
-        <Modal.Title>{isEditing ? 'Edit Employee' : 'Add New Employee'}</Modal.Title>
-      </Modal.Header>
-      <Modal.Body>
-        {error && <Alert variant="danger">{error}</Alert>}
-        
-        <Form onSubmit={handleSubmit}>
-          <Row>
-            <Col md={6}>
-              <Form.Group className="mb-3">
-                <Form.Label>First Name *</Form.Label>
-                <Form.Control
+    <Dialog open={show} onOpenChange={(open) => { if (!open) onHide(); }}>
+      <DialogContent className="sm:max-w-2xl">
+        <form onSubmit={handleSubmit} className="grid gap-6">
+          <DialogHeader>
+            <DialogTitle>{isEditing ? 'Edit Employee' : 'Add New Employee'}</DialogTitle>
+            <DialogDescription>
+              {isEditing
+                ? 'Update their details, team and start date.'
+                : 'Create the employee record and the login they will sign in with.'}
+            </DialogDescription>
+          </DialogHeader>
+
+          {error && (
+            <Alert variant="destructive">
+              <AlertCircle aria-hidden="true" />
+              <AlertDescription>{error}</AlertDescription>
+            </Alert>
+          )}
+
+          <FieldGroup>
+            <div className="grid gap-4 sm:grid-cols-2">
+              <Field>
+                <FieldLabel htmlFor="employee-first-name">First Name *</FieldLabel>
+                <Input
+                  id="employee-first-name"
                   type="text"
                   name="firstName"
                   value={formData.firstName}
                   onChange={handleChange}
                   required
                 />
-              </Form.Group>
-            </Col>
-            <Col md={6}>
-              <Form.Group className="mb-3">
-                <Form.Label>Last Name *</Form.Label>
-                <Form.Control
+              </Field>
+              <Field>
+                <FieldLabel htmlFor="employee-last-name">Last Name *</FieldLabel>
+                <Input
+                  id="employee-last-name"
                   type="text"
                   name="lastName"
                   value={formData.lastName}
                   onChange={handleChange}
                   required
                 />
-              </Form.Group>
-            </Col>
-          </Row>
+              </Field>
 
-          <Row>
-            <Col md={6}>
-              <Form.Group className="mb-3">
-                <Form.Label>Email *</Form.Label>
-                <Form.Control
+              <Field>
+                <FieldLabel htmlFor="employee-email">Email *</FieldLabel>
+                <Input
+                  id="employee-email"
                   type="email"
                   name="email"
                   value={formData.email}
                   onChange={handleChange}
                   required
                 />
-              </Form.Group>
-            </Col>
-            <Col md={6}>
-              <Form.Group className="mb-3">
-                <Form.Label>Position *</Form.Label>
-                <Form.Control
+              </Field>
+              <Field>
+                <FieldLabel htmlFor="employee-position">Position *</FieldLabel>
+                <Input
+                  id="employee-position"
                   type="text"
                   name="position"
                   value={formData.position}
                   onChange={handleChange}
                   required
                 />
-              </Form.Group>
-            </Col>
-          </Row>
+              </Field>
 
-          <Row>
-            <Col md={6}>
-              <Form.Group className="mb-3">
-                <Form.Label>Department *</Form.Label>
-                <Form.Select
+              <Field>
+                <FieldLabel htmlFor="employee-department">Department *</FieldLabel>
+                <NativeSelect
+                  id="employee-department"
                   name="departmentID"
                   value={formData.departmentID}
                   onChange={handleChange}
                   required
+                  className="w-full"
                 >
-                  <option value="">Select Department</option>
+                  <NativeSelectOption value="">Select Department</NativeSelectOption>
                   {departments.map(dept => (
-                    <option key={dept.departmentID} value={dept.departmentID}>
+                    <NativeSelectOption key={dept.departmentID} value={dept.departmentID}>
                       {dept.name}
-                    </option>
+                    </NativeSelectOption>
                   ))}
-                </Form.Select>
-              </Form.Group>
-            </Col>
-            <Col md={6}>
-              <Form.Group className="mb-3">
-                <Form.Label>Hire Date *</Form.Label>
-                <Form.Control
+                </NativeSelect>
+              </Field>
+              <Field>
+                <FieldLabel htmlFor="employee-hire-date">Hire Date *</FieldLabel>
+                <Input
+                  id="employee-hire-date"
                   type="date"
                   name="hireDate"
                   value={formData.hireDate}
                   onChange={handleChange}
                   required
                 />
-              </Form.Group>
-            </Col>
-          </Row>
+              </Field>
 
-          <Row>
-            <Col md={6}>
-              <Form.Group className="mb-3">
-                <Form.Label>Manager</Form.Label>
-                <Form.Control
+              <Field>
+                <FieldLabel htmlFor="employee-manager">Manager</FieldLabel>
+                <Input
+                  id="employee-manager"
                   type="text"
                   name="managerName"
                   value={formData.managerName}
                   readOnly
+                  className="bg-muted/50"
                 />
-              </Form.Group>
-            </Col>
-            <Col md={6}>
-              <Form.Group className="mb-3">
-                <Form.Label>Mentor</Form.Label>
-                <Form.Control
+              </Field>
+              <Field>
+                <FieldLabel htmlFor="employee-mentor">Mentor</FieldLabel>
+                <Input
+                  id="employee-mentor"
                   type="text"
                   name="mentorName"
                   value={formData.mentorName}
                   readOnly
+                  className="bg-muted/50"
                 />
-              </Form.Group>
-            </Col>
-          </Row>
+              </Field>
 
-          {/* Password fields - only for new employees */}
-          {!isEditing && (
-            <Row>
-              <Col md={6}>
-                <Form.Group className="mb-3">
-                  <Form.Label>Password *</Form.Label>
-                  <Form.Control
-                    type="password"
-                    name="password"
-                    value={formData.password}
-                    onChange={handleChange}
-                    required
-                    placeholder="Enter initial password"
-                  />
-                  <Form.Text>
-                    Minimum 6 characters
-                  </Form.Text>
-                </Form.Group>
-              </Col>
-              <Col md={6}>
-                <Form.Group className="mb-3">
-                  <Form.Label>Confirm Password *</Form.Label>
-                  <Form.Control
-                    type="password"
-                    name="confirmPassword"
-                    value={formData.confirmPassword}
-                    onChange={handleChange}
-                    required
-                    placeholder="Confirm password"
-                  />
-                </Form.Group>
-              </Col>
-            </Row>
-          )}
-        </Form>
-      </Modal.Body>
-      <Modal.Footer>
-        <Button variant="secondary" onClick={onHide}>
-          Cancel
-        </Button>
-        <Button
-          onClick={handleSubmit}
-          disabled={loading}
-          variant="primary"
-        >
-          {loading ? 'Saving...' : (isEditing ? 'Update' : 'Create')}
-        </Button>
-      </Modal.Footer>
-    </Modal>
+              {/* Password fields - only for new employees */}
+              {!isEditing && (
+                <>
+                  <Field>
+                    <FieldLabel htmlFor="employee-password">Password *</FieldLabel>
+                    <Input
+                      id="employee-password"
+                      type="password"
+                      name="password"
+                      value={formData.password}
+                      onChange={handleChange}
+                      required
+                      placeholder="Enter initial password"
+                    />
+                    <FieldDescription>Minimum 6 characters</FieldDescription>
+                  </Field>
+                  <Field>
+                    <FieldLabel htmlFor="employee-confirm-password">Confirm Password *</FieldLabel>
+                    <Input
+                      id="employee-confirm-password"
+                      type="password"
+                      name="confirmPassword"
+                      value={formData.confirmPassword}
+                      onChange={handleChange}
+                      required
+                      placeholder="Confirm password"
+                    />
+                  </Field>
+                </>
+              )}
+            </div>
+          </FieldGroup>
+
+          <DialogFooter>
+            <Button type="button" variant="outline" onClick={onHide}>
+              Cancel
+            </Button>
+            <Button type="submit" disabled={loading}>
+              {loading && <Spinner />}
+              {loading ? 'Saving...' : (isEditing ? 'Update' : 'Create')}
+            </Button>
+          </DialogFooter>
+        </form>
+      </DialogContent>
+    </Dialog>
   );
 };
 

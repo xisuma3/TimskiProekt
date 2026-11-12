@@ -1,9 +1,11 @@
-import React, { useState, useEffect } from 'react';
-import { Card, Button, Modal } from 'react-bootstrap';
+import { useState, useEffect } from 'react';
+import { IdCard, Pencil, Trash2 } from 'lucide-react';
+import { Button } from '@/components/ui/button';
+import ConfirmDialog from '../components/app/ConfirmDialog';
+import ItemCard, { MetaList } from '../components/app/ItemCard';
 import DataPage from '../components/DataPage';
 import EmployeeDossierModal from '../components/EmployeeDossierModal';
-import RoleBasedContent from '../components/RoleBasedContent';
-import { authenticatedFetch, isAdmin } from '../services/authService';
+import { authenticatedFetch, hasRole, isAdmin } from '../services/authService';
 import { API_URLS } from '../config/api';
 
 const EmployeeDosiersPage = () => {
@@ -44,7 +46,7 @@ const EmployeeDosiersPage = () => {
         API_URLS.EMPLOYEE_DOSSIERS.DELETE(dossierToDelete.dossierID),
         { method: 'DELETE' }
       );
-      
+
       if (response.ok) {
         window.location.reload();
       } else {
@@ -61,53 +63,50 @@ const EmployeeDosiersPage = () => {
 
   const renderDossierCard = (dossier) => {
     const name = isAdmin() ? dossier.employeeName : 'My Dossier';
+    // Admin only - edit and delete buttons. Decided here rather than with
+    // RoleBasedContent so a non-admin's card has no empty action row.
+    const canManage = hasRole('Admin');
     return (
-      <Card className="item-card">
-        <Card.Body>
-          <div className="item-card-head">
-            <span className="item-card-icon" aria-hidden="true"><i className="bi bi-person-vcard" /></span>
-            <div className="flex-grow-1 min-w-0">
-              <Card.Title>{name}</Card.Title>
-              <Card.Subtitle>{dossier.employmentType} Employee</Card.Subtitle>
-            </div>
-          </div>
-
-          <dl className="meta-list">
-            <dt>Birth Date</dt>
-            <dd>{dossier.birthDate ? new Date(dossier.birthDate).toLocaleDateString() : 'Not specified'}</dd>
-            <dt>Address</dt>
-            <dd>{dossier.address || 'Not specified'}</dd>
-            <dt>Emergency Contact</dt>
-            <dd>{dossier.emergencyContact || 'Not specified'}</dd>
-            <dt>Employment Type</dt>
-            <dd>{dossier.employmentType}</dd>
-          </dl>
-
-          {/* Admin only - edit and delete buttons */}
-          <RoleBasedContent allowedRoles={['Admin']}>
-            <div className="item-card-actions">
-              <Button
-                size="sm"
-                variant="outline-primary"
-                className="btn-icon"
-                onClick={() => handleEditClick(dossier)}
-                aria-label={`Edit dossier for ${name}`}
-              >
-                <i className="bi bi-pencil" aria-hidden="true"></i>
-              </Button>
-              <Button
-                size="sm"
-                variant="outline-danger"
-                className="btn-icon"
-                onClick={() => handleDeleteClick(dossier)}
-                aria-label={`Delete dossier for ${name}`}
-              >
-                <i className="bi bi-trash" aria-hidden="true"></i>
-              </Button>
-            </div>
-          </RoleBasedContent>
-        </Card.Body>
-      </Card>
+      <ItemCard
+        icon={IdCard}
+        tone="sky"
+        title={name}
+        subtitle={`${dossier.employmentType} Employee`}
+        actions={canManage ? (
+          <>
+            <Button
+              variant="ghost"
+              size="icon-sm"
+              onClick={() => handleEditClick(dossier)}
+              aria-label={`Edit dossier for ${name}`}
+            >
+              <Pencil aria-hidden="true" />
+            </Button>
+            <Button
+              variant="ghost"
+              size="icon-sm"
+              className="text-destructive hover:bg-destructive/10 hover:text-destructive"
+              onClick={() => handleDeleteClick(dossier)}
+              aria-label={`Delete dossier for ${name}`}
+            >
+              <Trash2 aria-hidden="true" />
+            </Button>
+          </>
+        ) : null}
+      >
+        <MetaList
+          items={[
+            {
+              label: 'Birth Date',
+              value: dossier.birthDate ? new Date(dossier.birthDate).toLocaleDateString() : null,
+              fallback: 'Not specified',
+            },
+            { label: 'Address', value: dossier.address, fallback: 'Not specified' },
+            { label: 'Emergency Contact', value: dossier.emergencyContact, fallback: 'Not specified' },
+            { label: 'Employment Type', value: dossier.employmentType },
+          ]}
+        />
+      </ItemCard>
     );
   };
 
@@ -119,7 +118,7 @@ const EmployeeDosiersPage = () => {
         searchFields={isAdmin() ? ['employeeName', 'employmentType', 'address'] : ['employmentType', 'address']}
         personFilter={{ label: 'Employee', field: 'employeeName' }}
         subtitle={isAdmin() ? 'Personal and employment details for every employee.' : 'Your personal and employment details on file.'}
-        emptyIcon="bi-person-vcard"
+        emptyIcon={IdCard}
         renderCard={renderDossierCard}
         searchPlaceholder={isAdmin() ? "Search employee dossiers..." : "Search my dossier..."}
         showAddButton={isAdmin()}
@@ -134,24 +133,13 @@ const EmployeeDosiersPage = () => {
         employees={employees}
       />
 
-      <Modal show={showDeleteModal} onHide={() => setShowDeleteModal(false)} centered>
-        <Modal.Header closeButton>
-          <Modal.Title>Confirm Delete</Modal.Title>
-        </Modal.Header>
-        <Modal.Body>
-          Are you sure you want to delete the dossier for {dossierToDelete?.employeeName}?
-          <br />
-          <small className="text-muted">This action cannot be undone.</small>
-        </Modal.Body>
-        <Modal.Footer>
-          <Button variant="secondary" onClick={() => setShowDeleteModal(false)}>
-            Cancel
-          </Button>
-          <Button variant="danger" onClick={handleDeleteConfirm}>
-            Delete
-          </Button>
-        </Modal.Footer>
-      </Modal>
+      <ConfirmDialog
+        open={showDeleteModal}
+        onOpenChange={setShowDeleteModal}
+        title="Confirm Delete"
+        description={`Are you sure you want to delete the dossier for ${dossierToDelete?.employeeName}? This action cannot be undone.`}
+        onConfirm={handleDeleteConfirm}
+      />
     </>
   );
 };

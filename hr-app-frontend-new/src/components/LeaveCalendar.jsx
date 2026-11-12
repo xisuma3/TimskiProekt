@@ -1,10 +1,33 @@
-import React, { useMemo, useState } from 'react';
-import { Button, Form, Modal } from 'react-bootstrap';
+import { useMemo, useState } from 'react';
+import { ChevronLeft, ChevronRight } from 'lucide-react';
+import { Button } from '@/components/ui/button';
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+} from '@/components/ui/dialog';
+import { Label } from '@/components/ui/label';
+import { Switch } from '@/components/ui/switch';
+import { cn } from '@/lib/utils';
 
 const DAY = 24 * 60 * 60 * 1000;
 const MAX_LANES = 3; // bars shown per week row before "+N more"
 const WEEKDAYS = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
-const STATUS_CLASS = { Approved: 'is-approved', Pending: 'is-pending', Rejected: 'is-rejected' };
+
+// Bars and legend keys per leave status. The text colour is the bar's accent (its left
+// edge and focus ring use currentColor); the label inside stays text-foreground.
+const STATUS_BAR = {
+  Approved: 'bg-success/20 text-success',
+  Pending: 'bg-warning/20 text-warning',
+  Rejected: 'bg-destructive/15 text-destructive',
+};
+const STATUS_KEY = {
+  Approved: 'border-success bg-success/20',
+  Pending: 'border-warning bg-warning/20',
+  Rejected: 'border-destructive bg-destructive/15',
+};
 
 // Leave dates are calendar days ("2026-12-21T00:00:00"). Work in whole UTC days so a
 // timezone can never move a request onto the wrong date.
@@ -61,6 +84,13 @@ const describe = (r, showNames) =>
   `${showNames ? `${r.employeeName}, ` : ''}${r.leaveType} leave, ${r.status}, ` +
   `${fmtDay(dayNumber(r.startDate))} to ${fmtDay(dayNumber(r.endDate))}`;
 
+const LegendKey = ({ status }) => (
+  <span className="inline-flex items-center gap-1.5 text-xs text-muted-foreground">
+    <span className={cn('size-3 rounded-[3px] border-l-[3px]', STATUS_KEY[status])} aria-hidden="true" />
+    {status}
+  </span>
+);
+
 const LeaveCalendar = ({ requests, renderDetails, showNames = true }) => {
   const [cursor, setCursor] = useState(() => {
     const now = new Date();
@@ -97,37 +127,43 @@ const LeaveCalendar = ({ requests, renderDetails, showNames = true }) => {
   const label = (r) => (showNames ? `${r.employeeName} · ${r.leaveType}` : `${r.leaveType} leave`);
 
   return (
-    <section className="cal" aria-label="Leave calendar">
-      <div className="cal-toolbar">
-        <div className="d-flex align-items-center gap-2">
-          <Button variant="light" className="btn-icon" onClick={() => move(-1)} aria-label="Previous month">
-            <i className="bi bi-chevron-left" aria-hidden="true" />
+    <section
+      className="overflow-hidden rounded-xl bg-card text-card-foreground shadow-xs ring-1 ring-foreground/10"
+      aria-label="Leave calendar"
+    >
+      <div className="flex flex-wrap items-center justify-between gap-3 border-b px-4 py-3.5">
+        <div className="flex items-center gap-2">
+          <Button variant="outline" size="icon-sm" onClick={() => move(-1)} aria-label="Previous month">
+            <ChevronLeft aria-hidden="true" />
           </Button>
-          <Button variant="light" className="btn-icon" onClick={() => move(1)} aria-label="Next month">
-            <i className="bi bi-chevron-right" aria-hidden="true" />
+          <Button variant="outline" size="icon-sm" onClick={() => move(1)} aria-label="Next month">
+            <ChevronRight aria-hidden="true" />
           </Button>
-          <h2 className="cal-title" aria-live="polite">{title}</h2>
-          <Button variant="light" size="sm" onClick={goToday}>Today</Button>
+          <h2 className="mx-1.5 text-base font-semibold sm:min-w-[9.5em] sm:text-lg" aria-live="polite">{title}</h2>
+          <Button variant="outline" size="sm" onClick={goToday}>Today</Button>
         </div>
-        <div className="cal-legend">
-          <span className="text-muted small">{inMonth.length} {inMonth.length === 1 ? 'request' : 'requests'}</span>
-          <span className="cal-key is-approved">Approved</span>
-          <span className="cal-key is-pending">Pending</span>
-          {showRejected && <span className="cal-key is-rejected">Rejected</span>}
-          <Form.Check
-            type="switch"
-            id="cal-show-rejected"
-            label="Show rejected"
-            checked={showRejected}
-            onChange={(e) => setShowRejected(e.target.checked)}
-            className="mb-0 small"
-          />
+        <div className="flex flex-wrap items-center gap-3">
+          <span className="text-sm text-muted-foreground">{inMonth.length} {inMonth.length === 1 ? 'request' : 'requests'}</span>
+          <LegendKey status="Approved" />
+          <LegendKey status="Pending" />
+          {showRejected && <LegendKey status="Rejected" />}
+          <div className="flex items-center gap-2">
+            <Switch id="cal-show-rejected" checked={showRejected} onCheckedChange={setShowRejected} />
+            <Label htmlFor="cal-show-rejected" className="font-normal">Show rejected</Label>
+          </div>
         </div>
       </div>
 
-      <div className="cal-grid">
-        <div className="cal-weekdays" aria-hidden="true">
-          {WEEKDAYS.map((d) => <div key={d} className="cal-weekday">{d}</div>)}
+      <div>
+        <div className="grid grid-cols-7 border-b" aria-hidden="true">
+          {WEEKDAYS.map((d) => (
+            <div
+              key={d}
+              className="px-1 py-1.5 text-center text-xs font-semibold uppercase tracking-wide text-muted-foreground sm:px-2.5 sm:py-2 sm:text-left"
+            >
+              {d}
+            </div>
+          ))}
         </div>
 
         {weeks.map((week) => {
@@ -136,18 +172,34 @@ const LeaveCalendar = ({ requests, renderDetails, showNames = true }) => {
             segments.filter((s) => s.lane >= MAX_LANES && s.from <= day && s.to >= day).length
           );
           return (
-            <div key={week[0]} className="cal-week">
+            <div
+              key={week[0]}
+              // Row 1 holds the dates, then one row per lane (MAX_LANES), then "+N more".
+              className="grid grid-cols-7 grid-rows-[30px_repeat(3,20px)_24px] gap-y-[3px] border-b pb-1.5 last:border-b-0 sm:grid-rows-[30px_repeat(3,26px)_24px]"
+            >
               {week.map((day, i) => {
                 const outside = day < monthStart || day > monthEnd;
                 const weekend = i >= 5;
                 return (
                   <div
                     key={day}
-                    className={`cal-day${outside ? ' is-outside' : ''}${weekend ? ' is-weekend' : ''}${day === today ? ' is-today' : ''}`}
+                    className={cn(
+                      'row-span-full -mb-1.5 p-1 sm:px-2 sm:py-1.5',
+                      i < 6 && 'border-r',
+                      weekend && 'bg-muted/50',
+                    )}
                     style={{ gridColumn: i + 1 }}
                     aria-hidden="true"
                   >
-                    <span className="cal-date">{fromDayNumber(day).getUTCDate()}</span>
+                    <span
+                      className={cn(
+                        'text-xs font-semibold',
+                        outside ? 'text-muted-foreground/50' : 'text-muted-foreground',
+                        day === today && '-mt-[3px] -ml-1 inline-grid h-6 min-w-6 place-items-center rounded-full bg-primary px-1.5 text-primary-foreground',
+                      )}
+                    >
+                      {fromDayNumber(day).getUTCDate()}
+                    </span>
                   </div>
                 );
               })}
@@ -161,13 +213,20 @@ const LeaveCalendar = ({ requests, renderDetails, showNames = true }) => {
                   <button
                     key={`${s.r.requestID}-${week[0]}`}
                     type="button"
-                    className={`cal-event ${STATUS_CLASS[s.r.status] || ''}${continuesBefore ? ' cont-before' : ''}${continuesAfter ? ' cont-after' : ''}`}
+                    className={cn(
+                      'z-[1] flex min-w-0 cursor-pointer items-center rounded-md border-l-[3px] border-current px-1 text-left text-[0.68rem] font-semibold outline-none transition-shadow sm:px-2 sm:text-xs',
+                      'hover:ring-2 hover:ring-current hover:ring-offset-2 hover:ring-offset-card focus-visible:ring-2 focus-visible:ring-current focus-visible:ring-offset-2 focus-visible:ring-offset-card',
+                      STATUS_BAR[s.r.status],
+                      // A bar that carries on into the previous/next week loses its rounded edge on that side.
+                      continuesBefore ? 'ml-0 rounded-l-none border-l-0' : 'ml-0.5 sm:ml-1',
+                      continuesAfter ? 'mr-0 rounded-r-none' : 'mr-0.5 sm:mr-1',
+                    )}
                     style={{ gridColumn: `${col} / span ${span}`, gridRow: s.lane + 2 }}
                     onClick={() => setSelected(s.r)}
                     aria-label={describe(s.r, showNames)}
                     title={describe(s.r, showNames)}
                   >
-                    <span className="cal-event-text">{label(s.r)}</span>
+                    <span className={cn('truncate text-foreground', s.r.status === 'Rejected' && 'line-through')}>{label(s.r)}</span>
                   </button>
                 );
               })}
@@ -176,7 +235,7 @@ const LeaveCalendar = ({ requests, renderDetails, showNames = true }) => {
                 <button
                   key={`more-${week[i]}`}
                   type="button"
-                  className="cal-more"
+                  className="z-[1] mx-1.5 cursor-pointer justify-self-start rounded px-1 text-xs font-semibold text-primary outline-none hover:bg-primary/10 focus-visible:ring-2 focus-visible:ring-ring/50"
                   style={{ gridColumn: i + 1, gridRow: MAX_LANES + 2 }}
                   onClick={() => setDayList({
                     day: week[i],
@@ -193,40 +252,53 @@ const LeaveCalendar = ({ requests, renderDetails, showNames = true }) => {
 
       {/* One request: reuse the page's own card so its actions (approve/reject) work here too.
           Any button inside closes this dialog first, so a follow-up dialog isn't stacked on it. */}
-      <Modal show={Boolean(selected)} onHide={() => setSelected(null)} centered>
-        <Modal.Header closeButton>
-          <Modal.Title>Leave request</Modal.Title>
-        </Modal.Header>
-        <Modal.Body
-          className="cal-detail"
-          onClick={(e) => { if (e.target.closest('button')) setSelected(null); }}
-        >
-          {selected && renderDetails(selected)}
-        </Modal.Body>
-      </Modal>
+      <Dialog open={Boolean(selected)} onOpenChange={(open) => { if (!open) setSelected(null); }}>
+        <DialogContent className="sm:max-w-lg">
+          <DialogHeader>
+            <DialogTitle>Leave request</DialogTitle>
+            <DialogDescription className="sr-only">{selected && describe(selected, showNames)}</DialogDescription>
+          </DialogHeader>
+          {/* The card sits flat inside the dialog: no second border or padding. */}
+          <div
+            className="[&_[data-slot=card-content]]:p-0 [&_[data-slot=card]]:shadow-none! [&_[data-slot=card]]:ring-0"
+            onClick={(e) => { if (e.target.closest('button')) setSelected(null); }}
+          >
+            {selected && renderDetails(selected)}
+          </div>
+        </DialogContent>
+      </Dialog>
 
-      <Modal show={Boolean(dayList)} onHide={() => setDayList(null)} centered>
-        <Modal.Header closeButton>
-          <Modal.Title>
-            {dayList && fmtDay(dayList.day, { weekday: 'long', day: 'numeric', month: 'long' })}
-          </Modal.Title>
-        </Modal.Header>
-        <Modal.Body>
-          <div className="d-flex flex-column gap-2">
+      <Dialog open={Boolean(dayList)} onOpenChange={(open) => { if (!open) setDayList(null); }}>
+        <DialogContent className="sm:max-w-lg">
+          <DialogHeader>
+            <DialogTitle>
+              {dayList && fmtDay(dayList.day, { weekday: 'long', day: 'numeric', month: 'long' })}
+            </DialogTitle>
+            <DialogDescription className="sr-only">
+              {dayList && `${dayList.items.length} ${dayList.items.length === 1 ? 'request' : 'requests'} on this day`}
+            </DialogDescription>
+          </DialogHeader>
+          <div className="flex flex-col gap-2">
             {dayList?.items.map((r) => (
               <button
                 key={r.requestID}
                 type="button"
-                className={`cal-event cal-event-row ${STATUS_CLASS[r.status] || ''}`}
+                className={cn(
+                  'flex min-h-10 w-full cursor-pointer items-center gap-3 rounded-md border-l-[3px] border-current px-3 py-2 text-left text-sm font-semibold outline-none transition-shadow',
+                  'hover:ring-2 hover:ring-current hover:ring-offset-2 hover:ring-offset-popover focus-visible:ring-2 focus-visible:ring-current focus-visible:ring-offset-2 focus-visible:ring-offset-popover',
+                  STATUS_BAR[r.status],
+                )}
                 onClick={() => { setDayList(null); setSelected(r); }}
               >
-                <span className="cal-event-text">{label(r)}</span>
-                <span className="ms-auto small">{fmtDay(dayNumber(r.startDate))} – {fmtDay(dayNumber(r.endDate))}</span>
+                <span className={cn('truncate text-foreground', r.status === 'Rejected' && 'line-through')}>{label(r)}</span>
+                <span className="ml-auto whitespace-nowrap text-xs font-normal text-muted-foreground">
+                  {fmtDay(dayNumber(r.startDate))} – {fmtDay(dayNumber(r.endDate))}
+                </span>
               </button>
             ))}
           </div>
-        </Modal.Body>
-      </Modal>
+        </DialogContent>
+      </Dialog>
     </section>
   );
 };
